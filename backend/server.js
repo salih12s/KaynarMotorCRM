@@ -14,8 +14,9 @@ const PORT = process.env.PORT || 5000;
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
-  // Production domain'leri buraya eklenecek
-];
+  'https://web-production-ac0ed.up.railway.app',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
