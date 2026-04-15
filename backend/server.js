@@ -15,17 +15,26 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
   'https://web-production-ac0ed.up.railway.app',
+  'https://kaynarmotorservis.com',
+  'https://www.kaynarmotorservis.com',
+  'http://kaynarmotorservis.com',
+  'http://www.kaynarmotorservis.com',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
+    // origin olmayan istekler (same-origin, Postman vs.)
     if (!origin) return callback(null, true);
+    // Bilinen origin'ler veya development modunda hepsine izin ver
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS policy violation'));
+      return callback(null, true);
     }
+    // Production'da FRONTEND_URL tanımlı değilse tüm origin'lere izin ver (JWT koruması var)
+    if (process.env.NODE_ENV === 'production' && !process.env.FRONTEND_URL) {
+      return callback(null, true);
+    }
+    callback(new Error('CORS policy violation'));
   },
   credentials: true
 }));
