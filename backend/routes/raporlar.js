@@ -22,7 +22,7 @@ router.get('/gunluk', async (req, res) => {
 
     // 2. El motor satışları (tamamlanan)
     const motorlar = await pool.query(
-      `SELECT * FROM ikinci_el_motorlar WHERE durum = 'tamamlandi' AND eski_kayit IS NOT TRUE AND DATE(tamamlama_tarihi) = $1`,
+      `SELECT * FROM ikinci_el_motorlar WHERE durum = 'tamamlandi' AND tamamlama_tarihi IS NOT NULL AND (eski_kayit IS NOT TRUE OR DATE(tamamlama_tarihi) >= '2026-01-01') AND DATE(tamamlama_tarihi) = $1 ORDER BY tamamlama_tarihi DESC`,
       [hedefTarih]
     );
 
@@ -90,7 +90,7 @@ router.get('/aralik', async (req, res) => {
     );
 
     const motorlar = await pool.query(
-      `SELECT * FROM ikinci_el_motorlar WHERE durum = 'tamamlandi' AND eski_kayit IS NOT TRUE AND DATE(COALESCE(tamamlama_tarihi, created_at)) BETWEEN $1 AND $2 ORDER BY created_at DESC`,
+      `SELECT * FROM ikinci_el_motorlar WHERE durum = 'tamamlandi' AND tamamlama_tarihi IS NOT NULL AND (eski_kayit IS NOT TRUE OR DATE(tamamlama_tarihi) >= '2026-01-01') AND DATE(tamamlama_tarihi) BETWEEN $1 AND $2 ORDER BY tamamlama_tarihi DESC`,
       [baslangic, bitis]
     );
 
@@ -161,7 +161,7 @@ router.get('/genel', async (req, res) => {
     `);
 
     const motorlar = await pool.query(`
-      SELECT COUNT(*) as toplam, COALESCE(SUM(satis_fiyati), 0) as gelir, COALESCE(SUM(kar), 0) as kar FROM ikinci_el_motorlar WHERE durum='tamamlandi' AND eski_kayit IS NOT TRUE
+      SELECT COUNT(*) as toplam, COALESCE(SUM(satis_fiyati), 0) as gelir, COALESCE(SUM(kar), 0) as kar FROM ikinci_el_motorlar WHERE durum='tamamlandi' AND tamamlama_tarihi IS NOT NULL AND (eski_kayit IS NOT TRUE OR DATE(tamamlama_tarihi) >= '2026-01-01')
     `);
 
     const eticaret = await pool.query(`

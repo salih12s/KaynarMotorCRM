@@ -45,6 +45,22 @@ const Kullanicilar = () => {
     try { await authService.setMotorSatisYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
   };
 
+  const handleEticaretYetkisi = async (id, value) => {
+    try { await authService.setEticaretYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
+  };
+
+  const handleServisYetkisi = async (id, value) => {
+    try { await authService.setServisYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
+  };
+
+  const handleAksesuarStokYetkisi = async (id, value) => {
+    try { await authService.setAksesuarStokYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
+  };
+
+  const handleYedekParcaYetkisi = async (id, value) => {
+    try { await authService.setYedekParcaYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
+  };
+
   const durumRenk = (durum) => {
     if (durum === 'onaylandi') return 'success';
     if (durum === 'reddedildi') return 'error';
@@ -68,9 +84,13 @@ const Kullanicilar = () => {
                 </Box>
               </Box>
               <Typography variant="body2" color="text.secondary">{user.kullanici_adi} • {user.plain_sifre || '***'}</Typography>
-              <Box sx={{ display: 'flex', gap: 2, mt: 0.5, alignItems: 'center' }}>
-                <Typography variant="body2">Aksesuar: <Switch checked={user.aksesuar_yetkisi || false} onChange={(e) => handleAksesuarYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5, alignItems: 'center' }}>
+                <Typography variant="body2">Servis: <Switch checked={user.servis_yetkisi || false} onChange={(e) => handleServisYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
                 <Typography variant="body2">Motor: <Switch checked={user.motor_satis_yetkisi || false} onChange={(e) => handleMotorYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
+                <Typography variant="body2">Aksesuar: <Switch checked={user.aksesuar_yetkisi || false} onChange={(e) => handleAksesuarYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
+                <Typography variant="body2">Aks.Stok: <Switch checked={user.aksesuar_stok_yetkisi || false} onChange={(e) => handleAksesuarStokYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
+                <Typography variant="body2">E-Ticaret: <Switch checked={user.eticaret_yetkisi || false} onChange={(e) => handleEticaretYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
+                <Typography variant="body2">Y.Parça: <Switch checked={user.yedek_parca_yetkisi || false} onChange={(e) => handleYedekParcaYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
                 {user.onay_durumu === 'beklemede' && (
@@ -91,8 +111,8 @@ const Kullanicilar = () => {
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
-              {['Ad Soyad', 'Kullanıcı Adı', 'Şifre', 'Rol', 'Durum', 'Aksesuar Yetkisi', 'Motor Yetkisi', 'İşlemler'].map(h => (
-                <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
+              {['Ad Soyad', 'Kullanıcı Adı', 'Şifre', 'Rol', 'Durum', 'Servis', 'Motor', 'Aksesuar', 'Aks.Stok', 'E-Ticaret', 'Y.Parça', 'İşlemler'].map(h => (
+                <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', px: 1 }}>{h}</TableCell>
               ))}
             </TableRow>
           </TableHead>
@@ -105,13 +125,33 @@ const Kullanicilar = () => {
                 <TableCell><Chip label={user.rol} size="small" color={user.rol === 'admin' ? 'primary' : 'default'} /></TableCell>
                 <TableCell><Chip label={user.onay_durumu} size="small" color={durumRenk(user.onay_durumu)} /></TableCell>
                 <TableCell>
-                  <Switch checked={user.aksesuar_yetkisi || false}
-                    onChange={(e) => handleAksesuarYetkisi(user.id, e.target.checked)}
+                  <Switch checked={user.servis_yetkisi || false}
+                    onChange={(e) => handleServisYetkisi(user.id, e.target.checked)}
                     disabled={user.rol === 'admin'} size="small" />
                 </TableCell>
                 <TableCell>
                   <Switch checked={user.motor_satis_yetkisi || false}
                     onChange={(e) => handleMotorYetkisi(user.id, e.target.checked)}
+                    disabled={user.rol === 'admin'} size="small" />
+                </TableCell>
+                <TableCell>
+                  <Switch checked={user.aksesuar_yetkisi || false}
+                    onChange={(e) => handleAksesuarYetkisi(user.id, e.target.checked)}
+                    disabled={user.rol === 'admin'} size="small" />
+                </TableCell>
+                <TableCell>
+                  <Switch checked={user.aksesuar_stok_yetkisi || false}
+                    onChange={(e) => handleAksesuarStokYetkisi(user.id, e.target.checked)}
+                    disabled={user.rol === 'admin'} size="small" />
+                </TableCell>
+                <TableCell>
+                  <Switch checked={user.eticaret_yetkisi || false}
+                    onChange={(e) => handleEticaretYetkisi(user.id, e.target.checked)}
+                    disabled={user.rol === 'admin'} size="small" />
+                </TableCell>
+                <TableCell>
+                  <Switch checked={user.yedek_parca_yetkisi || false}
+                    onChange={(e) => handleYedekParcaYetkisi(user.id, e.target.checked)}
                     disabled={user.rol === 'admin'} size="small" />
                 </TableCell>
                 <TableCell>

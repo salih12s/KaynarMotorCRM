@@ -16,6 +16,10 @@ const initializeDatabase = async () => {
         onay_durumu VARCHAR(20) DEFAULT 'beklemede',
         aksesuar_yetkisi BOOLEAN DEFAULT FALSE,
         motor_satis_yetkisi BOOLEAN DEFAULT FALSE,
+        eticaret_yetkisi BOOLEAN DEFAULT FALSE,
+        servis_yetkisi BOOLEAN DEFAULT FALSE,
+        aksesuar_stok_yetkisi BOOLEAN DEFAULT FALSE,
+        yedek_parca_yetkisi BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

@@ -52,13 +52,49 @@ const MotorSatisRoute = ({ children }) => {
   return children;
 };
 
+const EticaretRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (user.rol !== 'admin' && !user.eticaret_yetkisi) return <Navigate to="/" />;
+  return children;
+};
+
+const ServisRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (user.rol !== 'admin' && !user.servis_yetkisi) return <Navigate to="/" />;
+  return children;
+};
+
+const AksesuarStokRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (user.rol !== 'admin' && !user.aksesuar_stok_yetkisi) return <Navigate to="/" />;
+  return children;
+};
+
+const YedekParcaRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (user.rol !== 'admin' && !user.yedek_parca_yetkisi) return <Navigate to="/" />;
+  return children;
+};
+
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (user) {
     if (user.rol === 'admin') return <Navigate to="/" />;
-    if (user.aksesuar_yetkisi && !user.motor_satis_yetkisi) return <Navigate to="/aksesuarlar" />;
-    if (user.motor_satis_yetkisi && !user.aksesuar_yetkisi) return <Navigate to="/ikinci-el-motor" />;
+    if (user.servis_yetkisi) return <Navigate to="/" />;
+    if (user.aksesuar_yetkisi) return <Navigate to="/aksesuarlar" />;
+    if (user.motor_satis_yetkisi) return <Navigate to="/ikinci-el-motor" />;
+    if (user.eticaret_yetkisi) return <Navigate to="/eticaret" />;
+    if (user.aksesuar_stok_yetkisi) return <Navigate to="/aksesuar-stok" />;
+    if (user.yedek_parca_yetkisi) return <Navigate to="/yedek-parcalar" />;
     return <Navigate to="/" />;
   }
   return children;
@@ -68,12 +104,12 @@ const NormalRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" />;
-  if (user.rol !== 'admin') {
-    const hasAksesuar = user.aksesuar_yetkisi;
-    const hasMotor = user.motor_satis_yetkisi;
-    if (hasAksesuar && !hasMotor) return <Navigate to="/aksesuarlar" />;
-    if (hasMotor && !hasAksesuar) return <Navigate to="/ikinci-el-motor" />;
-    if (hasAksesuar && hasMotor) return <Navigate to="/aksesuarlar" />;
+  if (user.rol !== 'admin' && !user.servis_yetkisi) {
+    if (user.aksesuar_yetkisi) return <Navigate to="/aksesuarlar" />;
+    if (user.motor_satis_yetkisi) return <Navigate to="/ikinci-el-motor" />;
+    if (user.eticaret_yetkisi) return <Navigate to="/eticaret" />;
+    if (user.aksesuar_stok_yetkisi) return <Navigate to="/aksesuar-stok" />;
+    if (user.yedek_parca_yetkisi) return <Navigate to="/yedek-parcalar" />;
   }
   return children;
 };
@@ -89,17 +125,17 @@ const ThemedApp = () => {
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="/" element={<IsEmirleri />} />
-              <Route path="/is-emri/yeni" element={<IsEmriForm />} />
-              <Route path="/is-emri/:id" element={<IsEmriDetay />} />
-              <Route path="/is-emri/:id/duzenle" element={<IsEmriForm />} />
-              <Route path="/aksesuarlar" element={<Aksesuarlar />} />
-              <Route path="/aksesuar-stok" element={<AksesuarStok />} />
-              <Route path="/ikinci-el-motor" element={<IkinciElMotor />} />
-              <Route path="/motor-stok" element={<MotorStok />} />
-              <Route path="/motor/:id" element={<MotorDetay />} />
-              <Route path="/eticaret" element={<ETicaret />} />
-              <Route path="/yedek-parcalar" element={<YedekParcalar />} />
+              <Route path="/" element={<ServisRoute><IsEmirleri /></ServisRoute>} />
+              <Route path="/is-emri/yeni" element={<ServisRoute><IsEmriForm /></ServisRoute>} />
+              <Route path="/is-emri/:id" element={<ServisRoute><IsEmriDetay /></ServisRoute>} />
+              <Route path="/is-emri/:id/duzenle" element={<ServisRoute><IsEmriForm /></ServisRoute>} />
+              <Route path="/aksesuarlar" element={<AksesuarRoute><Aksesuarlar /></AksesuarRoute>} />
+              <Route path="/aksesuar-stok" element={<AksesuarStokRoute><AksesuarStok /></AksesuarStokRoute>} />
+              <Route path="/ikinci-el-motor" element={<MotorSatisRoute><IkinciElMotor /></MotorSatisRoute>} />
+              <Route path="/motor-stok" element={<MotorSatisRoute><MotorStok /></MotorSatisRoute>} />
+              <Route path="/motor/:id" element={<MotorSatisRoute><MotorDetay /></MotorSatisRoute>} />
+              <Route path="/eticaret" element={<EticaretRoute><ETicaret /></EticaretRoute>} />
+              <Route path="/yedek-parcalar" element={<YedekParcaRoute><YedekParcalar /></YedekParcaRoute>} />
               <Route path="/raporlar" element={<AdminRoute><Raporlar /></AdminRoute>} />
               <Route path="/kullanicilar" element={<AdminRoute><Kullanicilar /></AdminRoute>} />
             </Route>

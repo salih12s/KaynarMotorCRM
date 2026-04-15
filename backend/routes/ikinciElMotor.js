@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
     if (bitis) { params.push(bitis); query += ` AND tarih <= $${params.length}`; }
     if (durum) { params.push(durum); query += ` AND durum = $${params.length}`; }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY COALESCE(tamamlama_tarihi, created_at) DESC';
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {

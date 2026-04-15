@@ -37,6 +37,10 @@ export const authService = {
   deleteUser: (id) => api.delete(`/auth/users/${id}`),
   setAksesuarYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/aksesuar-yetkisi`, { aksesuar_yetkisi: yetkisi }),
   setMotorSatisYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/motor-satis-yetkisi`, { motor_satis_yetkisi: yetkisi }),
+  setEticaretYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/eticaret-yetkisi`, { eticaret_yetkisi: yetkisi }),
+  setServisYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/servis-yetkisi`, { servis_yetkisi: yetkisi }),
+  setAksesuarStokYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/aksesuar-stok-yetkisi`, { aksesuar_stok_yetkisi: yetkisi }),
+  setYedekParcaYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/yedek-parca-yetkisi`, { yedek_parca_yetkisi: yetkisi }),
   getActivityLogs: () => api.get('/auth/activity-logs'),
   getUserActivityLogs: (id) => api.get(`/auth/users/${id}/activity-logs`),
 };
