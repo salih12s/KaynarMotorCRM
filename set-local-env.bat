@@ -21,7 +21,7 @@ echo # DB_USER=postgres
 echo # DB_PASSWORD=HpehMQWTQOiFrQGxjlQzJbZtaTtuamRn
 echo.
 echo # JWT Configuration
-echo JWT_SECRET=kaynar_motor_secret_key_2026
+echo JWT_SECRET=9f3c8a1e7b4d2f6a9c8e1b3d5f7a2c4e6d8b1f3a5c7e9d2b4a6f8c1e3d5b7a9c
 echo.
 echo # Server Configuration
 echo PORT=5000
