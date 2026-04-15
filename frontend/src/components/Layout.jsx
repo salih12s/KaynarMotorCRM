@@ -96,8 +96,8 @@ const Layout = () => {
     },
     { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: true, color: '#C62828' },
     { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: true, color: '#C62828' },
-    { title: 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: true, color: '#C62828' },
-    { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: true, color: '#C62828' },
+    { title: 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin, color: '#C62828' },
+    { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: isAdmin, color: '#C62828' },
   ];
 
   const isActive = (path) => pathname === path;
@@ -197,16 +197,16 @@ const Layout = () => {
         </Drawer>
       )}
 
-      <Box component="main" sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+      <Box component="main" sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: '#f5f5f5', width: isMobile ? '100%' : `calc(100% - ${DRAWER_WIDTH}px)` }}>
         {/* Page Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', px: 3, pt: 2, pb: 1, bgcolor: 'white', borderBottom: '1px solid #eee' }}>
-          <Box>
-            <Typography variant="h5" fontWeight="bold">{getPageTitle()}</Typography>
-            <Typography variant="body2" color="text.secondary">{dateStr}</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: { xs: 1.5, md: 3 }, pl: { xs: 6, md: 3 }, pt: { xs: 1, md: 2 }, pb: 1, bgcolor: 'white', borderBottom: '1px solid #eee', flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant={isMobile ? 'subtitle1' : 'h5'} fontWeight="bold" noWrap>{getPageTitle()}</Typography>
+            {!isMobile && <Typography variant="body2" color="text.secondary">{dateStr}</Typography>}
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pt: 0.5 }}>
-            <Typography variant="body2" fontWeight="500">{user?.ad_soyad}</Typography>
-            <Avatar sx={{ width: 36, height: 36, bgcolor: theme.palette.primary.main, fontSize: 15 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {!isMobile && <Typography variant="body2" fontWeight="500">{user?.ad_soyad}</Typography>}
+            <Avatar sx={{ width: { xs: 30, md: 36 }, height: { xs: 30, md: 36 }, bgcolor: theme.palette.primary.main, fontSize: { xs: 13, md: 15 } }}>
               {user?.ad_soyad?.charAt(0) || 'U'}
             </Avatar>
             <IconButton onClick={handleLogout} size="small" sx={{ color: '#c62828' }} title="Çıkış Yap">
@@ -215,7 +215,7 @@ const Layout = () => {
           </Box>
         </Box>
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
           <Outlet />
         </Box>
       </Box>

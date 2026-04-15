@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert,
-  Grid, MenuItem, Tabs, Tab, Chip, Divider
+  Grid, MenuItem, Tabs, Tab, Chip, Divider, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Close as CloseIcon } from '@mui/icons-material';
 import { eticaretService, aksesuarStokService } from '../services/api';
@@ -119,6 +119,7 @@ const hesaplaKomisyon = (satisFiyati, alisFiyati, komisyonOrani, kdvOrani, kargo
 
 const ETicaret = () => {
   const { user } = useAuth();
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const isAdmin = user?.rol === 'admin';
   const [tab, setTab] = useState(0);
   const [satislar, setSatislar] = useState([]);
@@ -265,13 +266,13 @@ const ETicaret = () => {
         {tab === 1 && isAdmin && <Button variant="contained" size="large" startIcon={<AddIcon />} onClick={() => openPlatformDialog()} sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' } }}>Yeni Platform</Button>}
       </Box>
 
-      <Paper sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+      <Paper sx={{ mb: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ flexGrow: 1 }}>
           <Tab label="Satışlar" />
           <Tab label="Platformlar" />
         </Tabs>
         {tab === 0 && (
-          <TextField select size="small" value={platformFiltre} onChange={e => setPlatformFiltre(e.target.value)} sx={{ minWidth: 160, mr: 2 }} label="Platform Filtre">
+          <TextField select size="small" value={platformFiltre} onChange={e => setPlatformFiltre(e.target.value)} sx={{ minWidth: { xs: '100%', sm: 160 }, mr: { xs: 0, sm: 2 }, mb: { xs: 1, sm: 0 }, mx: { xs: 1, sm: 0 } }} label="Platform Filtre">
             <MenuItem value="">Tümü</MenuItem>
             {platformlar.map(p => <MenuItem key={p.id} value={p.id}>{p.platform_adi}</MenuItem>)}
           </TextField>
@@ -281,8 +282,30 @@ const ETicaret = () => {
       {/* Satışlar Tab */}
       {tab === 0 && (() => {
         const filtered = platformFiltre ? satislar.filter(s => s.platform_id === Number(platformFiltre)) : satislar;
-        return (
-        <TableContainer component={Paper}>
+        return isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {filtered.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
+          {filtered.map(s => (
+            <Paper key={s.id} sx={{ p: 1.5 }} onClick={() => setDetayDialog({ open: true, data: s })}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                <Typography variant="subtitle2" fontWeight="bold">{s.urun_adi}</Typography>
+                <Chip label={s.platform_adi || '-'} size="small" sx={{ bgcolor: '#ffebee', color: '#C62828', fontWeight: 'bold', fontSize: '0.7rem' }} />
+              </Box>
+              <Typography variant="body2" color="text.secondary">Adet: {s.adet} • {s.tarih ? new Date(s.tarih).toLocaleDateString('tr-TR') : '-'}</Typography>
+              <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                <Typography variant="body2">Alış: <strong>{formatTL(s.alis_fiyati)} ₺</strong></Typography>
+                <Typography variant="body2">Satış: <strong>{formatTL(s.satis_fiyati)} ₺</strong></Typography>
+                <Typography variant="body2" sx={{ color: parseFloat(s.kar || 0) >= 0 ? 'green' : 'red' }}>Kâr: <strong>{formatTL(s.kar)} ₺</strong></Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
+                <IconButton size="small" color="info" onClick={() => openSatisDialog(s)}><EditIcon /></IconButton>
+                <IconButton size="small" color="error" onClick={() => handleSatisDelete(s.id)}><DeleteIcon /></IconButton>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
+        ) : (
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: '#C62828' }}>
@@ -319,8 +342,28 @@ const ETicaret = () => {
       })()}
 
       {/* Platformlar Tab */}
-      {tab === 1 && (
-        <TableContainer component={Paper}>
+      {tab === 1 && (isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {platformlar.length === 0 && <Alert severity="info">Platform yok</Alert>}
+          {platformlar.map(p => (
+            <Paper key={p.id} sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 0.5 }}>{p.platform_adi}</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Typography variant="body2">Komisyon: <strong>%{parseFloat(p.komisyon_orani || 0).toFixed(2)}</strong></Typography>
+                <Typography variant="body2">KDV: <strong>%{parseFloat(p.kdv_orani || 20).toFixed(2)}</strong></Typography>
+                <Typography variant="body2">Kargo: <strong>{formatTL(p.kargo_ucreti)} ₺</strong></Typography>
+              </Box>
+              {isAdmin && (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                  <IconButton size="small" color="info" onClick={() => openPlatformDialog(p)}><EditIcon /></IconButton>
+                  <IconButton size="small" color="error" onClick={() => handlePlatformDelete(p.id)}><DeleteIcon /></IconButton>
+                </Box>
+              )}
+            </Paper>
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#C62828' }}>
@@ -348,10 +391,10 @@ const ETicaret = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      )}
+      ))}
 
       {/* Satış Dialog */}
-      <Dialog open={satisDialog.open} onClose={() => setSatisDialog({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={satisDialog.open} onClose={() => setSatisDialog({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>{satisDialog.data ? 'Satış Düzenle' : 'Yeni E-Ticaret Satışı'}</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -493,7 +536,7 @@ const ETicaret = () => {
       </Dialog>
 
       {/* Platform Dialog */}
-      <Dialog open={platformDialog.open} onClose={() => setPlatformDialog({ open: false, data: null })} maxWidth="xs" fullWidth>
+      <Dialog open={platformDialog.open} onClose={() => setPlatformDialog({ open: false, data: null })} maxWidth="xs" fullWidth fullScreen={isMobile}>
         <DialogTitle>{platformDialog.data ? 'Platform Düzenle' : 'Yeni Platform'}</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -521,7 +564,7 @@ const ETicaret = () => {
       </Dialog>
 
       {/* Detay Dialog */}
-      <Dialog open={detayDialog.open} onClose={() => setDetayDialog({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={detayDialog.open} onClose={() => setDetayDialog({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         {detayDialog.data && (() => {
           const s = detayDialog.data;
           const detayPlatformTipi = detectPlatform(s.platform_adi);

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment
+  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon } from '@mui/icons-material';
 import { aksesuarStokService } from '../services/api';
 
 const AksesuarStok = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [stoklar, setStoklar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
   const [importDialog, setImportDialog] = useState(false);
@@ -98,7 +99,30 @@ const AksesuarStok = () => {
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
       </Paper>
 
-      <TableContainer component={Paper}>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {stoklar.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
+          {stoklar.map(s => (
+            <Paper key={s.id} sx={{ p: 1.5, bgcolor: (s.mevcut || 0) <= 0 ? '#ffebee' : '#fff' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                <Typography variant="subtitle2" fontWeight="bold">{s.stok_adi}</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: (s.mevcut || 0) <= 0 ? 'red' : 'green' }}>Mevcut: {s.mevcut || 0}</Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary">{s.stok_kodu || '-'} • {s.marka || '-'} • {s.platform || '-'}</Typography>
+              <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                <Typography variant="body2">Alış: <strong>{parseFloat(s.alis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
+                <Typography variant="body2">Satış: <strong>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
+                <Typography variant="body2">Giren: {s.giren_miktar || 0}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                <IconButton size="small" color="info" onClick={() => openDialog(s)}><EditIcon /></IconButton>
+                <IconButton size="small" color="error" onClick={() => handleDelete(s.id)}><DeleteIcon /></IconButton>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
+      ) : (
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
@@ -128,20 +152,21 @@ const AksesuarStok = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
       {/* Stok Ekle/Düzenle Dialog */}
-      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="sm" fullWidth>
+      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{dialog.data ? 'Stok Düzenle' : 'Yeni Stok'}</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid size={{ xs: 4 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField fullWidth label="Stok Kodu" value={formData.stok_kodu} onChange={e => setFormData({ ...formData, stok_kodu: e.target.value })} />
             </Grid>
-            <Grid size={{ xs: 4 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField fullWidth label="Stok Adı" value={formData.stok_adi} onChange={e => setFormData({ ...formData, stok_adi: e.target.value })} required />
             </Grid>
-            <Grid size={{ xs: 4 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField fullWidth label="Marka" value={formData.marka} onChange={e => setFormData({ ...formData, marka: e.target.value })} />
             </Grid>
             <Grid size={{ xs: 6 }}>
@@ -165,7 +190,7 @@ const AksesuarStok = () => {
       </Dialog>
 
       {/* Toplu İçe Aktarma */}
-      <Dialog open={importDialog} onClose={() => setImportDialog(false)} maxWidth="md" fullWidth>
+      <Dialog open={importDialog} onClose={() => setImportDialog(false)} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>Toplu Stok İçe Aktar</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Her satıra bir ürün girin (Tab ile ayırın): Stok Kodu, Stok Adı, Alış Fiyatı, Satış Fiyatı, Miktar</Typography>

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Paper, Typography, TextField, Button, Grid, MenuItem, IconButton, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Alert, Autocomplete
+  TableCell, TableContainer, TableHead, TableRow, Alert, Autocomplete, useMediaQuery, useTheme
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { isEmriService, musteriService } from '../services/api';
 
 const IsEmriForm = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
@@ -177,6 +178,26 @@ const IsEmriForm = () => {
             <Button startIcon={<AddIcon />} onClick={addParca} variant="outlined" size="small">Parça Ekle</Button>
           </Box>
           {parcalar.length > 0 && (
+            isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {parcalar.map((p, i) => (
+                <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">Parça #{i + 1}</Typography>
+                    <IconButton size="small" color="error" onClick={() => removeParca(i)}><DeleteIcon /></IconButton>
+                  </Box>
+                  <Grid container spacing={1}>
+                    <Grid size={6}><TextField fullWidth size="small" label="Parça Kodu" value={p.parca_kodu || ''} onChange={e => updateParca(i, 'parca_kodu', e.target.value)} /></Grid>
+                    <Grid size={6}><TextField fullWidth size="small" label="Takılan Parça" value={p.takilan_parca || ''} onChange={e => updateParca(i, 'takilan_parca', e.target.value)} /></Grid>
+                    <Grid size={4}><TextField fullWidth size="small" type="number" label="Adet" value={p.adet} onChange={e => updateParca(i, 'adet', e.target.value)} /></Grid>
+                    <Grid size={4}><TextField fullWidth size="small" type="number" label="Birim Fiyat" value={p.birim_fiyat} onChange={e => updateParca(i, 'birim_fiyat', e.target.value)} /></Grid>
+                    <Grid size={4}><TextField fullWidth size="small" type="number" label="Maliyet" value={p.maliyet} onChange={e => updateParca(i, 'maliyet', e.target.value)} /></Grid>
+                  </Grid>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>Toplam: {((Number(p.adet) || 0) * (Number(p.birim_fiyat) || 0)).toLocaleString('tr-TR')} ₺</Typography>
+                </Paper>
+              ))}
+            </Box>
+            ) : (
             <TableContainer>
               <Table size="small">
                 <TableHead>
@@ -201,8 +222,9 @@ const IsEmriForm = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           )}
-          <Box sx={{ mt: 2, display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+          <Box sx={{ mt: 2, display: 'flex', gap: 4, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <Typography>Toplam: <strong>{toplamFiyat.toLocaleString('tr-TR')} ₺</strong></Typography>
             <Typography>Maliyet: <strong>{toplamMaliyet.toLocaleString('tr-TR')} ₺</strong></Typography>
             <Typography sx={{ color: kar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{kar.toLocaleString('tr-TR')} ₺</strong></Typography>

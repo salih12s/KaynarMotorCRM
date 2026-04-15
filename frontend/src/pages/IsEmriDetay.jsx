@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Grid, Chip, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, IconButton, Button, Divider
+  TableHead, TableRow, IconButton, Button, Divider, useMediaQuery, useTheme
 } from '@mui/material';
 import { ArrowBack as BackIcon, Print as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
 import { isEmriService } from '../services/api';
 
 const IsEmriDetay = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const { id } = useParams();
   const navigate = useNavigate();
   const printRef = useRef();
@@ -51,11 +52,11 @@ const IsEmriDetay = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <IconButton onClick={() => navigate('/')}><BackIcon /></IconButton>
         <Typography variant="h5" fontWeight="bold" sx={{ flexGrow: 1 }}>İş Emri #{data.fis_no}</Typography>
-        <Button startIcon={<EditIcon />} variant="outlined" onClick={() => navigate(`/is-emri/${id}/duzenle`)}>Düzenle</Button>
-        <Button startIcon={<PrintIcon />} variant="contained" onClick={handlePrint}>Yazdır</Button>
+        <Button startIcon={<EditIcon />} variant="outlined" size={isMobile ? 'small' : 'medium'} onClick={() => navigate(`/is-emri/${id}/duzenle`)}>Düzenle</Button>
+        <Button startIcon={<PrintIcon />} variant="contained" size={isMobile ? 'small' : 'medium'} onClick={handlePrint}>Yazdır</Button>
       </Box>
 
       <Box ref={printRef} sx={{ p: 1 }}>
@@ -130,6 +131,17 @@ const IsEmriDetay = () => {
           <Divider sx={{ mb: 1 }} />
           {parcalar.length > 0 ? (
             <>
+              {isMobile ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {parcalar.map((p, i) => (
+                  <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                    <Typography variant="body2" fontWeight="bold">{p.takilan_parca}</Typography>
+                    <Typography variant="caption" color="text.secondary">{p.parca_kodu ? `Kod: ${p.parca_kodu} • ` : ''}Adet: {p.adet} • Birim: ₺{parseFloat(p.birim_fiyat || 0).toLocaleString('tr-TR')}</Typography>
+                    <Typography variant="caption" sx={{ display: 'block' }}>Maliyet: ₺{parseFloat(p.maliyet || 0).toLocaleString('tr-TR')} • <strong>Toplam: ₺{parseFloat(p.toplam_fiyat || 0).toLocaleString('tr-TR')}</strong></Typography>
+                  </Paper>
+                ))}
+              </Box>
+              ) : (
               <TableContainer>
                 <Table size="small">
                   <TableHead>
@@ -153,7 +165,8 @@ const IsEmriDetay = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Box sx={{ mt: 2, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
+              )}
+              <Box sx={{ mt: 2, display: 'flex', gap: 3, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                 <Paper sx={{ px: 2, py: 1, bgcolor: '#ffebee' }}>
                   <Typography variant="body2">Toplam: <strong>₺{toplamFiyat.toLocaleString('tr-TR')}</strong></Typography>
                 </Paper>

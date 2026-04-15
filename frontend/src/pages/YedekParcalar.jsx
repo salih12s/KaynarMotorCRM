@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment
+  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
 import { yedekParcaService } from '../services/api';
 
 const YedekParcalar = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [parcalar, setParcalar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
   const [formData, setFormData] = useState({ urun_adi: '', alis_fiyati: '', satis_fiyati: '' });
@@ -64,7 +65,31 @@ const YedekParcalar = () => {
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
       </Paper>
 
-      <TableContainer component={Paper}>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {filtered.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
+          {filtered.map(p => {
+            const pKar = parseFloat(p.satis_fiyati || 0) - parseFloat(p.alis_fiyati || 0);
+            return (
+              <Paper key={p.id} sx={{ p: 1.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight="bold">{p.urun_adi}</Typography>
+                  <Box>
+                    <IconButton size="small" color="info" onClick={() => openDialog(p)}><EditIcon /></IconButton>
+                    <IconButton size="small" color="error" onClick={() => handleDelete(p.id)}><DeleteIcon /></IconButton>
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Typography variant="body2">Alış: <strong>{parseFloat(p.alis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
+                  <Typography variant="body2">Satış: <strong>{parseFloat(p.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
+                  <Typography variant="body2" sx={{ color: pKar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{pKar.toLocaleString('tr-TR')} ₺</strong></Typography>
+                </Box>
+              </Paper>
+            );
+          })}
+        </Box>
+      ) : (
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
@@ -93,8 +118,9 @@ const YedekParcalar = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
-      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="sm" fullWidth>
+      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{dialog.data ? 'Parça Düzenle' : 'Yeni Yedek Parça'}</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

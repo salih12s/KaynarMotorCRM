@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box, Paper, Typography, Grid, Chip, IconButton, Button, Divider
+  Box, Paper, Typography, Grid, Chip, IconButton, Button, Divider, useMediaQuery, useTheme
 } from '@mui/material';
 import { ArrowBack as BackIcon, Print as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
 import { ikinciElMotorService } from '../services/api';
 
 const MotorDetay = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const { id } = useParams();
   const navigate = useNavigate();
   const printRef = useRef();
@@ -48,10 +49,10 @@ const MotorDetay = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <IconButton onClick={() => navigate('/ikinci-el-motor')}><BackIcon /></IconButton>
         <Typography variant="h5" fontWeight="bold" sx={{ flexGrow: 1 }}>Motor Satış Detay</Typography>
-        <Button startIcon={<PrintIcon />} variant="contained" onClick={handlePrint} sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' } }}>Yazdır</Button>
+        <Button startIcon={<PrintIcon />} variant="contained" size={isMobile ? 'small' : 'medium'} onClick={handlePrint} sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' } }}>Yazdır</Button>
       </Box>
 
       <Box ref={printRef} sx={{ p: 1 }}>

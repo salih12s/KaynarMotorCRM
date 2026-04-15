@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert,
-  InputAdornment, Grid
+  InputAdornment, Grid, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
 import { musteriService } from '../services/api';
 
 const Musteriler = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [musteriler, setMusteriler] = useState([]);
   const [search, setSearch] = useState('');
   const [dialog, setDialog] = useState({ open: false, data: null });
@@ -66,7 +67,25 @@ const Musteriler = () => {
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
       </Paper>
 
-      <TableContainer component={Paper}>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {musteriler.length === 0 && <Alert severity="info">Kayıt bulunamadı</Alert>}
+          {musteriler.map(m => (
+            <Paper key={m.id} sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle2" fontWeight="bold">{m.ad_soyad}</Typography>
+                <Box>
+                  <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
+                  <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon /></IconButton>
+                </Box>
+              </Box>
+              <Typography variant="body2" color="text.secondary">{m.telefon || '-'}</Typography>
+              {m.adres && <Typography variant="body2" color="text.secondary">{m.adres}</Typography>}
+            </Paper>
+          ))}
+        </Box>
+      ) : (
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
@@ -93,8 +112,9 @@ const Musteriler = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
-      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="sm" fullWidth>
+      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{dialog.data ? 'Müşteri Düzenle' : 'Yeni Müşteri'}</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
