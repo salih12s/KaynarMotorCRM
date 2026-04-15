@@ -57,7 +57,11 @@ const Layout = () => {
   const isAdmin = user?.rol === 'admin';
   const hasAksesuar = user?.aksesuar_yetkisi;
   const hasMotor = user?.motor_satis_yetkisi;
-  const isNormalPersonel = !isAdmin && !hasAksesuar && !hasMotor;
+  const hasEticaret = user?.eticaret_yetkisi;
+  const hasServis = user?.servis_yetkisi;
+  const hasAksesuarStok = user?.aksesuar_stok_yetkisi;
+  const hasYedekParca = user?.yedek_parca_yetkisi;
+  const isNormalPersonel = !isAdmin && !hasAksesuar && !hasMotor && !hasEticaret && !hasServis && !hasAksesuarStok && !hasYedekParca;
 
   const getPageTitle = () => {
     if (pathname === '/') return 'Servis';
@@ -80,22 +84,22 @@ const Layout = () => {
 
   const menuItems = [
     {
-      title: 'Motorsiklet', icon: <MotorIcon />, color: '#C62828', show: true, key: 'motor',
+      title: 'Motorsiklet', icon: <MotorIcon />, color: '#C62828', show: isAdmin || hasMotor, key: 'motor',
       subItems: [
         { title: 'Motor Satış', path: '/ikinci-el-motor', icon: <SellIcon /> },
         { title: 'Motor Stok', path: '/motor-stok', icon: <StokIcon /> },
       ]
     },
-    { title: 'Servis', path: '/', icon: <BuildIcon />, show: true, color: '#C62828' },
+    { title: 'Servis', path: '/', icon: <BuildIcon />, show: isAdmin || hasServis, color: '#C62828' },
     {
-      title: 'Aksesuarlar', icon: <ShopIcon />, color: '#C62828', show: true,
+      title: 'Aksesuarlar', icon: <ShopIcon />, color: '#C62828', show: isAdmin || hasAksesuar || hasAksesuarStok,
       subItems: [
-        { title: 'Aksesuar Satış', path: '/aksesuarlar', icon: <SellIcon /> },
-        { title: 'Aksesuar Stok', path: '/aksesuar-stok', icon: <StokIcon /> },
+        ...(isAdmin || hasAksesuar ? [{ title: 'Aksesuar Satış', path: '/aksesuarlar', icon: <SellIcon /> }] : []),
+        ...(isAdmin || hasAksesuarStok ? [{ title: 'Aksesuar Stok', path: '/aksesuar-stok', icon: <StokIcon /> }] : []),
       ]
     },
-    { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: true, color: '#C62828' },
-    { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: true, color: '#C62828' },
+    { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: isAdmin || hasEticaret, color: '#C62828' },
+    { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: isAdmin || hasYedekParca, color: '#C62828' },
     { title: 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: isAdmin, color: '#C62828' },
   ];

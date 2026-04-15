@@ -81,7 +81,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, kullanici_adi: user.kullanici_adi, rol: user.rol, ad_soyad: user.ad_soyad, aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi },
+      { id: user.id, kullanici_adi: user.kullanici_adi, rol: user.rol, ad_soyad: user.ad_soyad, aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi, eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi, aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -90,7 +90,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, kullanici_adi: user.kullanici_adi, ad_soyad: user.ad_soyad, rol: user.rol, aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi }
+      user: { id: user.id, kullanici_adi: user.kullanici_adi, ad_soyad: user.ad_soyad, rol: user.rol, aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi, eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi, aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi }
     });
   } catch (error) {
     console.error('Login hatası:', error);
@@ -112,7 +112,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
 router.get('/verify', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, kullanici_adi, ad_soyad, rol, aksesuar_yetkisi, motor_satis_yetkisi FROM kullanicilar WHERE id = $1',
+      'SELECT id, kullanici_adi, ad_soyad, rol, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi FROM kullanicilar WHERE id = $1',
       [req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
@@ -126,7 +126,7 @@ router.get('/verify', authenticateToken, async (req, res) => {
 router.get('/users', authenticateToken, isAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, kullanici_adi, ad_soyad, rol, onay_durumu, aksesuar_yetkisi, motor_satis_yetkisi, plain_sifre, created_at FROM kullanicilar ORDER BY created_at DESC'
+      'SELECT id, kullanici_adi, ad_soyad, rol, onay_durumu, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, plain_sifre, created_at FROM kullanicilar ORDER BY created_at DESC'
     );
     res.json(result.rows);
   } catch (error) {
@@ -186,6 +186,50 @@ router.patch('/users/:id/motor-satis-yetkisi', authenticateToken, isAdmin, async
     const { motor_satis_yetkisi } = req.body;
     await pool.query('UPDATE kullanicilar SET motor_satis_yetkisi = $1 WHERE id = $2', [motor_satis_yetkisi, req.params.id]);
     res.json({ message: 'Motor satış yetkisi güncellendi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
+// PATCH /users/:id/eticaret-yetkisi [ADMIN]
+router.patch('/users/:id/eticaret-yetkisi', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { eticaret_yetkisi } = req.body;
+    await pool.query('UPDATE kullanicilar SET eticaret_yetkisi = $1 WHERE id = $2', [eticaret_yetkisi, req.params.id]);
+    res.json({ message: 'E-ticaret yetkisi güncellendi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
+// PATCH /users/:id/servis-yetkisi [ADMIN]
+router.patch('/users/:id/servis-yetkisi', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { servis_yetkisi } = req.body;
+    await pool.query('UPDATE kullanicilar SET servis_yetkisi = $1 WHERE id = $2', [servis_yetkisi, req.params.id]);
+    res.json({ message: 'Servis yetkisi güncellendi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
+// PATCH /users/:id/aksesuar-stok-yetkisi [ADMIN]
+router.patch('/users/:id/aksesuar-stok-yetkisi', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { aksesuar_stok_yetkisi } = req.body;
+    await pool.query('UPDATE kullanicilar SET aksesuar_stok_yetkisi = $1 WHERE id = $2', [aksesuar_stok_yetkisi, req.params.id]);
+    res.json({ message: 'Aksesuar stok yetkisi güncellendi' });
+  } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
+// PATCH /users/:id/yedek-parca-yetkisi [ADMIN]
+router.patch('/users/:id/yedek-parca-yetkisi', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { yedek_parca_yetkisi } = req.body;
+    await pool.query('UPDATE kullanicilar SET yedek_parca_yetkisi = $1 WHERE id = $2', [yedek_parca_yetkisi, req.params.id]);
+    res.json({ message: 'Yedek parça yetkisi güncellendi' });
   } catch (error) {
     res.status(500).json({ message: 'Sunucu hatası' });
   }
