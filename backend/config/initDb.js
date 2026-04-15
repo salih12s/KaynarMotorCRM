@@ -311,6 +311,12 @@ const initializeDatabase = async () => {
     // Migration: alici_tc column width
     await client.query(`ALTER TABLE ikinci_el_motorlar ALTER COLUMN alici_tc TYPE VARCHAR(100);`);
 
+    // Migration: kullanicilar tablosuna yeni yetki alanları ekle
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS eticaret_yetkisi BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS servis_yetkisi BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS aksesuar_stok_yetkisi BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS yedek_parca_yetkisi BOOLEAN DEFAULT FALSE;`);
+
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
     console.error('Veritabanı başlatma hatası:', error.message);
