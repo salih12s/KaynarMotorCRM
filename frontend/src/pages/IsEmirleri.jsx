@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, Chip, IconButton, TextField, MenuItem, InputAdornment, Dialog, DialogTitle, DialogContent,
-  DialogActions, Grid, Alert, Divider
+  DialogActions, Grid, Alert, Divider, useTheme, useMediaQuery
 } from '@mui/material';
 import {
   Add as AddIcon, Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 const IsEmirleri = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [isEmirleri, setIsEmirleri] = useState([]);
   const [search, setSearch] = useState('');
   const [durumFilter, setDurumFilter] = useState('');
@@ -194,9 +195,9 @@ const IsEmirleri = () => {
           <TextField size="small" placeholder="Ara (Müşteri, Fiş No, Marka,...)" value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
-            sx={{ minWidth: 250 }} />
+            sx={{ minWidth: { xs: '100%', sm: 250 } }} />
           <TextField select size="small" value={durumFilter} onChange={(e) => setDurumFilter(e.target.value)}
-            sx={{ minWidth: 150 }} label="Durum">
+            sx={{ minWidth: { xs: '100%', sm: 150 } }} label="Durum">
             <MenuItem value="">Tümü</MenuItem>
             <MenuItem value="beklemede">Beklemede</MenuItem>
             <MenuItem value="devam_ediyor">Devam Ediyor</MenuItem>
@@ -207,7 +208,37 @@ const IsEmirleri = () => {
         </Box>
       </Paper>
 
-      <TableContainer component={Paper}>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {filtered.length === 0 && <Alert severity="info">Kayıt bulunamadı</Alert>}
+          {filtered.map(ie => {
+            const toplam = parseFloat(ie.gercek_toplam_ucret || 0);
+            const maliyet = parseFloat(ie.toplam_maliyet || 0);
+            const kar = parseFloat(ie.kar || 0);
+            return (
+              <Paper key={ie.id} sx={{ p: 1.5 }} onClick={async () => { try { const res = await isEmriService.getById(ie.id); setDetayModal({ open: true, data: res.data }); } catch {} }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="subtitle2" sx={{ color: '#C62828', fontWeight: 'bold' }}>#{ie.fis_no}</Typography>
+                  <Chip label={durumLabel(ie.durum)} size="small" color={durumRenk(ie.durum)} sx={{ height: 20, fontSize: '0.7rem' }} />
+                </Box>
+                <Typography variant="body2" fontWeight="bold">{ie.musteri_ad_soyad}</Typography>
+                <Typography variant="body2" color="text.secondary">{ie.marka} {ie.model_tip} • {ie.telefon || '-'}</Typography>
+                <Typography variant="body2" color="text.secondary">{formatDate(ie.created_at || ie.tarih)} • {ie.olusturan_kisi || '-'}</Typography>
+                <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                  <Typography variant="body2">Toplam: <strong>₺{toplam.toLocaleString('tr-TR')}</strong></Typography>
+                  <Typography variant="body2" sx={{ color: kar >= 0 ? '#2e7d32' : '#c62828' }}>Kâr: <strong>₺{kar.toLocaleString('tr-TR')}</strong></Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
+                  <IconButton size="small" sx={{ color: '#C62828' }} onClick={async () => { try { const res = await isEmriService.getById(ie.id); printIsEmri(res.data); } catch {} }}><PrintIcon /></IconButton>
+                  <IconButton size="small" color="info" onClick={() => openEditModal(ie.id)}><EditIcon /></IconButton>
+                  {user?.rol === 'admin' && <IconButton size="small" color="error" onClick={() => handleDelete(ie.id)}><DeleteIcon /></IconButton>}
+                </Box>
+              </Paper>
+            );
+          })}
+        </Box>
+      ) : (
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
@@ -254,9 +285,10 @@ const IsEmirleri = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
       {/* Yeni İş Emri Modal */}
-      <Dialog open={modalOpen} onClose={() => { setModalOpen(false); setEditId(null); }} maxWidth="lg" fullWidth>
+      <Dialog open={modalOpen} onClose={() => { setModalOpen(false); setEditId(null); }} maxWidth="lg" fullWidth fullScreen={isMobile}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
           <Box sx={{ width: 36, height: 36, borderRadius: 1, bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 18 }}>📋</Box>
           <Typography variant="h6" fontWeight="bold">{editId ? 'İş Emri Düzenle' : 'Yeni İş Emri'}</Typography>
@@ -295,15 +327,15 @@ const IsEmirleri = () => {
                 🏍️ Araç Bilgileri
               </Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 4 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField fullWidth size="small" label="Marka" value={formData.marka}
                     onChange={e => setFormData({ ...formData, marka: e.target.value })} />
                 </Grid>
-                <Grid size={{ xs: 4 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField fullWidth size="small" label="Model/Tip" value={formData.model_tip}
                     onChange={e => setFormData({ ...formData, model_tip: e.target.value })} />
                 </Grid>
-                <Grid size={{ xs: 4 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField select fullWidth size="small" label="Durum" value={formData.durum}
                     onChange={e => setFormData({ ...formData, durum: e.target.value })}>
                     <MenuItem value="beklemede">Beklemede</MenuItem>
@@ -368,7 +400,26 @@ const IsEmirleri = () => {
               </Paper>
 
               {parcalar.length > 0 ? (
-                <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                isMobile ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {parcalar.map((p, i) => {
+                    const pSatis = (Number(p.adet) || 0) * (Number(p.birim_fiyat) || 0);
+                    const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
+                    const pKar = pSatis - pMaliyet;
+                    return (
+                      <Paper key={i} variant="outlined" sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight="bold">{p.takilan_parca}</Typography>
+                          <Typography variant="caption" color="text.secondary">Adet: {p.adet} • Satış: ₺{pSatis.toLocaleString('tr-TR')} • Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')}</Typography>
+                          <Typography variant="caption" sx={{ display: 'block', color: pKar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>Kâr: ₺{pKar.toLocaleString('tr-TR')}</Typography>
+                        </Box>
+                        <IconButton size="small" color="error" onClick={() => removeParca(i)}><CloseIcon fontSize="small" /></IconButton>
+                      </Paper>
+                    );
+                  })}
+                </Box>
+                ) : (
+                <TableContainer component={Paper} variant="outlined" sx={{ mb: 2, overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -401,6 +452,7 @@ const IsEmirleri = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
+                )
               ) : (
                 <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', color: 'text.secondary', mb: 2 }}>
                   Henüz parça eklenmedi
@@ -444,7 +496,7 @@ const IsEmirleri = () => {
       </Dialog>
 
       {/* İş Emri Detay Modal */}
-      <IsEmriDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} onEdit={openEditModal} />
+      <IsEmriDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} onEdit={openEditModal} isMobile={isMobile} />
     </Box>
   );
 };
@@ -540,7 +592,7 @@ const printIsEmri = (data) => {
   win.print();
 };
 
-const IsEmriDetayModal = ({ open, data, onClose, onEdit }) => {
+const IsEmriDetayModal = ({ open, data, onClose, onEdit, isMobile }) => {
   if (!data) return null;
 
   const parcalar = data.parcalar || [];
@@ -559,7 +611,7 @@ const IsEmriDetayModal = ({ open, data, onClose, onEdit }) => {
   );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth fullScreen={isMobile}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
         <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>İş Emri #{data.fis_no}</Typography>
         <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => { onClose(); onEdit(data.id); }} sx={{ mr: 1 }}>Düzenle</Button>
@@ -619,7 +671,23 @@ const IsEmriDetayModal = ({ open, data, onClose, onEdit }) => {
             <Divider sx={{ mb: 1 }} />
             {parcalar.length > 0 ? (
               <>
-                <TableContainer>
+                {isMobile ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {parcalar.map((p, i) => {
+                    const pSatis = parseFloat(p.toplam_fiyat || 0);
+                    const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
+                    const pKar = pSatis - pMaliyet;
+                    return (
+                      <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                        <Typography variant="body2" fontWeight="bold">{p.takilan_parca}</Typography>
+                        <Typography variant="caption" color="text.secondary">Adet: {p.adet} • Birim: ₺{parseFloat(p.birim_fiyat || 0).toLocaleString('tr-TR')} • Toplam: ₺{pSatis.toLocaleString('tr-TR')}</Typography>
+                        <Typography variant="caption" className="no-print" sx={{ display: 'block' }}>Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • <span style={{ color: pKar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>Kâr: ₺{pKar.toLocaleString('tr-TR')}</span></Typography>
+                      </Paper>
+                    );
+                  })}
+                </Box>
+                ) : (
+                <TableContainer sx={{ overflowX: 'auto' }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow sx={{ bgcolor: '#f5f5f5' }}>
@@ -649,7 +717,8 @@ const IsEmriDetayModal = ({ open, data, onClose, onEdit }) => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-                <Box sx={{ mt: 2, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
+                )}
+                <Box sx={{ mt: 2, display: 'flex', gap: 3, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <Paper sx={{ px: 2, py: 1, bgcolor: '#ffebee' }}>
                     <Typography variant="body2">Toplam: <strong>₺{toplamFiyat.toLocaleString('tr-TR')}</strong></Typography>
                   </Paper>

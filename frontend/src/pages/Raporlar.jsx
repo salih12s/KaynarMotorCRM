@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Grid, TextField, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Tabs, Tab, CircularProgress, Alert, Chip,
-  MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton
+  MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, useTheme, useMediaQuery
 } from '@mui/material';
 import { Visibility as ViewIcon } from '@mui/icons-material';
 import { raporService } from '../services/api';
 
 const Raporlar = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [tab, setTab] = useState(0);
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
@@ -107,7 +108,7 @@ const Raporlar = () => {
           <TextField size="small" type="date" label="Başlangıç" value={baslangic} onChange={e => setBaslangic(e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField size="small" type="date" label="Bitiş" value={bitis} onChange={e => setBitis(e.target.value)} InputLabelProps={{ shrink: true }} />
           {tab === 2 && (
-            <TextField size="small" select label="Personel" value={seciliPersonel} onChange={e => setSeciliPersonel(e.target.value)} sx={{ minWidth: 180 }}>
+            <TextField size="small" select label="Personel" value={seciliPersonel} onChange={e => setSeciliPersonel(e.target.value)} sx={{ minWidth: { xs: '100%', sm: 180 } }}>
               <MenuItem value="">Tümü</MenuItem>
               {personeller.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
             </TextField>
@@ -150,7 +151,45 @@ const Raporlar = () => {
           </Grid>
 
           {/* Kategori Detay */}
-          <TableContainer component={Paper} sx={{ mb: 2 }}>
+          {isMobile ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 2 }}>
+            {[
+              { label: 'Motor Satışları', count: rapor.motorlar?.length || 0, gelir: rapor.motorGelir, maliyet: rapor.motorMaliyet, kar: rapor.motorKar },
+              { label: 'İş Emirleri (Servis)', count: rapor.isEmirleri?.length || 0, gelir: rapor.isEmriGelir, maliyet: rapor.isEmriMaliyet, kar: rapor.isEmriKar },
+              { label: 'Aksesuar Satışları', count: rapor.aksesuarlar?.length || 0, gelir: rapor.aksesuarGelir, maliyet: rapor.aksesuarMaliyet, kar: rapor.aksesuarKar },
+              { label: 'E-Ticaret', count: rapor.eticaret?.length || 0, gelir: rapor.eticaretGelir, maliyet: rapor.eticaretMaliyet, kar: rapor.eticaretKar },
+              { label: 'Yedek Parça (Envanter)', count: rapor.yedekParcalar?.length || 0, gelir: rapor.yedekParcaToplamDeger, maliyet: rapor.yedekParcaToplamMaliyet, kar: (rapor.yedekParcaToplamDeger || 0) - (rapor.yedekParcaToplamMaliyet || 0) },
+            ].map((row, i) => {
+              const oran = parseFloat(row.gelir || 0) > 0 ? ((parseFloat(row.kar || 0) / parseFloat(row.gelir || 1)) * 100).toFixed(1) : '0.0';
+              const tabMap = { 'Motor Satışları': 1, 'İş Emirleri (Servis)': 2, 'Aksesuar Satışları': 3, 'E-Ticaret': 4, 'Yedek Parça (Envanter)': 5 };
+              return (
+                <Paper key={i} sx={{ p: 1.5, cursor: 'pointer' }} onClick={() => setTab(tabMap[row.label] || 0)}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">{row.label}</Typography>
+                    <Typography variant="body2">{row.count} işlem</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Typography variant="body2">Gelir: <strong>{formatTL(row.gelir)} ₺</strong></Typography>
+                    <Typography variant="body2">Maliyet: <strong>{formatTL(row.maliyet)} ₺</strong></Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                    <Typography variant="body2" sx={{ color: karColor(row.kar) }}>Kâr: <strong>{formatTL(row.kar)} ₺</strong></Typography>
+                    <Typography variant="body2" sx={{ color: karColor(row.kar) }}>Oran: <strong>%{oran}</strong></Typography>
+                  </Box>
+                </Paper>
+              );
+            })}
+            <Paper sx={{ p: 1.5, bgcolor: '#f5f5f5' }}>
+              <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 0.5 }}>TOPLAM</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Typography variant="body2">Gelir: <strong>{formatTL(rapor.toplam?.gelir)} ₺</strong></Typography>
+                <Typography variant="body2">Maliyet: <strong>{formatTL(rapor.toplam?.maliyet)} ₺</strong></Typography>
+                <Typography variant="body2" sx={{ color: karColor(rapor.toplam?.kar) }}>Kâr: <strong>{formatTL(rapor.toplam?.kar)} ₺</strong></Typography>
+              </Box>
+            </Paper>
+          </Box>
+          ) : (
+          <TableContainer component={Paper} sx={{ mb: 2, overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow sx={{ bgcolor: '#C62828' }}>
@@ -193,6 +232,7 @@ const Raporlar = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          )}
         </>
       )}
 
@@ -214,6 +254,26 @@ const Raporlar = () => {
             ))}
           </Grid>
           {rapor.motorlar && rapor.motorlar.length > 0 ? (
+            isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {rapor.motorlar.map((m, i) => (
+                <Paper key={i} sx={{ p: 1.5, cursor: 'pointer' }} onClick={() => setMotorDetayModal({ open: true, data: m })}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">{m.plaka}</Typography>
+                    <Chip size="small" label={m.fatura_kesildi ? '✓ Kesildi' : '✗ Kesilmedi'}
+                      sx={{ bgcolor: m.fatura_kesildi ? '#e8f5e9' : '#ffebee', color: m.fatura_kesildi ? '#2e7d32' : '#d32f2f', fontWeight: 'bold', fontSize: '0.65rem', height: 20 }} />
+                  </Box>
+                  <Typography variant="body2">{m.marka} {m.model} • {formatDate(m.tamamlama_tarihi || m.created_at)}</Typography>
+                  <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
+                    <Typography variant="body2">Alış: <strong>{formatTL(m.alis_fiyati)} ₺</strong></Typography>
+                    <Typography variant="body2">Satış: <strong>{formatTL(m.satis_fiyati)} ₺</strong></Typography>
+                    <Typography variant="body2" sx={{ color: karColor(m.kar) }}>Kâr: <strong>{formatTL(m.kar)} ₺</strong></Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{m.odeme_sekli || 'nakit'} • Masraf: {formatTL(m.masraflar)} ₺</Typography>
+                </Paper>
+              ))}
+            </Box>
+            ) : (
             <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
               <Table size="small" sx={{ '& .MuiTableCell-root': { px: 1, py: 0.5, fontSize: '0.78rem' } }}>
                 <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
@@ -244,6 +304,7 @@ const Raporlar = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           ) : (
             <Alert severity="info">Seçilen tarih aralığında motor satışı bulunamadı.</Alert>
           )}
@@ -271,7 +332,25 @@ const Raporlar = () => {
             ))}
           </Grid>
           {filtered.length > 0 ? (
-            <TableContainer component={Paper}>
+            isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {filtered.map((ie, i) => (
+                <Paper key={i} sx={{ p: 1.5 }} onClick={() => setDetayModal({ open: true, data: ie })}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">#{ie.fis_no}</Typography>
+                    <Typography variant="caption" color="text.secondary">{formatDate(ie.tamamlama_tarihi || ie.created_at)}</Typography>
+                  </Box>
+                  <Typography variant="body2">{ie.musteri_ad_soyad} • {ie.marka} {ie.model_tip || ''}</Typography>
+                  <Typography variant="body2" color="text.secondary">{ie.olusturan_kisi || '-'} • {ie.km ? `${parseInt(ie.km).toLocaleString('tr-TR')} km` : ''}</Typography>
+                  <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                    <Typography variant="body2">Gelir: <strong>{formatTL(ie.gercek_toplam_ucret)} ₺</strong></Typography>
+                    <Typography variant="body2" sx={{ color: karColor(ie.kar) }}>Kâr: <strong>{formatTL(ie.kar)} ₺</strong></Typography>
+                  </Box>
+                </Paper>
+              ))}
+            </Box>
+            ) : (
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
               <Table size="small">
                 <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
                   {['', 'Tarih', 'Fiş No', 'Müşteri', 'Telefon', 'Marka/Model', 'KM', 'Personel', 'Arıza/Şikayet', 'Gelir', 'Maliyet', 'Kâr'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
@@ -300,15 +379,16 @@ const Raporlar = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           ) : (
-            <Alert severity="info">Seçilen tarih aralığında tamamlanmış iş emri bulunamadı.</Alert>
+            <Typography color="text.secondary" textAlign="center" py={3}>Kayıt bulunamadı</Typography>
           )}
         </>
         );
       })()}
 
       {/* İş Emri Detay Modal */}
-      <Dialog open={detayModal.open} onClose={() => setDetayModal({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={detayModal.open} onClose={() => setDetayModal({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         {detayModal.data && (() => {
           const d = detayModal.data;
           const parcalar = typeof d.parcalar === 'string' ? JSON.parse(d.parcalar) : (d.parcalar || []);
@@ -361,7 +441,23 @@ const Raporlar = () => {
                 )}
                 <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>Parçalar ve İşçilik</Typography>
                 {parcalar.length > 0 ? (
-                  <TableContainer component={Paper} variant="outlined">
+                  isMobile ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {parcalar.map((p, i) => {
+                      const pSatis = parseFloat(p.toplam_fiyat || 0);
+                      const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
+                      const pKar = pSatis - pMaliyet;
+                      return (
+                        <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                          <Typography variant="body2" fontWeight="bold">{p.takilan_parca}</Typography>
+                          <Typography variant="caption" color="text.secondary">Adet: {p.adet} • Birim: ₺{parseFloat(p.birim_fiyat || 0).toLocaleString('tr-TR')} • Toplam: ₺{pSatis.toLocaleString('tr-TR')}</Typography>
+                          <Typography variant="caption" sx={{ display: 'block' }}>Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • <span style={{ color: pKar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>Kâr: ₺{pKar.toLocaleString('tr-TR')}</span></Typography>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
+                  ) : (
+                  <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
                     <Table size="small">
                       <TableHead>
                         <TableRow sx={{ bgcolor: '#f5f5f5' }}>
@@ -389,10 +485,11 @@ const Raporlar = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  )
                 ) : (
                   <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>Parça kaydı yok</Typography>
                 )}
-                <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <Paper sx={{ px: 2, py: 1, bgcolor: '#ffebee' }}>
                     <Typography variant="body2">Toplam: <strong>₺{toplamFiyat.toLocaleString('tr-TR')}</strong></Typography>
                   </Paper>
@@ -434,7 +531,24 @@ const Raporlar = () => {
             ))}
           </Grid>
           {rapor.aksesuarlar && rapor.aksesuarlar.length > 0 ? (
-            <TableContainer component={Paper}>
+            isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {rapor.aksesuarlar.map((a, i) => (
+                <Paper key={i} sx={{ p: 1.5 }} onClick={() => setAksDetayModal({ open: true, data: a })}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">{a.ad_soyad}</Typography>
+                    {durumChip(a.durum)}
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">{formatDate(a.tamamlama_tarihi || a.satis_tarihi || a.created_at)} • {a.olusturan_kisi || '-'}</Typography>
+                  <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                    <Typography variant="body2">Satış: <strong>{formatTL(a.toplam_satis)} ₺</strong></Typography>
+                    <Typography variant="body2" sx={{ color: karColor(a.kar) }}>Kâr: <strong>{formatTL(a.kar)} ₺</strong></Typography>
+                  </Box>
+                </Paper>
+              ))}
+            </Box>
+            ) : (
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
               <Table size="small">
                 <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
                   {['', 'Tarih', 'Müşteri', 'Telefon', 'Oluşturan', 'Ödeme Şekli', 'Satış', 'Maliyet', 'Kâr', 'Durum'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
@@ -461,6 +575,7 @@ const Raporlar = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           ) : (
             <Alert severity="info">Seçilen tarih aralığında aksesuar satışı bulunamadı.</Alert>
           )}
@@ -483,7 +598,39 @@ const Raporlar = () => {
             ))}
           </Grid>
           {rapor.eticaret && rapor.eticaret.length > 0 ? (
-            <TableContainer component={Paper}>
+            isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {rapor.eticaret.map((e, i) => {
+                const miktar = parseInt(e.adet || 1);
+                const satis = parseFloat(e.satis_fiyati || 0);
+                const alis = parseFloat(e.alis_fiyati || 0);
+                const komisyonOrani = parseFloat(e.komisyon_orani || 0);
+                const kdvOrani = parseFloat(e.kdv_orani || 20);
+                const kargoUcreti = parseFloat(e.kargo_ucreti || 0);
+                const komisyonTutari = satis * komisyonOrani / 100;
+                const hizmetBedeli = satis * 0.00347;
+                const kdvHaricKomisyon = komisyonTutari / (1 + kdvOrani / 100);
+                const stopaj = kdvHaricKomisyon * 0.077;
+                const toplamKesinti = (komisyonTutari + hizmetBedeli + stopaj + kargoUcreti) * miktar;
+                const netKar = (satis * miktar) - (alis * miktar) - toplamKesinti;
+                return (
+                  <Paper key={i} sx={{ p: 1.5 }} onClick={() => setEticaretDetayModal({ open: true, data: e })}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="subtitle2" fontWeight="bold">{e.urun_adi || '-'}</Typography>
+                      <Chip label={e.platform_adi || '-'} size="small" sx={{ bgcolor: '#ffebee', color: '#C62828', fontWeight: 'bold', fontSize: '0.65rem', height: 20 }} />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">{formatDate(e.tarih)} • Adet: {miktar}</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
+                      <Typography variant="body2">Alış: <strong>{formatTL(alis)} ₺</strong></Typography>
+                      <Typography variant="body2">Satış: <strong>{formatTL(satis)} ₺</strong></Typography>
+                      <Typography variant="body2" sx={{ color: karColor(netKar) }}>Net Kâr: <strong>{formatTL(netKar)} ₺</strong></Typography>
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Box>
+            ) : (
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
               <Table size="small">
                 <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
                   {['', 'Tarih', 'Platform', 'Ürün', 'Adet', 'Alış', 'Satış', 'Kargo', 'Komisyon', 'Toplam Kesinti', 'Net Kâr'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
@@ -525,6 +672,7 @@ const Raporlar = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           ) : (
             <Alert severity="info">Seçilen tarih aralığında e-ticaret satışı bulunamadı.</Alert>
           )}
@@ -547,7 +695,27 @@ const Raporlar = () => {
             ))}
           </Grid>
           {rapor.yedekParcalar && rapor.yedekParcalar.length > 0 ? (
-            <TableContainer component={Paper}>
+            isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {rapor.yedekParcalar.map((yp, i) => {
+                const alis = parseFloat(yp.alis_fiyati || 0);
+                const satis = parseFloat(yp.satis_fiyati || 0);
+                const kar = satis - alis;
+                const oran = satis > 0 ? ((kar / satis) * 100).toFixed(1) : '0.0';
+                return (
+                  <Paper key={i} sx={{ p: 1.5 }}>
+                    <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 0.5 }}>{yp.urun_adi}</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <Typography variant="body2">Alış: <strong>{formatTL(alis)} ₺</strong></Typography>
+                      <Typography variant="body2">Satış: <strong>{formatTL(satis)} ₺</strong></Typography>
+                      <Typography variant="body2" sx={{ color: karColor(kar) }}>Kâr: <strong>{formatTL(kar)} ₺ (%{oran})</strong></Typography>
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Box>
+            ) : (
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
               <Table size="small">
                 <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
                   {['Ürün Adı', 'Alış Fiyatı', 'Satış Fiyatı', 'Kâr Marjı', 'Kâr Oranı'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
@@ -571,6 +739,7 @@ const Raporlar = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           ) : (
             <Alert severity="info">Yedek parça kaydı bulunamadı.</Alert>
           )}
@@ -594,7 +763,27 @@ const Raporlar = () => {
                   </Grid>
                 ))}
               </Grid>
-              <TableContainer component={Paper}>
+              {isMobile ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {fisKar.map((r, i) => {
+                  const oran = parseFloat(r.gercek_toplam_ucret || 0) > 0 ? ((parseFloat(r.kar || 0) / parseFloat(r.gercek_toplam_ucret || 1)) * 100).toFixed(1) : '0.0';
+                  return (
+                    <Paper key={i} sx={{ p: 1.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                        <Typography variant="subtitle2" fontWeight="bold">#{r.fis_no}</Typography>
+                        {durumChip(r.durum)}
+                      </Box>
+                      <Typography variant="body2">{r.musteri_ad_soyad} • {formatDate(r.tamamlama_tarihi || r.created_at)}</Typography>
+                      <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
+                        <Typography variant="body2">Gelir: <strong>{formatTL(r.gercek_toplam_ucret)} ₺</strong></Typography>
+                        <Typography variant="body2" sx={{ color: karColor(r.kar) }}>Kâr: <strong>{formatTL(r.kar)} ₺ (%{oran})</strong></Typography>
+                      </Box>
+                    </Paper>
+                  );
+                })}
+              </Box>
+              ) : (
+              <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
                 <Table size="small">
                   <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
                     {['Tarih', 'Fiş No', 'Müşteri', 'Durum', 'Toplam Gelir', 'Toplam Maliyet', 'Kâr', 'Kâr Oranı'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
@@ -618,6 +807,7 @@ const Raporlar = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+              )}
             </>
           ) : (
             <Alert severity="info">Seçilen tarih aralığında tamamlanmış fiş bulunamadı.</Alert>
@@ -626,7 +816,7 @@ const Raporlar = () => {
       )}
 
       {/* Motor Satış Detay Modal */}
-      <Dialog open={motorDetayModal.open} onClose={() => setMotorDetayModal({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={motorDetayModal.open} onClose={() => setMotorDetayModal({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         {motorDetayModal.data && (() => {
           const m = motorDetayModal.data;
           const alis = parseFloat(m.alis_fiyati || 0);
@@ -743,7 +933,7 @@ const Raporlar = () => {
       </Dialog>
 
       {/* Aksesuar Detay Modal */}
-      <Dialog open={aksDetayModal.open} onClose={() => setAksDetayModal({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={aksDetayModal.open} onClose={() => setAksDetayModal({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         {aksDetayModal.data && (() => {
           const a = aksDetayModal.data;
           const parcalar = typeof a.parcalar === 'string' ? JSON.parse(a.parcalar) : (a.parcalar || []);
@@ -795,7 +985,23 @@ const Raporlar = () => {
                 )}
                 <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>Ürünler</Typography>
                 {parcalar.length > 0 ? (
-                  <TableContainer component={Paper} variant="outlined">
+                  isMobile ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {parcalar.map((p, i) => {
+                      const pSatis = (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0);
+                      const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
+                      const pKar = pSatis - pMaliyet;
+                      return (
+                        <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                          <Typography variant="body2" fontWeight="bold">{p.urun_adi}</Typography>
+                          <Typography variant="caption" color="text.secondary">Adet: {p.adet} • Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • Satış: ₺{pSatis.toLocaleString('tr-TR')}</Typography>
+                          <Typography variant="caption" sx={{ display: 'block', color: pKar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>Kâr: ₺{pKar.toLocaleString('tr-TR')}</Typography>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
+                  ) : (
+                  <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
                     <Table size="small">
                       <TableHead>
                         <TableRow sx={{ bgcolor: '#f5f5f5' }}>
@@ -822,10 +1028,11 @@ const Raporlar = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  )
                 ) : (
                   <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>Ürün kaydı yok</Typography>
                 )}
-                <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <Paper sx={{ px: 2, py: 1, bgcolor: '#ffebee' }}>
                     <Typography variant="body2">Satış: <strong>₺{topSatis.toLocaleString('tr-TR')}</strong></Typography>
                   </Paper>
@@ -846,7 +1053,7 @@ const Raporlar = () => {
       </Dialog>
 
       {/* E-Ticaret Detay Modal */}
-      <Dialog open={eticaretDetayModal.open} onClose={() => setEticaretDetayModal({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={eticaretDetayModal.open} onClose={() => setEticaretDetayModal({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         {eticaretDetayModal.data && (() => {
           const e = eticaretDetayModal.data;
           const miktar = parseInt(e.adet || 1);
@@ -900,7 +1107,7 @@ const Raporlar = () => {
                 </Grid>
 
                 <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>Komisyon Detayları (Birim)</Typography>
-                <TableContainer component={Paper} variant="outlined" sx={{ mb: 2 }}>
+                <TableContainer component={Paper} variant="outlined" sx={{ mb: 2, overflowX: 'auto' }}>
                   <Table size="small">
                     <TableBody>
                       <TableRow><TableCell>Komisyon Tutarı (%{komisyonOrani})</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(komisyonTutari)}</TableCell></TableRow>

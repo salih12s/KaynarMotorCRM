@@ -100,8 +100,8 @@ const ThemedApp = () => {
               <Route path="/motor/:id" element={<MotorDetay />} />
               <Route path="/eticaret" element={<ETicaret />} />
               <Route path="/yedek-parcalar" element={<YedekParcalar />} />
-              <Route path="/raporlar" element={<Raporlar />} />
-              <Route path="/kullanicilar" element={<Kullanicilar />} />
+              <Route path="/raporlar" element={<AdminRoute><Raporlar /></AdminRoute>} />
+              <Route path="/kullanicilar" element={<AdminRoute><Kullanicilar /></AdminRoute>} />
             </Route>
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

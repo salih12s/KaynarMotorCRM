@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Divider, MenuItem, Checkbox, FormControlLabel, Autocomplete
+  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Divider, MenuItem, Checkbox, FormControlLabel, Autocomplete, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
 import { ikinciElMotorService } from '../services/api';
 
 const IkinciElMotor = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [motorlar, setMotorlar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
   const [detayModal, setDetayModal] = useState({ open: false, data: null });
@@ -125,7 +126,33 @@ const IkinciElMotor = () => {
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
       </Paper>
 
-      <TableContainer component={Paper}>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {filteredMotorlar.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
+          {filteredMotorlar.map(m => {
+            const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
+            return (
+              <Paper key={m.id} sx={{ p: 1.5 }} onClick={async () => { try { const res = await ikinciElMotorService.getById(m.id); setDetayModal({ open: true, data: res.data }); } catch {} }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight="bold">{m.plaka}</Typography>
+                  <Typography variant="caption" color="text.secondary">{formatDate(m.tarih)}</Typography>
+                </Box>
+                <Typography variant="body2">{m.marka} {m.model} {m.yil ? `(${m.yil})` : ''}</Typography>
+                <Typography variant="body2" color="text.secondary">{m.satici_adi || '-'} • {m.km ? Number(m.km).toLocaleString('tr-TR') + ' km' : ''}</Typography>
+                <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                  <Typography variant="body2">Alım: <strong>₺{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
+                  <Typography variant="body2">Noter: <strong>₺{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</strong></Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
+                  <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
+                  <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon /></IconButton>
+                </Box>
+              </Paper>
+            );
+          })}
+        </Box>
+      ) : (
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
@@ -161,8 +188,9 @@ const IkinciElMotor = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
-      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>{dialog.data ? 'Motor Düzenle' : 'Yeni Motor Satış'}</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -279,12 +307,12 @@ const IkinciElMotor = () => {
       </Dialog>
 
       {/* Motor Detay Modal */}
-      <MotorDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} />
+      <MotorDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} isMobile={isMobile} />
     </Box>
   );
 };
 
-const MotorDetayModal = ({ open, data, onClose, printRef }) => {
+const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
   const handlePrint = useReactToPrint({ contentRef: printRef });
   if (!data) return null;
 
@@ -306,7 +334,7 @@ const MotorDetayModal = ({ open, data, onClose, printRef }) => {
   );
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth fullScreen={isMobile}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
         <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>Motor Detay</Typography>
         <Button startIcon={<PrintIcon />} variant="contained" size="small" onClick={handlePrint} sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' }, mr: 1 }}>Yazdır</Button>

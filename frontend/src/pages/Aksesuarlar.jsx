@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Grid, Alert, MenuItem, InputAdornment, Autocomplete, Divider
+  TextField, Grid, Alert, MenuItem, InputAdornment, Autocomplete, Divider, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon } from '@mui/icons-material';
 import { aksesuarService, aksesuarStokService } from '../services/api';
 
 const Aksesuarlar = () => {
+  const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [satislar, setSatislar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
   const [formData, setFormData] = useState({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: '' });
@@ -122,13 +123,47 @@ const Aksesuarlar = () => {
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField size="small" placeholder="Ad veya telefon ara..." value={aksSearch} onChange={(e) => setAksSearch(e.target.value)}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
-            sx={{ minWidth: 250 }} />
+            sx={{ minWidth: { xs: '100%', sm: 250 } }} />
           <TextField size="small" label="Başlangıç Tarihi" type="date" value={aksStart} onChange={e => setAksStart(e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField size="small" label="Bitiş Tarihi" type="date" value={aksEnd} onChange={e => setAksEnd(e.target.value)} InputLabelProps={{ shrink: true }} />
         </Box>
       </Paper>
 
-      <TableContainer component={Paper}>
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {(() => {
+            const filteredSatislar = satislar.filter(s => {
+              const matchSearch = !aksSearch || 
+                (s.ad_soyad?.toLowerCase() || '').includes(aksSearch.toLowerCase()) ||
+                (s.telefon || '').includes(aksSearch);
+              const tarih = (s.satis_tarihi || s.created_at || '').split('T')[0];
+              const matchStart = !aksStart || tarih >= aksStart;
+              const matchEnd = !aksEnd || tarih <= aksEnd;
+              return matchSearch && matchStart && matchEnd;
+            });
+            if (filteredSatislar.length === 0) return <Alert severity="info">Kayıt yok</Alert>;
+            return filteredSatislar.map(s => (
+              <Paper key={s.id} sx={{ p: 1.5 }} onClick={async () => { try { const res = await aksesuarService.getById(s.id); setDetayDialog({ open: true, data: res.data }); } catch {} }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight="bold">{s.ad_soyad}</Typography>
+                  <Chip label={s.durum === 'tamamlandi' ? 'Tamamlandı' : 'Beklemede'} size="small" color={durumRenk(s.durum)} sx={{ height: 20, fontSize: '0.7rem' }} />
+                </Box>
+                <Typography variant="body2" color="text.secondary">{s.telefon || '-'} • {s.olusturan_kisi || '-'}</Typography>
+                <Typography variant="body2" color="text.secondary">{s.satis_tarihi ? new Date(s.satis_tarihi).toLocaleDateString('tr-TR') : '-'}</Typography>
+                <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                  <Typography variant="body2">Satış: <strong>{parseFloat(s.toplam_satis || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
+                  <Typography variant="body2" sx={{ color: parseFloat(s.kar || 0) >= 0 ? 'green' : 'red' }}>Kâr: <strong>{parseFloat(s.kar || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
+                  <IconButton size="small" color="info" onClick={() => openDialog(s)}><EditIcon /></IconButton>
+                  <IconButton size="small" color="error" onClick={() => handleDelete(s.id)}><DeleteIcon /></IconButton>
+                </Box>
+              </Paper>
+            ));
+          })()}
+        </Box>
+      ) : (
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
@@ -166,8 +201,9 @@ const Aksesuarlar = () => {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
 
-      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={dialog.open} onClose={() => setDialog({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>{dialog.data ? 'Satış Düzenle' : 'Yeni Aksesuar Satışı'}</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -203,7 +239,32 @@ const Aksesuarlar = () => {
             <Button startIcon={<AddIcon />} onClick={addParca} size="small" variant="outlined">Ürün Ekle</Button>
           </Box>
           {parcalar.length > 0 && (
-            <TableContainer sx={{ mt: 1 }}>
+            isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
+              {parcalar.map((p, i) => (
+                <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="subtitle2" fontWeight="bold">Ürün #{i + 1}</Typography>
+                    <IconButton size="small" color="error" onClick={() => removeParca(i)}><DeleteIcon /></IconButton>
+                  </Box>
+                  <Autocomplete size="small" options={stokOptions}
+                    getOptionLabel={(option) => typeof option === 'string' ? option : `${option.stok_adi} (Stok: ${option.mevcut})`}
+                    value={stokOptions.find(s => s.stok_adi === p.urun_adi) || null}
+                    onChange={(_, newValue) => updateParca(i, 'urun_adi', newValue?.stok_adi || '')}
+                    renderInput={(params) => <TextField {...params} placeholder="Ürün ara..." label="Ürün" />}
+                    isOptionEqualToValue={(option, value) => option.stok_adi === value.stok_adi}
+                    sx={{ mb: 1 }} />
+                  <Grid container spacing={1}>
+                    <Grid size={4}><TextField fullWidth size="small" type="number" label="Adet" value={p.adet} onChange={e => updateParca(i, 'adet', e.target.value)} /></Grid>
+                    <Grid size={4}><TextField fullWidth size="small" type="number" label="Maliyet" value={p.maliyet} onChange={e => updateParca(i, 'maliyet', e.target.value)} /></Grid>
+                    <Grid size={4}><TextField fullWidth size="small" type="number" label="Satış" value={p.satis_fiyati} onChange={e => updateParca(i, 'satis_fiyati', e.target.value)} /></Grid>
+                  </Grid>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>Toplam: {((Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0)).toLocaleString('tr-TR')} ₺</Typography>
+                </Paper>
+              ))}
+            </Box>
+            ) : (
+            <TableContainer sx={{ mt: 1, overflowX: 'auto' }}>
               <Table size="small">
                 <TableHead><TableRow>
                   {['Ürün', 'Adet', 'Maliyet (₺)', 'Satış Fiyatı (₺)', 'Toplam', ''].map(h => <TableCell key={h} sx={{ fontWeight: 'bold' }}>{h}</TableCell>)}
@@ -233,6 +294,7 @@ const Aksesuarlar = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            )
           )}
           <Box sx={{ mt: 2, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
             <Typography>Toplam: <strong>{toplamSatis.toLocaleString('tr-TR')} ₺</strong></Typography>
@@ -246,7 +308,7 @@ const Aksesuarlar = () => {
       </Dialog>
 
       {/* Detay Dialog */}
-      <Dialog open={detayDialog.open} onClose={() => setDetayDialog({ open: false, data: null })} maxWidth="md" fullWidth>
+      <Dialog open={detayDialog.open} onClose={() => setDetayDialog({ open: false, data: null })} maxWidth="md" fullWidth fullScreen={isMobile}>
         {detayDialog.data && (() => {
           const d = detayDialog.data;
           const dp = d.parcalar || [];
@@ -306,7 +368,23 @@ const Aksesuarlar = () => {
 
                 <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>Ürünler</Typography>
                 {dp.length > 0 ? (
-                  <TableContainer component={Paper} variant="outlined">
+                  isMobile ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {dp.map((p, i) => {
+                      const pSatis = (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0);
+                      const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
+                      const pKar = pSatis - pMaliyet;
+                      return (
+                        <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                          <Typography variant="body2" fontWeight="bold">{p.urun_adi}</Typography>
+                          <Typography variant="caption" color="text.secondary">Adet: {p.adet} • Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • Satış: ₺{pSatis.toLocaleString('tr-TR')}</Typography>
+                          <Typography variant="caption" sx={{ display: 'block', color: pKar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>Kâr: ₺{pKar.toLocaleString('tr-TR')}</Typography>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
+                  ) : (
+                  <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
                     <Table size="small">
                       <TableHead>
                         <TableRow sx={{ bgcolor: '#f5f5f5' }}>
@@ -334,11 +412,12 @@ const Aksesuarlar = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  )
                 ) : (
                   <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>Ürün kaydı yok</Typography>
                 )}
 
-                <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                   <Paper sx={{ px: 2, py: 1, bgcolor: '#ffebee' }}>
                     <Typography variant="body2">Toplam Satış: <strong>₺{dToplamSatis.toLocaleString('tr-TR')}</strong></Typography>
                   </Paper>
