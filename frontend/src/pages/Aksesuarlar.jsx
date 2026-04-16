@@ -312,6 +312,11 @@ const Aksesuarlar = () => {
         {detayDialog.data && (() => {
           const d = detayDialog.data;
           const dp = d.parcalar || [];
+          // Stok bilgilerini zenginleştir
+          const enrichedDp = dp.map(p => {
+            const stok = stokOptions.find(s => s.stok_adi === p.urun_adi);
+            return { ...p, marka: stok?.marka, platform: stok?.platform, beden: stok?.beden, renk: stok?.renk };
+          });
           const dToplamSatis = dp.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0), 0);
           const dToplamMaliyet = dp.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.maliyet) || 0), 0);
           const dKar = dToplamSatis - dToplamMaliyet;
@@ -370,14 +375,17 @@ const Aksesuarlar = () => {
                 {dp.length > 0 ? (
                   isMobile ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {dp.map((p, i) => {
+                    {enrichedDp.map((p, i) => {
                       const pSatis = (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0);
                       const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
                       const pKar = pSatis - pMaliyet;
                       return (
                         <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
                           <Typography variant="body2" fontWeight="bold">{p.urun_adi}</Typography>
-                          <Typography variant="caption" color="text.secondary">Adet: {p.adet} • Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • Satış: ₺{pSatis.toLocaleString('tr-TR')}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Adet: {p.adet} • Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • Satış: ₺{pSatis.toLocaleString('tr-TR')}
+                            {p.marka ? ` • ${p.marka}` : ''}{p.platform ? ` • ${p.platform}` : ''}{p.beden ? ` • ${p.beden}` : ''}{p.renk ? ` • ${p.renk}` : ''}
+                          </Typography>
                           <Typography variant="caption" sx={{ display: 'block', color: pKar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>Kâr: ₺{pKar.toLocaleString('tr-TR')}</Typography>
                         </Paper>
                       );
@@ -388,19 +396,23 @@ const Aksesuarlar = () => {
                     <Table size="small">
                       <TableHead>
                         <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                          {['Ürün Adı', 'Adet', 'Maliyet', 'Satış Fiyatı', 'Toplam', 'Kâr'].map(h => (
+                          {['Ürün Adı', 'Marka', 'Platform', 'Beden', 'Renk', 'Adet', 'Maliyet', 'Satış Fiyatı', 'Toplam', 'Kâr'].map(h => (
                             <TableCell key={h} sx={{ fontWeight: 'bold' }}>{h}</TableCell>
                           ))}
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {dp.map((p, i) => {
+                        {enrichedDp.map((p, i) => {
                           const pSatis = (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0);
                           const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
                           const pKar = pSatis - pMaliyet;
                           return (
                             <TableRow key={i}>
                               <TableCell>{p.urun_adi}</TableCell>
+                              <TableCell>{p.marka || '-'}</TableCell>
+                              <TableCell>{p.platform || '-'}</TableCell>
+                              <TableCell>{p.beden || '-'}</TableCell>
+                              <TableCell>{p.renk || '-'}</TableCell>
                               <TableCell>{p.adet}</TableCell>
                               <TableCell>₺{pMaliyet.toLocaleString('tr-TR')}</TableCell>
                               <TableCell>₺{pSatis.toLocaleString('tr-TR')}</TableCell>

@@ -25,7 +25,7 @@ router.post('/platformlar', async (req, res) => {
     if (!platform_adi || !platform_adi.trim()) return res.status(400).json({ message: 'Platform adı zorunludur' });
     const result = await pool.query(
       'INSERT INTO eticaret_platformlar (platform_adi, komisyon_orani, kdv_orani, kargo_ucreti) VALUES ($1, $2, $3, $4) RETURNING *',
-      [platform_adi.trim(), emptyToZero(komisyon_orani), emptyToZero(kdv_orani) || 20, emptyToZero(kargo_ucreti)]
+      [platform_adi.trim(), emptyToZero(komisyon_orani), (kdv_orani !== '' && kdv_orani !== undefined && kdv_orani !== null) ? emptyToZero(kdv_orani) : 20, emptyToZero(kargo_ucreti)]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -42,7 +42,7 @@ router.put('/platformlar/:id', async (req, res) => {
     if (!platform_adi || !platform_adi.trim()) return res.status(400).json({ message: 'Platform adı zorunludur' });
     const result = await pool.query(
       'UPDATE eticaret_platformlar SET platform_adi=$1, komisyon_orani=$2, kdv_orani=$3, kargo_ucreti=$4, updated_at=CURRENT_TIMESTAMP WHERE id=$5 RETURNING *',
-      [platform_adi.trim(), emptyToZero(komisyon_orani), emptyToZero(kdv_orani) || 20, emptyToZero(kargo_ucreti), req.params.id]
+      [platform_adi.trim(), emptyToZero(komisyon_orani), (kdv_orani !== '' && kdv_orani !== undefined && kdv_orani !== null) ? emptyToZero(kdv_orani) : 20, emptyToZero(kargo_ucreti), req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Platform bulunamadı' });
     res.json(result.rows[0]);
@@ -124,7 +124,7 @@ router.post('/', async (req, res) => {
     const alis = emptyToZero(alis_fiyati);
     const satis = emptyToZero(satis_fiyati);
     const komisyon = emptyToZero(komisyon_orani);
-    const kdv = emptyToZero(kdv_orani) || 20;
+    const kdv = (kdv_orani !== '' && kdv_orani !== undefined && kdv_orani !== null) ? emptyToZero(kdv_orani) : 20;
     const kargo = emptyToZero(kargo_ucreti);
     const komisyonTutari = (satis * komisyon / 100) * miktar;
     const kar = (satis * miktar) - (alis * miktar) - komisyonTutari;
@@ -192,7 +192,7 @@ router.put('/:id', async (req, res) => {
     const alis = emptyToZero(alis_fiyati);
     const satis = emptyToZero(satis_fiyati);
     const komisyon = emptyToZero(komisyon_orani);
-    const kdv = emptyToZero(kdv_orani) || 20;
+    const kdv = (kdv_orani !== '' && kdv_orani !== undefined && kdv_orani !== null) ? emptyToZero(kdv_orani) : 20;
     const kargo = emptyToZero(kargo_ucreti);
     const komisyonTutari = (satis * komisyon / 100) * miktar;
     const kar = (satis * miktar) - (alis * miktar) - komisyonTutari;

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, useTheme, useMediaQuery
+  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, MenuItem, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon } from '@mui/icons-material';
 import { aksesuarStokService } from '../services/api';
+
+const BEDEN_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 const AksesuarStok = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -12,7 +14,7 @@ const AksesuarStok = () => {
   const [dialog, setDialog] = useState({ open: false, data: null });
   const [importDialog, setImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
-  const [formData, setFormData] = useState({ stok_kodu: '', stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: '', platform: '' });
+  const [formData, setFormData] = useState({ stok_kodu: '', stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: '', platform: '', beden: '', renk: '' });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
@@ -35,7 +37,8 @@ const AksesuarStok = () => {
       setFormData({
         stok_kodu: stok.stok_kodu || '', stok_adi: stok.stok_adi || '', marka: stok.marka || '',
         alis_fiyati: stok.alis_fiyati || '', satis_fiyati: stok.satis_fiyati || '',
-        giren_miktar: stok.giren_miktar || 0, platform: stok.platform || ''
+        giren_miktar: stok.giren_miktar || 0, platform: stok.platform || '',
+        beden: stok.beden || '', renk: stok.renk || ''
       });
     } else {
       let nextKodu = '';
@@ -43,7 +46,7 @@ const AksesuarStok = () => {
         const res = await aksesuarStokService.getNextStokKodu();
         nextKodu = res.data.nextStokKodu;
       } catch {}
-      setFormData({ stok_kodu: nextKodu, stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: 0, platform: '' });
+      setFormData({ stok_kodu: nextKodu, stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: 0, platform: '', beden: '', renk: '' });
     }
     setDialog({ open: true, data: stok });
   };
@@ -108,7 +111,7 @@ const AksesuarStok = () => {
                 <Typography variant="subtitle2" fontWeight="bold">{s.stok_adi}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold', color: (s.mevcut || 0) <= 0 ? 'red' : 'green' }}>Mevcut: {s.mevcut || 0}</Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary">{s.stok_kodu || '-'} • {s.marka || '-'} • {s.platform || '-'}</Typography>
+              <Typography variant="body2" color="text.secondary">{s.stok_kodu || '-'} • {s.marka || '-'} • {s.platform || '-'}{s.beden ? ` • ${s.beden}` : ''}{s.renk ? ` • ${s.renk}` : ''}</Typography>
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                 <Typography variant="body2">Alış: <strong>{parseFloat(s.alis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
                 <Typography variant="body2">Satış: <strong>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
@@ -126,7 +129,7 @@ const AksesuarStok = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
-              {['Stok Kodu', 'Stok Adı', 'Marka', 'Platform', 'Alış (₺)', 'Satış (₺)', 'Giren', 'Mevcut', 'İşlemler'].map(h => (
+              {['Stok Kodu', 'Stok Adı', 'Marka', 'Platform', 'Beden', 'Renk', 'Alış (₺)', 'Satış (₺)', 'Giren', 'Mevcut', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -138,6 +141,8 @@ const AksesuarStok = () => {
                 <TableCell>{s.stok_adi}</TableCell>
                 <TableCell>{s.marka || '-'}</TableCell>
                 <TableCell>{s.platform || '-'}</TableCell>
+                <TableCell>{s.beden || '-'}</TableCell>
+                <TableCell>{s.renk || '-'}</TableCell>
                 <TableCell>{parseFloat(s.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                 <TableCell>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                 <TableCell>{s.giren_miktar || 0}</TableCell>
@@ -148,7 +153,7 @@ const AksesuarStok = () => {
                 </TableCell>
               </TableRow>
             ))}
-            {stoklar.length === 0 && <TableRow><TableCell colSpan={9} align="center">Kayıt yok</TableCell></TableRow>}
+            {stoklar.length === 0 && <TableRow><TableCell colSpan={11} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>
@@ -180,6 +185,15 @@ const AksesuarStok = () => {
             </Grid>
             <Grid size={{ xs: 6 }}>
               <TextField fullWidth label="Platform" value={formData.platform} onChange={e => setFormData({ ...formData, platform: e.target.value })} placeholder="Örn: Trendyol, Hepsiburada" />
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField select fullWidth label="Beden" value={formData.beden} onChange={e => setFormData({ ...formData, beden: e.target.value })}>
+                <MenuItem value="">Beden Yok</MenuItem>
+                {BEDEN_OPTIONS.map(b => <MenuItem key={b} value={b}>{b}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField fullWidth label="Renk" value={formData.renk} onChange={e => setFormData({ ...formData, renk: e.target.value })} placeholder="Opsiyonel" />
             </Grid>
           </Grid>
         </DialogContent>

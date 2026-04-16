@@ -17,7 +17,8 @@ const MotorStok = () => {
     plaka: '', marka: '', model: '', yil: '', km: '',
     alis_fiyati: '', noter_alis: '',
     satici_adi: '', satici_tc: '',
-    durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0]
+    durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0],
+    fatura_kesildi: false
   });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -46,12 +47,14 @@ const MotorStok = () => {
       alis_fiyati: motor.alis_fiyati || '', noter_alis: motor.noter_alis || '',
       satici_adi: motor.satici_adi || '', satici_tc: motor.satici_tc || '',
       durum: motor.durum || 'stokta', stok_tipi: motor.stok_tipi || 'sahip',
-      aciklama: motor.aciklama || '', tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+      aciklama: motor.aciklama || '', tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      fatura_kesildi: motor.fatura_kesildi || false
     } : {
       plaka: '', marka: '', model: '', yil: '', km: '',
       alis_fiyati: '', noter_alis: '',
       satici_adi: '', satici_tc: '',
-      durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0]
+      durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0],
+      fatura_kesildi: false
     });
     setDialog({ open: true, data: motor });
   };
@@ -299,6 +302,13 @@ const MotorStok = () => {
             )}
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField fullWidth label="Tarih" type="date" value={f.tarih} onChange={e => setFormData({ ...f, tarih: e.target.value })} InputLabelProps={{ shrink: true }} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField select fullWidth label="Fatura Durumu" value={f.fatura_kesildi ? 'true' : 'false'} onChange={e => setFormData({ ...f, fatura_kesildi: e.target.value === 'true' })}
+                sx={{ '& .MuiInputBase-root': { bgcolor: f.fatura_kesildi ? '#e8f5e9' : '#ffebee' } }}>
+                <MenuItem value="false">Fatura Kesilmedi</MenuItem>
+                <MenuItem value="true">Fatura Kesildi</MenuItem>
+              </TextField>
             </Grid>
           </Grid>
 
