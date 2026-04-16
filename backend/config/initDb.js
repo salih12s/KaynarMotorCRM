@@ -317,6 +317,10 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS aksesuar_stok_yetkisi BOOLEAN DEFAULT FALSE;`);
     await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS yedek_parca_yetkisi BOOLEAN DEFAULT FALSE;`);
 
+    // Migration: aksesuar_stok tablosuna beden ve renk alanları ekle
+    await client.query(`ALTER TABLE aksesuar_stok ADD COLUMN IF NOT EXISTS beden VARCHAR(10);`);
+    await client.query(`ALTER TABLE aksesuar_stok ADD COLUMN IF NOT EXISTS renk VARCHAR(50);`);
+
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
     console.error('Veritabanı başlatma hatası:', error.message);

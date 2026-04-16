@@ -30,7 +30,7 @@ const IkinciElMotor = () => {
     try {
       const [motorRes, statsRes] = await Promise.all([ikinciElMotorService.getAll(), ikinciElMotorService.getStats()]);
       const allMotors = motorRes.data;
-      const satisMotorlar = allMotors.filter(m => m.durum === 'tamamlandi' && !m.eski_kayit);
+      const satisMotorlar = allMotors.filter(m => m.durum === 'tamamlandi');
       setMotorlar(satisMotorlar);
       setStats(statsRes.data);
       setStokMotorlar(allMotors.filter(m => m.durum === 'stokta' || m.durum === 'kapora'));
@@ -96,12 +96,27 @@ const IkinciElMotor = () => {
   const canliKar = (Number(f.satis_fiyati) || 0) - (Number(f.alis_fiyati) || 0) - (Number(f.masraflar) || 0);
 
   const [search, setSearch] = useState('');
+  const [tarihBaslangic, setTarihBaslangic] = useState('');
+  const [tarihBitis, setTarihBitis] = useState('');
   const filteredMotorlar = motorlar.filter(m => {
+    // Tarih filtresi
+    if (tarihBaslangic) {
+      const mTarih = m.tarih ? m.tarih.split('T')[0] : '';
+      if (mTarih < tarihBaslangic) return false;
+    }
+    if (tarihBitis) {
+      const mTarih = m.tarih ? m.tarih.split('T')[0] : '';
+      if (mTarih > tarihBitis) return false;
+    }
     return (m.plaka || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.marka || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.model || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.alici_adi || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.satici_adi || '').toLowerCase().includes(search.toLowerCase());
+  }).sort((a, b) => {
+    const da = a.tarih ? new Date(a.tarih).getTime() : 0;
+    const db = b.tarih ? new Date(b.tarih).getTime() : 0;
+    return db - da;
   });
 
   const statChips = [
@@ -121,9 +136,21 @@ const IkinciElMotor = () => {
       </Box>
 
       <Paper sx={{ p: 2, mb: 2 }}>
-        <TextField size="small" fullWidth placeholder="Plaka, marka, model veya satıcı adı ile ara..." value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField size="small" fullWidth placeholder="Plaka, marka, model veya satıcı adı ile ara..." value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3 }}>
+            <TextField size="small" fullWidth label="Başlangıç" type="date" value={tarihBaslangic}
+              onChange={(e) => setTarihBaslangic(e.target.value)} InputLabelProps={{ shrink: true }} />
+          </Grid>
+          <Grid size={{ xs: 6, sm: 3 }}>
+            <TextField size="small" fullWidth label="Bitiş" type="date" value={tarihBitis}
+              onChange={(e) => setTarihBitis(e.target.value)} InputLabelProps={{ shrink: true }} />
+          </Grid>
+        </Grid>
       </Paper>
 
       {isMobile ? (
@@ -141,7 +168,11 @@ const IkinciElMotor = () => {
                 <Typography variant="body2" color="text.secondary">{m.satici_adi || '-'} • {m.km ? Number(m.km).toLocaleString('tr-TR') + ' km' : ''}</Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                   <Typography variant="body2">Alım: <strong>₺{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
-                  <Typography variant="body2">Noter: <strong>₺{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</strong></Typography>
+                <Typography variant="body2">Satış: <strong>₺{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                <Typography variant="body2">Noter Satış: <strong>₺{parseFloat(m.noter_satis || 0).toLocaleString('tr-TR')}</strong></Typography>
+                <Typography variant="body2" sx={{ color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>Kâr: <strong>₺{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</strong></Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
                   <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
@@ -156,7 +187,7 @@ const IkinciElMotor = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satıcı', 'TC Kimlik', 'Tarih', 'Alış Bedeli (₺)', 'İşlemler'].map(h => (
+              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Satıcı', 'Tarih', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -172,10 +203,11 @@ const IkinciElMotor = () => {
                   <TableCell>{m.yil || '-'}</TableCell>
                   <TableCell>{m.km ? Number(m.km).toLocaleString('tr-TR') : '-'}</TableCell>
                   <TableCell>{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
+                  <TableCell>{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
+                  <TableCell>{parseFloat(m.noter_satis || 0).toLocaleString('tr-TR')}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{m.satici_adi || '-'}</TableCell>
-                  <TableCell>{m.satici_tc || '-'}</TableCell>
                   <TableCell>{formatDate(m.tarih)}</TableCell>
-                  <TableCell>{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>
                     <IconButton size="small" color="primary" onClick={async () => { try { const res = await ikinciElMotorService.getById(m.id); setDetayModal({ open: true, data: res.data }); } catch {} }}><ViewIcon /></IconButton>
                     <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
@@ -184,7 +216,7 @@ const IkinciElMotor = () => {
                 </TableRow>
               );
             })}
-            {filteredMotorlar.length === 0 && <TableRow><TableCell colSpan={11} align="center">Kayıt yok</TableCell></TableRow>}
+            {filteredMotorlar.length === 0 && <TableRow><TableCell colSpan={12} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>

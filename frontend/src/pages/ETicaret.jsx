@@ -165,7 +165,7 @@ const ETicaret = () => {
         stok_id: satis.stok_id || '', platform_id: satis.platform_id || '',
         urun_adi: satis.urun_adi || '', alis_fiyati: satis.alis_fiyati || '',
         satis_fiyati: satis.satis_fiyati || '', komisyon_orani: satis.komisyon_orani || '',
-        kdv_orani: satis.kdv_orani || '20', kargo_ucreti: satis.kargo_ucreti || '0',
+        kdv_orani: satis.kdv_orani != null ? satis.kdv_orani : '20', kargo_ucreti: satis.kargo_ucreti || '0',
         adet: satis.adet || 1, tarih: satis.tarih ? satis.tarih.split('T')[0] : ''
       });
     } else {
@@ -225,7 +225,7 @@ const ETicaret = () => {
     setError('');
     setPlatformForm(p ? {
       platform_adi: p.platform_adi, komisyon_orani: p.komisyon_orani,
-      kdv_orani: p.kdv_orani || '20', kargo_ucreti: p.kargo_ucreti || '0'
+      kdv_orani: p.kdv_orani != null ? p.kdv_orani : '20', kargo_ucreti: p.kargo_ucreti || '0'
     } : { platform_adi: '', komisyon_orani: '', kdv_orani: '20', kargo_ucreti: '0' });
     setPlatformDialog({ open: true, data: p });
   };

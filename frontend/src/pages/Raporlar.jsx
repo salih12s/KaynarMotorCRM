@@ -5,7 +5,7 @@ import {
   MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, useTheme, useMediaQuery
 } from '@mui/material';
 import { Visibility as ViewIcon } from '@mui/icons-material';
-import { raporService } from '../services/api';
+import { raporService, aksesuarStokService } from '../services/api';
 
 const Raporlar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -24,6 +24,7 @@ const Raporlar = () => {
   const [aksDetayModal, setAksDetayModal] = useState({ open: false, data: null });
   const [eticaretDetayModal, setEticaretDetayModal] = useState({ open: false, data: null });
   const [motorDetayModal, setMotorDetayModal] = useState({ open: false, data: null });
+  const [stokOptions, setStokOptions] = useState([]);
 
   const loadRapor = async () => {
     setLoading(true);
@@ -57,6 +58,7 @@ const Raporlar = () => {
     loadRapor();
     loadFisKar();
     raporService.getPersoneller().then(r => setPersoneller(r.data)).catch(() => {});
+    aksesuarStokService.getAll().then(r => setStokOptions(r.data)).catch(() => {});
   }, [baslangic, bitis]);
 
   const formatTL = (v) => parseFloat(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
@@ -937,6 +939,10 @@ const Raporlar = () => {
         {aksDetayModal.data && (() => {
           const a = aksDetayModal.data;
           const parcalar = typeof a.parcalar === 'string' ? JSON.parse(a.parcalar) : (a.parcalar || []);
+          const enrichedParcalar = parcalar.map(p => {
+            const stok = stokOptions.find(s => s.stok_adi === p.urun_adi);
+            return { ...p, marka: stok?.marka, platform: stok?.platform, beden: stok?.beden, renk: stok?.renk };
+          });
           const topSatis = parcalar.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0), 0);
           const topMaliyet = parcalar.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.maliyet) || 0), 0);
           const topKar = topSatis - topMaliyet;
@@ -987,14 +993,17 @@ const Raporlar = () => {
                 {parcalar.length > 0 ? (
                   isMobile ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {parcalar.map((p, i) => {
+                    {enrichedParcalar.map((p, i) => {
                       const pSatis = (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0);
                       const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
                       const pKar = pSatis - pMaliyet;
                       return (
                         <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
                           <Typography variant="body2" fontWeight="bold">{p.urun_adi}</Typography>
-                          <Typography variant="caption" color="text.secondary">Adet: {p.adet} • Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • Satış: ₺{pSatis.toLocaleString('tr-TR')}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Adet: {p.adet} • Maliyet: ₺{pMaliyet.toLocaleString('tr-TR')} • Satış: ₺{pSatis.toLocaleString('tr-TR')}
+                            {p.marka ? ` • ${p.marka}` : ''}{p.platform ? ` • ${p.platform}` : ''}{p.beden ? ` • ${p.beden}` : ''}{p.renk ? ` • ${p.renk}` : ''}
+                          </Typography>
                           <Typography variant="caption" sx={{ display: 'block', color: pKar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>Kâr: ₺{pKar.toLocaleString('tr-TR')}</Typography>
                         </Paper>
                       );
@@ -1005,19 +1014,23 @@ const Raporlar = () => {
                     <Table size="small">
                       <TableHead>
                         <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                          {['Ürün Adı', 'Adet', 'Maliyet', 'Satış Fiyatı', 'Kâr'].map(h => (
+                          {['Ürün Adı', 'Marka', 'Platform', 'Beden', 'Renk', 'Adet', 'Maliyet', 'Satış Fiyatı', 'Kâr'].map(h => (
                             <TableCell key={h} sx={{ fontWeight: 'bold' }}>{h}</TableCell>
                           ))}
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {parcalar.map((p, i) => {
+                        {enrichedParcalar.map((p, i) => {
                           const pSatis = (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0);
                           const pMaliyet = (Number(p.adet) || 0) * (Number(p.maliyet) || 0);
                           const pKar = pSatis - pMaliyet;
                           return (
                             <TableRow key={i}>
                               <TableCell>{p.urun_adi}</TableCell>
+                              <TableCell>{p.marka || '-'}</TableCell>
+                              <TableCell>{p.platform || '-'}</TableCell>
+                              <TableCell>{p.beden || '-'}</TableCell>
+                              <TableCell>{p.renk || '-'}</TableCell>
                               <TableCell>{p.adet}</TableCell>
                               <TableCell>₺{pMaliyet.toLocaleString('tr-TR')}</TableCell>
                               <TableCell>₺{pSatis.toLocaleString('tr-TR')}</TableCell>

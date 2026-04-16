@@ -48,14 +48,14 @@ router.get('/ara', async (req, res) => {
 // POST / - Stok ekle
 router.post('/', async (req, res) => {
   try {
-    const { stok_kodu, stok_adi, marka, giren_miktar, birimi, alis_fiyati, satis_fiyati, platform } = req.body;
+    const { stok_kodu, stok_adi, marka, giren_miktar, birimi, alis_fiyati, satis_fiyati, platform, beden, renk } = req.body;
     const mevcut = parseInt(giren_miktar) || 0;
     const envanter = mevcut * (parseFloat(satis_fiyati) || 0);
 
     const result = await pool.query(
-      `INSERT INTO aksesuar_stok (stok_kodu, stok_adi, marka, giren_miktar, mevcut, birimi, alis_fiyati, satis_fiyati, envanter_degeri, platform)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [stok_kodu, stok_adi, marka || null, mevcut, mevcut, birimi || 'Adet', parseFloat(alis_fiyati) || 0, parseFloat(satis_fiyati) || 0, envanter, platform || null]
+      `INSERT INTO aksesuar_stok (stok_kodu, stok_adi, marka, giren_miktar, mevcut, birimi, alis_fiyati, satis_fiyati, envanter_degeri, platform, beden, renk)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [stok_kodu, stok_adi, marka || null, mevcut, mevcut, birimi || 'Adet', parseFloat(alis_fiyati) || 0, parseFloat(satis_fiyati) || 0, envanter, platform || null, beden || null, renk || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -67,16 +67,16 @@ router.post('/', async (req, res) => {
 // PUT /:id - Stok güncelle
 router.put('/:id', async (req, res) => {
   try {
-    const { stok_kodu, stok_adi, marka, giren_miktar, birimi, alis_fiyati, satis_fiyati, platform } = req.body;
+    const { stok_kodu, stok_adi, marka, giren_miktar, birimi, alis_fiyati, satis_fiyati, platform, beden, renk } = req.body;
     const giren = parseInt(giren_miktar) || 0;
     const mevcut = giren;
     const envanter = mevcut * (parseFloat(satis_fiyati) || 0);
 
     const result = await pool.query(
       `UPDATE aksesuar_stok SET stok_kodu=$1, stok_adi=$2, marka=$3, giren_miktar=$4, mevcut=$5,
-       birimi=$6, alis_fiyati=$7, satis_fiyati=$8, envanter_degeri=$9, platform=$10, updated_at=CURRENT_TIMESTAMP
-       WHERE id=$11 RETURNING *`,
-      [stok_kodu, stok_adi, marka || null, giren, mevcut, birimi || 'Adet', parseFloat(alis_fiyati) || 0, parseFloat(satis_fiyati) || 0, envanter, platform || null, req.params.id]
+       birimi=$6, alis_fiyati=$7, satis_fiyati=$8, envanter_degeri=$9, platform=$10, beden=$11, renk=$12, updated_at=CURRENT_TIMESTAMP
+       WHERE id=$13 RETURNING *`,
+      [stok_kodu, stok_adi, marka || null, giren, mevcut, birimi || 'Adet', parseFloat(alis_fiyati) || 0, parseFloat(satis_fiyati) || 0, envanter, platform || null, beden || null, renk || null, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Stok bulunamadı' });
     res.json(result.rows[0]);
