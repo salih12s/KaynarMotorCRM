@@ -14,10 +14,10 @@ router.get('/stats/ozet', async (req, res) => {
         COALESCE(SUM(satis_fiyati) FILTER (WHERE durum = 'tamamlandi'), 0) as toplam_satis,
         COALESCE(SUM(alis_fiyati) FILTER (WHERE durum = 'tamamlandi'), 0) as toplam_alis,
         COALESCE(SUM(kar) FILTER (WHERE durum = 'tamamlandi'), 0) as toplam_kar,
-        COALESCE(SUM(satis_fiyati), 0) as toplam_satis_tutari,
+        COALESCE(SUM(satis_fiyati) FILTER (WHERE durum = 'tamamlandi'), 0) as toplam_satis_tutari,
         COUNT(CASE WHEN durum = 'beklemede' THEN 1 END) as bekleyen,
         COUNT(CASE WHEN durum = 'tamamlandi' THEN 1 END) as tamamlanan
-      FROM ikinci_el_motorlar WHERE eski_kayit IS NOT TRUE
+      FROM ikinci_el_motorlar
     `);
     res.json(result.rows[0]);
   } catch (error) {
