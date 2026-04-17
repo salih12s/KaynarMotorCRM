@@ -3,10 +3,11 @@ import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, MenuItem, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon, FilterList as FilterIcon } from '@mui/icons-material';
 import { aksesuarStokService } from '../services/api';
 
 const BEDEN_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const KATEGORI_OPTIONS = ['Aksesuar', 'Demir', 'Tank Ped', 'Yedek Parça', 'Ekipman', 'Sticker'];
 
 const AksesuarStok = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -14,9 +15,11 @@ const AksesuarStok = () => {
   const [dialog, setDialog] = useState({ open: false, data: null });
   const [importDialog, setImportDialog] = useState(false);
   const [importText, setImportText] = useState('');
-  const [formData, setFormData] = useState({ stok_kodu: '', stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: '', platform: '', beden: '', renk: '' });
+  const [formData, setFormData] = useState({ stok_kodu: '', stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: '', platform: '', beden: '', renk: '', kategori: '' });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [kategoriFilter, setKategoriFilter] = useState('');
+  const [stokFilter, setStokFilter] = useState('');
 
   const loadData = async () => {
     try { const res = await aksesuarStokService.getAll(); setStoklar(res.data); } catch {}
@@ -38,7 +41,7 @@ const AksesuarStok = () => {
         stok_kodu: stok.stok_kodu || '', stok_adi: stok.stok_adi || '', marka: stok.marka || '',
         alis_fiyati: stok.alis_fiyati || '', satis_fiyati: stok.satis_fiyati || '',
         giren_miktar: stok.giren_miktar || 0, platform: stok.platform || '',
-        beden: stok.beden || '', renk: stok.renk || ''
+        beden: stok.beden || '', renk: stok.renk || '', kategori: stok.kategori || ''
       });
     } else {
       let nextKodu = '';
@@ -46,7 +49,7 @@ const AksesuarStok = () => {
         const res = await aksesuarStokService.getNextStokKodu();
         nextKodu = res.data.nextStokKodu;
       } catch {}
-      setFormData({ stok_kodu: nextKodu, stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: 0, platform: '', beden: '', renk: '' });
+      setFormData({ stok_kodu: nextKodu, stok_adi: '', marka: '', alis_fiyati: '', satis_fiyati: '', giren_miktar: 0, platform: '', beden: '', renk: '', kategori: '' });
     }
     setDialog({ open: true, data: stok });
   };
@@ -87,6 +90,12 @@ const AksesuarStok = () => {
   const totalUrun = stoklar.length;
   const envanter = stoklar.reduce((acc, s) => acc + (parseFloat(s.alis_fiyati || 0) * parseInt(s.mevcut || 0)), 0);
 
+  const filteredStoklar = stoklar.filter(s => {
+    const matchKategori = !kategoriFilter || (s.kategori || '').toLowerCase() === kategoriFilter.toLowerCase();
+    const matchStok = !stokFilter || (stokFilter === 'biten' ? (s.mevcut || 0) <= 0 : (s.mevcut || 0) > 0);
+    return matchKategori && matchStok;
+  });
+
   return (
     <Box>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
@@ -98,20 +107,32 @@ const AksesuarStok = () => {
       </Box>
 
       <Paper sx={{ p: 2, mb: 2 }}>
-        <TextField size="small" fullWidth placeholder="Stok ara (kod, ad)" value={search} onChange={(e) => setSearch(e.target.value)}
-          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }} />
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <TextField size="small" placeholder="Stok ara (kod, ad, marka)" value={search} onChange={(e) => setSearch(e.target.value)}
+            InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+            sx={{ minWidth: { xs: '100%', sm: 250 } }} />
+          <TextField select size="small" label="Kategori" value={kategoriFilter} onChange={e => setKategoriFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="">Tümü</MenuItem>
+            {KATEGORI_OPTIONS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+          </TextField>
+          <TextField select size="small" label="Stok Durumu" value={stokFilter} onChange={e => setStokFilter(e.target.value)} sx={{ minWidth: 150 }}>
+            <MenuItem value="">Tümü</MenuItem>
+            <MenuItem value="var">Stokta Var</MenuItem>
+            <MenuItem value="biten">Stok Biten</MenuItem>
+          </TextField>
+        </Box>
       </Paper>
 
       {isMobile ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {stoklar.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
-          {stoklar.map(s => (
+          {filteredStoklar.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
+          {filteredStoklar.map(s => (
             <Paper key={s.id} sx={{ p: 1.5, bgcolor: (s.mevcut || 0) <= 0 ? '#ffebee' : '#fff' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                 <Typography variant="subtitle2" fontWeight="bold">{s.stok_adi}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold', color: (s.mevcut || 0) <= 0 ? 'red' : 'green' }}>Mevcut: {s.mevcut || 0}</Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary">{s.stok_kodu || '-'} • {s.marka || '-'} • {s.platform || '-'}{s.beden ? ` • ${s.beden}` : ''}{s.renk ? ` • ${s.renk}` : ''}</Typography>
+              <Typography variant="body2" color="text.secondary">{s.stok_kodu || '-'} • {s.marka || '-'} • {s.kategori || '-'} • {s.platform || '-'}{s.beden ? ` • ${s.beden}` : ''}{s.renk ? ` • ${s.renk}` : ''}</Typography>
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                 <Typography variant="body2">Alış: <strong>{parseFloat(s.alis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
                 <Typography variant="body2">Satış: <strong>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
@@ -129,17 +150,18 @@ const AksesuarStok = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
-              {['Stok Kodu', 'Stok Adı', 'Marka', 'Platform', 'Beden', 'Renk', 'Alış (₺)', 'Satış (₺)', 'Giren', 'Mevcut', 'İşlemler'].map(h => (
+              {['Stok Kodu', 'Stok Adı', 'Marka', 'Kategori', 'Platform', 'Beden', 'Renk', 'Alış (₺)', 'Satış (₺)', 'Giren', 'Mevcut', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {stoklar.map(s => (
+            {filteredStoklar.map(s => (
               <TableRow key={s.id} hover sx={{ bgcolor: (s.mevcut || 0) <= 0 ? '#ffebee' : 'inherit' }}>
                 <TableCell>{s.stok_kodu || '-'}</TableCell>
                 <TableCell>{s.stok_adi}</TableCell>
                 <TableCell>{s.marka || '-'}</TableCell>
+                <TableCell>{s.kategori || '-'}</TableCell>
                 <TableCell>{s.platform || '-'}</TableCell>
                 <TableCell>{s.beden || '-'}</TableCell>
                 <TableCell>{s.renk || '-'}</TableCell>
@@ -153,7 +175,7 @@ const AksesuarStok = () => {
                 </TableCell>
               </TableRow>
             ))}
-            {stoklar.length === 0 && <TableRow><TableCell colSpan={11} align="center">Kayıt yok</TableCell></TableRow>}
+            {filteredStoklar.length === 0 && <TableRow><TableCell colSpan={12} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>
@@ -185,6 +207,12 @@ const AksesuarStok = () => {
             </Grid>
             <Grid size={{ xs: 6 }}>
               <TextField fullWidth label="Platform" value={formData.platform} onChange={e => setFormData({ ...formData, platform: e.target.value })} placeholder="Örn: Trendyol, Hepsiburada" />
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField select fullWidth label="Kategori" value={formData.kategori} onChange={e => setFormData({ ...formData, kategori: e.target.value })}>
+                <MenuItem value="">Kategori Yok</MenuItem>
+                {KATEGORI_OPTIONS.map(k => <MenuItem key={k} value={k}>{k}</MenuItem>)}
+              </TextField>
             </Grid>
             <Grid size={{ xs: 6 }}>
               <TextField select fullWidth label="Beden" value={formData.beden} onChange={e => setFormData({ ...formData, beden: e.target.value })}>
