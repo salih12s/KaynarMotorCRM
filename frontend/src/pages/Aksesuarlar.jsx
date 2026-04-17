@@ -5,7 +5,7 @@ import {
   TextField, Grid, Alert, MenuItem, InputAdornment, Autocomplete, Divider, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon } from '@mui/icons-material';
-import { aksesuarService, aksesuarStokService } from '../services/api';
+import { aksesuarService, aksesuarStokService, musteriService } from '../services/api';
 
 const Aksesuarlar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -20,6 +20,12 @@ const Aksesuarlar = () => {
   const [aksStart, setAksStart] = useState('');
   const [aksEnd, setAksEnd] = useState('');
   const [detayDialog, setDetayDialog] = useState({ open: false, data: null });
+  const [musteriOptions, setMusteriOptions] = useState([]);
+
+  const searchMusteri = async (query) => {
+    if (!query || query.length < 2) { setMusteriOptions([]); return; }
+    try { const res = await musteriService.search(query); setMusteriOptions(res.data); } catch { setMusteriOptions([]); }
+  };
 
   const loadData = async () => {
     try {
@@ -209,7 +215,12 @@ const Aksesuarlar = () => {
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField fullWidth label="Ad Soyad" value={formData.ad_soyad} onChange={e => setFormData({ ...formData, ad_soyad: e.target.value })} required />
+              <Autocomplete freeSolo options={musteriOptions}
+                getOptionLabel={(o) => typeof o === 'string' ? o : o.ad_soyad}
+                inputValue={formData.ad_soyad} onInputChange={(e, val) => { setFormData({ ...formData, ad_soyad: val }); searchMusteri(val); }}
+                onChange={(e, val) => { if (val && typeof val === 'object') { setFormData({ ...formData, ad_soyad: val.ad_soyad, telefon: val.telefon || formData.telefon }); } }}
+                renderInput={(params) => <TextField {...params} fullWidth label="Ad Soyad" required />}
+              />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField fullWidth label="Telefon" value={formData.telefon} onChange={e => setFormData({ ...formData, telefon: e.target.value })} />

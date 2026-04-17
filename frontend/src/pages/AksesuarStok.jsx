@@ -132,11 +132,10 @@ const AksesuarStok = () => {
                 <Typography variant="subtitle2" fontWeight="bold">{s.stok_adi}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'bold', color: (s.mevcut || 0) <= 0 ? 'red' : 'green' }}>Mevcut: {s.mevcut || 0}</Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary">{s.stok_kodu || '-'} • {s.marka || '-'} • {s.kategori || '-'} • {s.platform || '-'}{s.beden ? ` • ${s.beden}` : ''}{s.renk ? ` • ${s.renk}` : ''}</Typography>
+              <Typography variant="body2" color="text.secondary">{s.stok_kodu || '-'} • {s.marka || '-'} • {s.kategori || '-'}{s.beden ? ` • ${s.beden}` : ''}{s.renk ? ` • ${s.renk}` : ''}</Typography>
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                 <Typography variant="body2">Alış: <strong>{parseFloat(s.alis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
                 <Typography variant="body2">Satış: <strong>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
-                <Typography variant="body2">Giren: {s.giren_miktar || 0}</Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
                 <IconButton size="small" color="info" onClick={() => openDialog(s)}><EditIcon /></IconButton>
@@ -150,7 +149,7 @@ const AksesuarStok = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
-              {['Stok Kodu', 'Stok Adı', 'Marka', 'Kategori', 'Platform', 'Beden', 'Renk', 'Alış (₺)', 'Satış (₺)', 'Giren', 'Mevcut', 'İşlemler'].map(h => (
+              {['Stok Kodu', 'Stok Adı', 'Marka', 'Kategori', 'Beden', 'Renk', 'Alış (₺)', 'Satış (₺)', 'Mevcut', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -162,12 +161,10 @@ const AksesuarStok = () => {
                 <TableCell>{s.stok_adi}</TableCell>
                 <TableCell>{s.marka || '-'}</TableCell>
                 <TableCell>{s.kategori || '-'}</TableCell>
-                <TableCell>{s.platform || '-'}</TableCell>
                 <TableCell>{s.beden || '-'}</TableCell>
                 <TableCell>{s.renk || '-'}</TableCell>
                 <TableCell>{parseFloat(s.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                 <TableCell>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
-                <TableCell>{s.giren_miktar || 0}</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: (s.mevcut || 0) <= 0 ? 'red' : 'green' }}>{s.mevcut || 0}</TableCell>
                 <TableCell>
                   <IconButton size="small" color="info" onClick={() => openDialog(s)}><EditIcon /></IconButton>
@@ -175,7 +172,7 @@ const AksesuarStok = () => {
                 </TableCell>
               </TableRow>
             ))}
-            {filteredStoklar.length === 0 && <TableRow><TableCell colSpan={12} align="center">Kayıt yok</TableCell></TableRow>}
+            {filteredStoklar.length === 0 && <TableRow><TableCell colSpan={10} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>

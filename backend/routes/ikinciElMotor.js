@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
 const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
+const { upsertMusteri } = require('../config/musteriHelper');
 
 const emptyToZero = (v) => { if (v === '' || v === undefined || v === null) return 0; const n = Number(v); return isNaN(n) ? 0 : n; };
 
@@ -63,7 +64,7 @@ router.post('/', async (req, res) => {
       alis_fiyati, satis_fiyati, noter_alis, noter_satis, masraflar,
       alici_adi, alici_tc, alici_telefon, alici_adres,
       odeme_sekli, aciklama, durum, stok_tipi,
-      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no
+      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi
     } = req.body;
 
     const alis = emptyToZero(alis_fiyati);
@@ -77,12 +78,16 @@ router.post('/', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO ikinci_el_motorlar (tarih, plaka, marka, model, km, alis_fiyati, satis_fiyati, noter_alis, noter_satis, masraflar, kar,
         alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli, aciklama, durum, tamamlama_tarihi, stok_tipi,
-        yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) RETURNING *`,
+        yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27) RETURNING *`,
       [tarih || new Date(), plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli || 'nakit', aciklama, durum || 'stokta', tamamlamaTarihi, stok_tipi || 'sahip',
-       emptyToZero(yil) || null, satici_adi || null, satici_tc || null, emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null]
+       emptyToZero(yil) || null, satici_adi || null, satici_tc || null, emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, satis_tarihi || null]
     );
+
+    // Müşteri auto-collect
+    if (satici_adi) await upsertMusteri(satici_adi, null, null);
+    if (alici_adi) await upsertMusteri(alici_adi, alici_telefon, alici_adres);
 
     await logAktivite({
       kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi,
@@ -109,7 +114,7 @@ router.put('/:id', async (req, res) => {
       alis_fiyati, satis_fiyati, noter_alis, noter_satis, masraflar,
       alici_adi, alici_tc, alici_telefon, alici_adres,
       odeme_sekli, aciklama, durum, stok_tipi,
-      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, eski_kayit
+      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, eski_kayit, satis_tarihi
     } = req.body;
 
     const alis = emptyToZero(alis_fiyati);
@@ -130,13 +135,18 @@ router.put('/:id', async (req, res) => {
         stok_tipi=$20, yil=$21, satici_adi=$22, satici_tc=$23,
         kalan_odeme=$24, fatura_kesildi=$25, yevmiye_no=$26,
         eski_kayit=COALESCE($28, eski_kayit),
+        satis_tarihi=COALESCE($29, satis_tarihi),
         updated_at=CURRENT_TIMESTAMP WHERE id=$27 RETURNING *`,
       [tarih, plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli, aciklama, durum,
        tamamlamaTarihi, stok_tipi || 'sahip', emptyToZero(yil) || null, satici_adi || null, satici_tc || null,
        emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, req.params.id,
-       eski_kayit !== undefined ? eski_kayit : null]
+       eski_kayit !== undefined ? eski_kayit : null, satis_tarihi || null]
     );
+
+    // Müşteri auto-collect
+    if (satici_adi) await upsertMusteri(satici_adi, null, null);
+    if (alici_adi) await upsertMusteri(alici_adi, alici_telefon, alici_adres);
 
     await logAktivite({
       kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi,

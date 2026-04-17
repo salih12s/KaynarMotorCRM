@@ -72,6 +72,7 @@ const Layout = () => {
     if (pathname === '/eticaret') return 'E-Ticaret';
     if (pathname === '/yedek-parcalar') return 'Yedek Parça';
     if (pathname === '/raporlar') return 'Raporlar';
+    if (pathname === '/musteriler') return 'Müşteriler';
     if (pathname === '/kullanicilar') return 'Kullanıcılar';
     if (pathname.startsWith('/is-emri/') && pathname.includes('duzenle')) return 'İş Emri Düzenle';
     if (pathname === '/is-emri/yeni') return 'Yeni İş Emri';
@@ -101,6 +102,7 @@ const Layout = () => {
     { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: isAdmin || hasEticaret, color: '#C62828' },
     { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: isAdmin || hasYedekParca, color: '#C62828' },
     { title: 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin, color: '#C62828' },
+    { title: 'Müşteriler', path: '/musteriler', icon: <PeopleIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: isAdmin, color: '#C62828' },
   ];
 
