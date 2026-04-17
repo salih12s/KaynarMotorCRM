@@ -90,7 +90,7 @@ router.get('/aralik', async (req, res) => {
     );
 
     const motorlar = await pool.query(
-      `SELECT * FROM ikinci_el_motorlar WHERE durum = 'tamamlandi' AND tamamlama_tarihi IS NOT NULL AND (eski_kayit IS NOT TRUE OR DATE(tamamlama_tarihi) >= '2026-01-01') AND DATE(tamamlama_tarihi) BETWEEN $1 AND $2 ORDER BY tamamlama_tarihi DESC`,
+      `SELECT * FROM ikinci_el_motorlar WHERE durum = 'tamamlandi' AND tamamlama_tarihi IS NOT NULL AND (eski_kayit IS NOT TRUE OR DATE(tamamlama_tarihi) >= '2026-01-01') AND DATE(COALESCE(satis_tarihi, tamamlama_tarihi)) BETWEEN $1 AND $2 ORDER BY COALESCE(satis_tarihi, tamamlama_tarihi) DESC`,
       [baslangic, bitis]
     );
 
@@ -123,6 +123,12 @@ router.get('/aralik', async (req, res) => {
     const yedekParcaToplamDeger = yedekParcalar.rows.reduce((t, r) => t + parseFloat(r.satis_fiyati || 0), 0);
     const yedekParcaToplamMaliyet = yedekParcalar.rows.reduce((t, r) => t + parseFloat(r.alis_fiyati || 0), 0);
 
+    // Motor stok toplam değeri (stoktaki motorların alım fiyatları toplamı)
+    const stokMotorlar = await pool.query(
+      `SELECT COALESCE(SUM(alis_fiyati), 0) as toplam_alis FROM ikinci_el_motorlar WHERE durum IN ('stokta', 'kapora', 'devir_bekliyor', 'konsinye')`
+    );
+    const motorStokToplam = parseFloat(stokMotorlar.rows[0].toplam_alis || 0);
+
     res.json({
       baslangic, bitis,
       motorlar: motorlar.rows,
@@ -135,6 +141,7 @@ router.get('/aralik', async (req, res) => {
       eticaretGelir, eticaretMaliyet, eticaretKar,
       yedekParcalar: yedekParcalar.rows,
       yedekParcaToplamDeger, yedekParcaToplamMaliyet,
+      motorStokToplam,
       toplam: {
         gelir: isEmriGelir + aksesuarGelir + motorGelir + eticaretGelir,
         maliyet: isEmriMaliyet + aksesuarMaliyet + motorMaliyet + eticaretMaliyet,

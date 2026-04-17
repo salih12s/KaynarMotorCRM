@@ -28,13 +28,47 @@ router.get('/ara/:query', async (req, res) => {
   }
 });
 
-// GET /:id - Tek müşteri
+// GET /:id - Tek müşteri + işlem geçmişi
 router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM musteriler WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Müşteri bulunamadı' });
-    res.json(result.rows[0]);
+
+    const musteri = result.rows[0];
+    const name = musteri.ad_soyad;
+
+    // Motor işlemleri - satıcı veya alıcı olarak
+    const motorlar = await pool.query(
+      `SELECT id, plaka, marka, model, yil, alis_fiyati, satis_fiyati, noter_satis, kar, durum, tarih, satis_tarihi, satici_adi, alici_adi, yevmiye_no
+       FROM ikinci_el_motorlar WHERE LOWER(satici_adi) = LOWER($1) OR LOWER(alici_adi) = LOWER($1)
+       ORDER BY COALESCE(satis_tarihi, tarih, created_at) DESC`,
+      [name]
+    );
+
+    // Aksesuar satışları
+    const aksesuarlar = await pool.query(
+      `SELECT id, ad_soyad, telefon, toplam_satis, kar, durum, satis_tarihi, olusturan_kisi
+       FROM aksesuarlar WHERE LOWER(ad_soyad) = LOWER($1)
+       ORDER BY COALESCE(satis_tarihi, created_at) DESC`,
+      [name]
+    );
+
+    // İş emirleri
+    const isEmirleri = await pool.query(
+      `SELECT id, fis_no, musteri_ad_soyad, model_tip, marka, durum, gercek_toplam_ucret, created_at
+       FROM is_emirleri WHERE LOWER(musteri_ad_soyad) = LOWER($1)
+       ORDER BY created_at DESC`,
+      [name]
+    );
+
+    res.json({
+      ...musteri,
+      motorlar: motorlar.rows,
+      aksesuarlar: aksesuarlar.rows,
+      isEmirleri: isEmirleri.rows
+    });
   } catch (error) {
+    console.error('Müşteri detay hatası:', error);
     res.status(500).json({ message: 'Sunucu hatası' });
   }
 });

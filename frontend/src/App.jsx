@@ -18,6 +18,7 @@ import ETicaret from './pages/ETicaret';
 import YedekParcalar from './pages/YedekParcalar';
 import Raporlar from './pages/Raporlar';
 import Kullanicilar from './pages/Kullanicilar';
+import Musteriler from './pages/Musteriler';
 import MotorDetay from './pages/MotorDetay';
 
 // Route Guards
@@ -138,6 +139,7 @@ const ThemedApp = () => {
               <Route path="/yedek-parcalar" element={<YedekParcaRoute><YedekParcalar /></YedekParcaRoute>} />
               <Route path="/raporlar" element={<AdminRoute><Raporlar /></AdminRoute>} />
               <Route path="/kullanicilar" element={<AdminRoute><Kullanicilar /></AdminRoute>} />
+              <Route path="/musteriler" element={<AdminRoute><Musteriler /></AdminRoute>} />
             </Route>
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

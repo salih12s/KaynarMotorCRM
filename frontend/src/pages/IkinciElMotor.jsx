@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
-import { ikinciElMotorService } from '../services/api';
+import { ikinciElMotorService, musteriService } from '../services/api';
 
 const IkinciElMotor = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -19,12 +19,19 @@ const IkinciElMotor = () => {
     alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '', aciklama: '',
     satici_adi: '', satici_tc: '',
     durum: 'stokta', odeme_sekli: 'nakit', stok_tipi: 'sahip',
-    kalan_odeme: '', odeme_tamamlandi: true, fatura_kesildi: false, yevmiye_no: ''
+    kalan_odeme: '', odeme_tamamlandi: true, fatura_kesildi: false, yevmiye_no: '',
+    satis_tarihi: new Date().toISOString().split('T')[0]
   });
   const [error, setError] = useState('');
   const [stats, setStats] = useState({});
   const [stokMotorlar, setStokMotorlar] = useState([]);
   const [selectedStokId, setSelectedStokId] = useState(null);
+  const [musteriOptions, setMusteriOptions] = useState([]);
+
+  const searchMusteri = async (query) => {
+    if (!query || query.length < 2) { setMusteriOptions([]); return; }
+    try { const res = await musteriService.search(query); setMusteriOptions(res.data); } catch { setMusteriOptions([]); }
+  };
 
   const loadData = async () => {
     try {
@@ -55,7 +62,8 @@ const IkinciElMotor = () => {
       durum: motor.durum || 'tamamlandi', odeme_sekli: motor.odeme_sekli || 'nakit',
       kalan_odeme: motor.kalan_odeme || '', odeme_tamamlandi: !parseFloat(motor.kalan_odeme || 0),
       fatura_kesildi: motor.fatura_kesildi || false,
-      tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : ''
+      tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : '',
+      satis_tarihi: motor.satis_tarihi ? new Date(motor.satis_tarihi).toISOString().split('T')[0] : ''
     } : {
       plaka: '', marka: '', model: '', km: '', yil: '',
       alis_fiyati: '', satis_fiyati: '', noter_alis: '', noter_satis: '', masraflar: '',
@@ -63,7 +71,7 @@ const IkinciElMotor = () => {
       satici_adi: '', satici_tc: '',
       durum: 'tamamlandi', odeme_sekli: 'nakit',
       kalan_odeme: '', odeme_tamamlandi: true, fatura_kesildi: false,
-      tarih: ''
+      tarih: '', satis_tarihi: new Date().toISOString().split('T')[0]
     });
     setDialog({ open: true, data: motor });
   };
@@ -101,11 +109,11 @@ const IkinciElMotor = () => {
   const filteredMotorlar = motorlar.filter(m => {
     // Tarih filtresi
     if (tarihBaslangic) {
-      const mTarih = m.tarih ? m.tarih.split('T')[0] : '';
+      const mTarih = (m.satis_tarihi || m.tarih) ? (m.satis_tarihi || m.tarih).split('T')[0] : '';
       if (mTarih < tarihBaslangic) return false;
     }
     if (tarihBitis) {
-      const mTarih = m.tarih ? m.tarih.split('T')[0] : '';
+      const mTarih = (m.satis_tarihi || m.tarih) ? (m.satis_tarihi || m.tarih).split('T')[0] : '';
       if (mTarih > tarihBitis) return false;
     }
     return (m.plaka || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -114,8 +122,8 @@ const IkinciElMotor = () => {
       (m.alici_adi || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.satici_adi || '').toLowerCase().includes(search.toLowerCase());
   }).sort((a, b) => {
-    const da = a.tarih ? new Date(a.tarih).getTime() : 0;
-    const db = b.tarih ? new Date(b.tarih).getTime() : 0;
+    const da = (a.satis_tarihi || a.tarih) ? new Date(a.satis_tarihi || a.tarih).getTime() : 0;
+    const db = (b.satis_tarihi || b.tarih) ? new Date(b.satis_tarihi || b.tarih).getTime() : 0;
     return db - da;
   });
 
@@ -162,10 +170,10 @@ const IkinciElMotor = () => {
               <Paper key={m.id} sx={{ p: 1.5 }} onClick={async () => { try { const res = await ikinciElMotorService.getById(m.id); setDetayModal({ open: true, data: res.data }); } catch {} }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                   <Typography variant="subtitle2" fontWeight="bold">{m.plaka}</Typography>
-                  <Typography variant="caption" color="text.secondary">{formatDate(m.tarih)}</Typography>
+                  <Typography variant="caption" color="text.secondary">{formatDate(m.satis_tarihi || m.tarih)}</Typography>
                 </Box>
                 <Typography variant="body2">{m.marka} {m.model} {m.yil ? `(${m.yil})` : ''}</Typography>
-                <Typography variant="body2" color="text.secondary">{m.satici_adi || '-'} • {m.km ? Number(m.km).toLocaleString('tr-TR') + ' km' : ''}</Typography>
+                <Typography variant="body2" color="text.secondary">{m.alici_adi || '-'} • {m.km ? Number(m.km).toLocaleString('tr-TR') + ' km' : ''}</Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                   <Typography variant="body2">Alım: <strong>₺{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
                 <Typography variant="body2">Satış: <strong>₺{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
@@ -187,7 +195,7 @@ const IkinciElMotor = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Satıcı', 'Tarih', 'İşlemler'].map(h => (
+              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Alıcı', 'Satış Tarihi', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -206,8 +214,8 @@ const IkinciElMotor = () => {
                   <TableCell>{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{parseFloat(m.noter_satis || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</TableCell>
-                  <TableCell>{m.satici_adi || '-'}</TableCell>
-                  <TableCell>{formatDate(m.tarih)}</TableCell>
+                  <TableCell>{m.alici_adi || '-'}</TableCell>
+                  <TableCell>{formatDate(m.satis_tarihi || m.tarih)}</TableCell>
                   <TableCell>
                     <IconButton size="small" color="primary" onClick={async () => { try { const res = await ikinciElMotorService.getById(m.id); setDetayModal({ open: true, data: res.data }); } catch {} }}><ViewIcon /></IconButton>
                     <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
@@ -245,6 +253,7 @@ const IkinciElMotor = () => {
                         km: motor.km || '', yil: motor.yil || '',
                         alis_fiyati: motor.alis_fiyati || '', noter_alis: motor.noter_alis || '',
                         satici_adi: motor.satici_adi || '', satici_tc: motor.satici_tc || '',
+                        tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : '',
                         durum: 'tamamlandi'
                       });
                     } else {
@@ -278,7 +287,10 @@ const IkinciElMotor = () => {
               </TextField>
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField fullWidth label="Tarih" type="date" value={f.tarih} onChange={e => setFormData({ ...f, tarih: e.target.value })} InputLabelProps={{ shrink: true }} />
+              <TextField fullWidth label="Alım Tarihi" type="date" value={f.tarih} onChange={e => setFormData({ ...f, tarih: e.target.value })} InputLabelProps={{ shrink: true }} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField fullWidth label="Satış Tarihi" type="date" value={f.satis_tarihi} onChange={e => setFormData({ ...f, satis_tarihi: e.target.value })} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <FormControlLabel control={<Checkbox checked={f.fatura_kesildi} onChange={e => setFormData({ ...f, fatura_kesildi: e.target.checked })} />} label="Fatura Kesildi" />
@@ -302,13 +314,27 @@ const IkinciElMotor = () => {
 
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Satıcı Bilgileri</Typography>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Satıcı Ad Soyad" value={f.satici_adi} onChange={e => setFormData({ ...f, satici_adi: e.target.value })} /></Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Autocomplete freeSolo options={musteriOptions}
+                getOptionLabel={(o) => typeof o === 'string' ? o : o.ad_soyad}
+                inputValue={f.satici_adi} onInputChange={(e, val) => { setFormData({ ...f, satici_adi: val }); searchMusteri(val); }}
+                onChange={(e, val) => { if (val && typeof val === 'object') { setFormData({ ...f, satici_adi: val.ad_soyad }); } }}
+                renderInput={(params) => <TextField {...params} fullWidth label="Satıcı Ad Soyad" />}
+              />
+            </Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Satıcı TC No" value={f.satici_tc} onChange={e => setFormData({ ...f, satici_tc: e.target.value })} /></Grid>
           </Grid>
 
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Alıcı Bilgileri</Typography>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Ad Soyad" value={f.alici_adi} onChange={e => setFormData({ ...f, alici_adi: e.target.value })} /></Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <Autocomplete freeSolo options={musteriOptions}
+                getOptionLabel={(o) => typeof o === 'string' ? o : o.ad_soyad}
+                inputValue={f.alici_adi} onInputChange={(e, val) => { setFormData({ ...f, alici_adi: val }); searchMusteri(val); }}
+                onChange={(e, val) => { if (val && typeof val === 'object') { setFormData({ ...f, alici_adi: val.ad_soyad, alici_telefon: val.telefon || f.alici_telefon, alici_adres: val.adres || f.alici_adres }); } }}
+                renderInput={(params) => <TextField {...params} fullWidth label="Ad Soyad" />}
+              />
+            </Grid>
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="TC No" value={f.alici_tc} onChange={e => setFormData({ ...f, alici_tc: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Telefon" value={f.alici_telefon} onChange={e => setFormData({ ...f, alici_telefon: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Adres" value={f.alici_adres} onChange={e => setFormData({ ...f, alici_adres: e.target.value })} /></Grid>
@@ -383,18 +409,20 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
               <InfoRow label="Model" value={data.model} />
               <InfoRow label="Yıl" value={data.yil} />
               <InfoRow label="KM" value={data.km ? Number(data.km).toLocaleString('tr-TR') : null} />
-              <InfoRow label="Tarih" value={formatDate(data.tarih)} />
+              <InfoRow label="Alım Tarihi" value={formatDate(data.tarih)} />
+              <InfoRow label="Satış Tarihi" value={formatDate(data.satis_tarihi)} />
               <InfoRow label="Durum" value={data.durum === 'stokta' ? 'Stokta' : data.durum === 'kapora' ? 'Kapora' : data.durum === 'devir_bekliyor' ? 'Devir Bekliyor' : data.durum === 'tamamlandi' ? 'Tamamlandı' : data.durum === 'perte' ? 'Perte' : data.durum} />
               <InfoRow label="Stok Tipi" value={data.stok_tipi === 'konsinye' ? 'Konsinye' : 'Sahip'} />
               <InfoRow label="Ödeme Şekli" value={data.odeme_sekli || 'Nakit'} />
               <InfoRow label="Fatura" value={data.fatura_kesildi ? 'Kesildi ✓' : 'Kesilmedi'} />
+              {data.yevmiye_no && <InfoRow label="Yevmiye No" value={data.yevmiye_no} />}
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>🏪 Satıcı (Alım) Bilgileri</Typography>
               <Divider sx={{ mb: 1 }} />
               <InfoRow label="İsim Soyisim" value={data.satici_adi} />
               <InfoRow label="TC Kimlik" value={data.satici_tc} />
-              <InfoRow label="Tarih" value={formatDate(data.tarih)} />
+              <InfoRow label="Alım Tarihi" value={formatDate(data.tarih)} />
               <InfoRow label="Alış Bedeli" value={noterAlis ? `₺${formatTL(noterAlis)}` : null} />
             </Grid>
           </Grid>

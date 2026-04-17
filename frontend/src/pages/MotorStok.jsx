@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Divider, MenuItem, Tooltip, useTheme, useMediaQuery
+  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Divider, MenuItem, Tooltip, Autocomplete, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon, ShoppingCart as SellIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
-import { ikinciElMotorService } from '../services/api';
+import { ikinciElMotorService, musteriService } from '../services/api';
 
 const MotorStok = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -27,8 +27,15 @@ const MotorStok = () => {
   const [hizliSatis, setHizliSatis] = useState({ open: false, motor: null });
   const [hizliForm, setHizliForm] = useState({
     satis_fiyati: '', noter_satis: '', masraflar: '',
-    alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: ''
+    alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '',
+    yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0]
   });
+  const [musteriOptions, setMusteriOptions] = useState([]);
+
+  const searchMusteri = async (query) => {
+    if (!query || query.length < 2) { setMusteriOptions([]); return; }
+    try { const res = await musteriService.search(query); setMusteriOptions(res.data); } catch { setMusteriOptions([]); }
+  };
 
   const loadData = async () => {
     try {
@@ -80,7 +87,8 @@ const MotorStok = () => {
   const openHizliSatis = (motor) => {
     setHizliForm({
       satis_fiyati: '', noter_satis: '', masraflar: motor.masraflar || '',
-      alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: ''
+      alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '',
+      yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0]
     });
     setHizliSatis({ open: true, motor });
   };
@@ -228,7 +236,7 @@ const MotorStok = () => {
         <Table size="small" sx={{ '& .MuiTableCell-root': { px: 1, py: 0.5, fontSize: '0.78rem' } }}>
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım', 'Satış', 'İsim Soyisim', 'Tarih', 'Alış Bedeli', 'İşlemler'].map(h => (
+              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım', 'Satış', 'İsim Soyisim', 'Alım Tarihi', 'Alış Bedeli', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', px: 1, py: 0.7, fontSize: '0.78rem' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -301,7 +309,7 @@ const MotorStok = () => {
               </Grid>
             )}
             <Grid size={{ xs: 12, md: 3 }}>
-              <TextField fullWidth label="Tarih" type="date" value={f.tarih} onChange={e => setFormData({ ...f, tarih: e.target.value })} InputLabelProps={{ shrink: true }} />
+              <TextField fullWidth label="Alım Tarihi" type="date" value={f.tarih} onChange={e => setFormData({ ...f, tarih: e.target.value })} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField select fullWidth label="Fatura Durumu" value={f.fatura_kesildi ? 'true' : 'false'} onChange={e => setFormData({ ...f, fatura_kesildi: e.target.value === 'true' })}
@@ -320,7 +328,14 @@ const MotorStok = () => {
 
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Satıcı Bilgileri</Typography>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="İsim Soyisim" value={f.satici_adi} onChange={e => setFormData({ ...f, satici_adi: e.target.value })} /></Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Autocomplete freeSolo options={musteriOptions}
+                getOptionLabel={(o) => typeof o === 'string' ? o : o.ad_soyad}
+                inputValue={f.satici_adi} onInputChange={(e, val) => { setFormData({ ...f, satici_adi: val }); searchMusteri(val); }}
+                onChange={(e, val) => { if (val && typeof val === 'object') { setFormData({ ...f, satici_adi: val.ad_soyad, satici_tc: f.satici_tc }); } }}
+                renderInput={(params) => <TextField {...params} fullWidth label="İsim Soyisim" />}
+              />
+            </Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="TC Kimlik" value={f.satici_tc} onChange={e => setFormData({ ...f, satici_tc: e.target.value })} /></Grid>
           </Grid>
 
@@ -345,10 +360,19 @@ const MotorStok = () => {
             <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Satış Fiyatı (₺)" type="number" value={hizliForm.satis_fiyati} onChange={e => setHizliForm({ ...hizliForm, satis_fiyati: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Noter Satış (₺)" type="number" value={hizliForm.noter_satis} onChange={e => setHizliForm({ ...hizliForm, noter_satis: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Masraflar (₺)" type="number" value={hizliForm.masraflar} onChange={e => setHizliForm({ ...hizliForm, masraflar: e.target.value })} /></Grid>
+            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Yevmiye No" value={hizliForm.yevmiye_no} onChange={e => setHizliForm({ ...hizliForm, yevmiye_no: e.target.value })} /></Grid>
+            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Satış Tarihi" type="date" value={hizliForm.satis_tarihi} onChange={e => setHizliForm({ ...hizliForm, satis_tarihi: e.target.value })} InputLabelProps={{ shrink: true }} /></Grid>
           </Grid>
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Alıcı Bilgileri</Typography>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Ad Soyad" value={hizliForm.alici_adi} onChange={e => setHizliForm({ ...hizliForm, alici_adi: e.target.value })} /></Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Autocomplete freeSolo options={musteriOptions}
+                getOptionLabel={(o) => typeof o === 'string' ? o : o.ad_soyad}
+                inputValue={hizliForm.alici_adi} onInputChange={(e, val) => { setHizliForm({ ...hizliForm, alici_adi: val }); searchMusteri(val); }}
+                onChange={(e, val) => { if (val && typeof val === 'object') { setHizliForm({ ...hizliForm, alici_adi: val.ad_soyad, alici_telefon: val.telefon || hizliForm.alici_telefon, alici_adres: val.adres || hizliForm.alici_adres }); } }}
+                renderInput={(params) => <TextField {...params} fullWidth label="Ad Soyad" />}
+              />
+            </Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="TC No" value={hizliForm.alici_tc} onChange={e => setHizliForm({ ...hizliForm, alici_tc: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Telefon" value={hizliForm.alici_telefon} onChange={e => setHizliForm({ ...hizliForm, alici_telefon: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Adres" value={hizliForm.alici_adres} onChange={e => setHizliForm({ ...hizliForm, alici_adres: e.target.value })} /></Grid>
@@ -401,7 +425,8 @@ const StokDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
               <InfoRow label="Yıl" value={data.yil} />
               <InfoRow label="KM" value={data.km ? Number(data.km).toLocaleString('tr-TR') : null} />
               <InfoRow label="Stok Tipi" value={data.stok_tipi === 'konsinye' ? 'Konsinye' : 'Sahip'} />
-              <InfoRow label="Tarih" value={formatDate(data.tarih)} />
+              <InfoRow label="Alım Tarihi" value={formatDate(data.tarih)} />
+              {data.yevmiye_no && <InfoRow label="Yevmiye No" value={data.yevmiye_no} />}
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>🏪 Satıcı Bilgileri</Typography>

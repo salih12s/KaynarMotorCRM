@@ -150,6 +150,12 @@ const Raporlar = () => {
                 <Typography variant="h4" fontWeight="bold">{(rapor.motorlar?.length || 0) + (rapor.isEmirleri?.length || 0) + (rapor.aksesuarlar?.length || 0) + (rapor.eticaret?.length || 0)}</Typography>
               </Paper>
             </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#4A148C', color: 'white', borderRadius: 2 }}>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>Motor Stok Değeri</Typography>
+                <Typography variant="h4" fontWeight="bold">₺{formatTL(rapor.motorStokToplam)}</Typography>
+              </Paper>
+            </Grid>
           </Grid>
 
           {/* Kategori Detay */}
@@ -249,6 +255,7 @@ const Raporlar = () => {
               { label: 'Motor Kâr', value: `₺${formatTL(rapor.motorKar)}` },
               { label: 'Noter Satış Cirosu', value: `₺${formatTL(rapor.motorNoterSatisCiro)}` },
               { label: 'Faturalı', value: (rapor.motorlar || []).filter(m => m.fatura_kesildi).length, color: '#2e7d32' },
+              { label: 'Motor Stok Değeri', value: `₺${formatTL(rapor.motorStokToplam)}`, color: '#4A148C' },
             ].map((k, i) => (
               <Grid size={{ xs: 12, md: 2 }} key={i}>
                 <KartItem label={k.label} value={k.value} color={k.color} />
@@ -265,7 +272,7 @@ const Raporlar = () => {
                     <Chip size="small" label={m.fatura_kesildi ? '✓ Kesildi' : '✗ Kesilmedi'}
                       sx={{ bgcolor: m.fatura_kesildi ? '#e8f5e9' : '#ffebee', color: m.fatura_kesildi ? '#2e7d32' : '#d32f2f', fontWeight: 'bold', fontSize: '0.65rem', height: 20 }} />
                   </Box>
-                  <Typography variant="body2">{m.marka} {m.model} • {formatDate(m.tamamlama_tarihi || m.created_at)}</Typography>
+                  <Typography variant="body2">{m.marka} {m.model} • {formatDate(m.satis_tarihi || m.tamamlama_tarihi || m.created_at)}</Typography>
                   <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
                     <Typography variant="body2">Alış: <strong>{formatTL(m.alis_fiyati)} ₺</strong></Typography>
                     <Typography variant="body2">Satış: <strong>{formatTL(m.satis_fiyati)} ₺</strong></Typography>
@@ -289,7 +296,7 @@ const Raporlar = () => {
                           <ViewIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(m.tamamlama_tarihi || m.created_at)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(m.satis_tarihi || m.tamamlama_tarihi || m.created_at)}</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>{m.plaka}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{m.marka} {m.model}</TableCell>
                       <TableCell>{formatTL(m.alis_fiyati)} ₺</TableCell>
@@ -904,6 +911,12 @@ const Raporlar = () => {
                         <Chip size="small" label={m.fatura_kesildi ? '✓ Kesildi' : '✗ Kesilmedi'}
                           sx={{ bgcolor: m.fatura_kesildi ? '#e8f5e9' : '#ffebee', color: m.fatura_kesildi ? '#2e7d32' : '#d32f2f', fontWeight: 'bold', fontSize: '0.75rem' }} />
                       </Box>
+                      {m.yevmiye_no && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3 }}>
+                        <Typography variant="body2" color="text.secondary">Yevmiye No:</Typography>
+                        <Typography variant="body2" fontWeight="bold">{m.yevmiye_no}</Typography>
+                      </Box>
+                      )}
                     </Paper>
                   </Grid>
                 </Grid>
@@ -913,7 +926,7 @@ const Raporlar = () => {
                     <Paper sx={{ p: 1.5, bgcolor: '#fafafa' }}>
                       <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>Tarih Bilgileri</Typography>
                       <Typography variant="body2"><strong>Kayıt Tarihi:</strong> {formatDate(m.tarih || m.created_at)}</Typography>
-                      <Typography variant="body2"><strong>Satış Tarihi:</strong> {formatDate(m.tamamlama_tarihi)}</Typography>
+                      <Typography variant="body2"><strong>Satış Tarihi:</strong> {formatDate(m.satis_tarihi || m.tamamlama_tarihi)}</Typography>
                     </Paper>
                   </Grid>
                   {m.aciklama && (

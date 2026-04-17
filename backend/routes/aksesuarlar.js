@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
 const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
+const { upsertMusteri } = require('../config/musteriHelper');
 
 const emptyToZero = (v) => { if (v === '' || v === undefined || v === null) return 0; const n = Number(v); return isNaN(n) ? 0 : n; };
 
@@ -96,6 +97,10 @@ router.post('/', async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Müşteri auto-collect
+    if (ad_soyad) await upsertMusteri(ad_soyad, telefon, null);
+
     await logAktivite({ kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi, islem_tipi: ISLEM_TIPLERI.AKSESUAR_OLUSTUR, islem_detay: `Aksesuar satış #${aksesuarId}`, hedef_tablo: 'aksesuarlar', hedef_id: aksesuarId });
 
     const full = await pool.query('SELECT * FROM aksesuarlar WHERE id = $1', [aksesuarId]);
@@ -171,6 +176,9 @@ router.put('/:id', async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    // Müşteri auto-collect
+    if (ad_soyad) await upsertMusteri(ad_soyad, telefon, null);
 
     const full = await pool.query('SELECT * FROM aksesuarlar WHERE id = $1', [req.params.id]);
     const parcalarResult = await pool.query('SELECT * FROM aksesuar_parcalar WHERE aksesuar_id = $1 ORDER BY id', [req.params.id]);
