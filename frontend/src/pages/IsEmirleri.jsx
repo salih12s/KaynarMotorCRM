@@ -51,9 +51,8 @@ const IsEmirleri = () => {
 
   useEffect(() => {
     loadData();
-    authService.getUsers().then(r => {
-      const aktif = (r.data || []).filter(u => u.onaylandi);
-      setKullanicilar(aktif);
+    authService.getPersonelListesi().then(r => {
+      setKullanicilar(r.data || []);
     }).catch(() => {});
   }, [durumFilter]);
 

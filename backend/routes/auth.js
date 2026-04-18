@@ -122,6 +122,18 @@ router.get('/verify', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /personel-listesi (tüm onaylı kullanıcılar - herkes erişebilir)
+router.get('/personel-listesi', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, ad_soyad FROM kullanicilar WHERE onay_durumu = 'onaylandi' ORDER BY ad_soyad"
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
 // GET /users [ADMIN]
 router.get('/users', authenticateToken, isAdmin, async (req, res) => {
   try {

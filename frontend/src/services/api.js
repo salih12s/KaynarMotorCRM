@@ -32,6 +32,7 @@ export const authService = {
   logout: () => api.post('/auth/logout'),
   verify: () => api.get('/auth/verify'),
   getUsers: () => api.get('/auth/users'),
+  getPersonelListesi: () => api.get('/auth/personel-listesi'),
   approveUser: (id) => api.patch(`/auth/users/${id}/approve`),
   rejectUser: (id) => api.patch(`/auth/users/${id}/reject`),
   deleteUser: (id) => api.delete(`/auth/users/${id}`),
