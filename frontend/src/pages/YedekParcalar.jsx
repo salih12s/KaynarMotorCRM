@@ -10,7 +10,7 @@ const YedekParcalar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [parcalar, setParcalar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
-  const [formData, setFormData] = useState({ urun_adi: '', alis_fiyati: '', satis_fiyati: '' });
+  const [formData, setFormData] = useState({ urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '' });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
@@ -21,14 +21,17 @@ const YedekParcalar = () => {
   useEffect(() => { loadData(); }, []);
 
   const filtered = parcalar.filter(p =>
-    (p.urun_adi || '').toLowerCase().includes(search.toLowerCase())
+    (p.urun_adi || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.musteri_adi || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.musteri_telefon || '').includes(search)
   );
 
   const openDialog = (parca = null) => {
     setError('');
     setFormData(parca ? {
-      urun_adi: parca.urun_adi || '', alis_fiyati: parca.alis_fiyati || '', satis_fiyati: parca.satis_fiyati || ''
-    } : { urun_adi: '', alis_fiyati: '', satis_fiyati: '' });
+      urun_adi: parca.urun_adi || '', alis_fiyati: parca.alis_fiyati || '', satis_fiyati: parca.satis_fiyati || '',
+      musteri_adi: parca.musteri_adi || '', musteri_telefon: parca.musteri_telefon || ''
+    } : { urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '' });
     setDialog({ open: true, data: parca });
   };
 
@@ -84,6 +87,11 @@ const YedekParcalar = () => {
                   <Typography variant="body2">Satış: <strong>{parseFloat(p.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
                   <Typography variant="body2" sx={{ color: pKar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{pKar.toLocaleString('tr-TR')} ₺</strong></Typography>
                 </Box>
+                {(p.musteri_adi || p.musteri_telefon) && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {p.musteri_adi || ''}{p.musteri_adi && p.musteri_telefon ? ' • ' : ''}{p.musteri_telefon ? `Tel: ${p.musteri_telefon}` : ''}
+                  </Typography>
+                )}
               </Paper>
             );
           })}
@@ -93,7 +101,7 @@ const YedekParcalar = () => {
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Ürün Adı', 'Alış Fiyatı (₺)', 'Satış Fiyatı (₺)', 'Kâr (₺)', 'İşlemler'].map(h => (
+              {['Ürün Adı', 'Alış Fiyatı (₺)', 'Satış Fiyatı (₺)', 'Müşteri', 'Telefon', 'Kâr (₺)', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -106,6 +114,8 @@ const YedekParcalar = () => {
                   <TableCell>{p.urun_adi}</TableCell>
                   <TableCell>{parseFloat(p.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{parseFloat(p.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
+                  <TableCell>{p.musteri_adi || '-'}</TableCell>
+                  <TableCell>{p.musteri_telefon || '-'}</TableCell>
                   <TableCell sx={{ color: pKar >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>{pKar.toLocaleString('tr-TR')}</TableCell>
                   <TableCell>
                     <IconButton size="small" color="info" onClick={() => openDialog(p)}><EditIcon /></IconButton>
@@ -114,7 +124,7 @@ const YedekParcalar = () => {
                 </TableRow>
               );
             })}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={5} align="center">Kayıt yok</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={7} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>
@@ -133,6 +143,12 @@ const YedekParcalar = () => {
             </Grid>
             <Grid size={{ xs: 6 }}>
               <TextField fullWidth label="Satış Fiyatı (₺)" type="number" value={formData.satis_fiyati} onChange={e => setFormData({ ...formData, satis_fiyati: e.target.value })} />
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField fullWidth label="Müşteri Adı" value={formData.musteri_adi} onChange={e => setFormData({ ...formData, musteri_adi: e.target.value })} />
+            </Grid>
+            <Grid size={{ xs: 6 }}>
+              <TextField fullWidth label="Müşteri Telefon" value={formData.musteri_telefon} onChange={e => setFormData({ ...formData, musteri_telefon: e.target.value })} />
             </Grid>
           </Grid>
           <Paper sx={{ p: 1, mt: 2, textAlign: 'center', bgcolor: kar >= 0 ? '#e8f5e9' : '#ffebee' }}>

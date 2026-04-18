@@ -125,7 +125,7 @@ router.get('/aralik', async (req, res) => {
 
     // Motor stok toplam değeri (stoktaki motorların alım fiyatları toplamı)
     const stokMotorlar = await pool.query(
-      `SELECT COALESCE(SUM(alis_fiyati), 0) as toplam_alis FROM ikinci_el_motorlar WHERE durum IN ('stokta', 'kapora', 'devir_bekliyor', 'konsinye')`
+      `SELECT COALESCE(SUM(alis_fiyati), 0) as toplam_alis FROM ikinci_el_motorlar WHERE durum IN ('stokta', 'kapora', 'devir_bekliyor')`
     );
     const motorStokToplam = parseFloat(stokMotorlar.rows[0].toplam_alis || 0);
 
@@ -219,9 +219,11 @@ router.get('/fis-kar', async (req, res) => {
 router.get('/personeller', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT DISTINCT olusturan_kisi FROM is_emirleri WHERE olusturan_kisi IS NOT NULL AND olusturan_kisi != '' ORDER BY olusturan_kisi`
+      `SELECT DISTINCT ON (LOWER(personel)) personel FROM (
+        SELECT COALESCE(NULLIF(teslim_eden_teknisyen, ''), olusturan_kisi) AS personel FROM is_emirleri
+      ) t WHERE personel IS NOT NULL AND personel != '' ORDER BY LOWER(personel), personel`
     );
-    res.json(result.rows.map(r => r.olusturan_kisi));
+    res.json(result.rows.map(r => r.personel));
   } catch (error) {
     res.status(500).json({ message: 'Sunucu hatası' });
   }

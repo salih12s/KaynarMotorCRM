@@ -102,12 +102,12 @@ router.post('/', async (req, res) => {
     const isEmriResult = await client.query(
       `INSERT INTO is_emirleri (fis_no, musteri_id, musteri_ad_soyad, adres, telefon, km, model_tip, marka,
         aciklama, ariza_sikayetler, tahmini_teslim_tarihi, tahmini_toplam_ucret, durum, odeme_detaylari,
-        olusturan_kullanici_id, olusturan_kisi)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        olusturan_kullanici_id, olusturan_kisi, teslim_eden_teknisyen)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [fisNo, musteriId, musteri_ad_soyad, adres, telefon, emptyToZero(km), model_tip, marka,
        aciklama, ariza_sikayetler, emptyToNull(tahmini_teslim_tarihi), emptyToZero(tahmini_toplam_ucret),
-       durum || 'beklemede', odeme_detaylari, req.user.id, req.user.ad_soyad]
+       durum || 'beklemede', odeme_detaylari, req.user.id, req.user.ad_soyad, req.user.ad_soyad]
     );
 
     const isEmriId = isEmriResult.rows[0].id;

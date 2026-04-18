@@ -325,6 +325,10 @@ const initializeDatabase = async () => {
     // Migration: ikinci_el_motorlar tablosuna satis_tarihi ekle
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS satis_tarihi DATE;`);
 
+    // Migration: yedek_parcalar tablosuna müşteri bilgileri ekle
+    await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS musteri_adi VARCHAR(255);`);
+    await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS musteri_telefon VARCHAR(50);`);
+
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
     console.error('Veritabanı başlatma hatası:', error.message);

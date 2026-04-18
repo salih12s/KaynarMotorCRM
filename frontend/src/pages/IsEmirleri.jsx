@@ -9,7 +9,7 @@ import {
   Add as AddIcon, Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
   Search as SearchIcon, Close as CloseIcon, Save as SaveIcon, Print as PrintIcon
 } from '@mui/icons-material';
-import { isEmriService, musteriService } from '../services/api';
+import { isEmriService, musteriService, authService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const IsEmirleri = () => {
@@ -38,6 +38,7 @@ const IsEmirleri = () => {
 
   // Detay modal state
   const [detayModal, setDetayModal] = useState({ open: false, data: null });
+  const [kullanicilar, setKullanicilar] = useState([]);
 
   const loadData = async () => {
     try {
@@ -48,7 +49,13 @@ const IsEmirleri = () => {
     } catch (err) { console.error(err); }
   };
 
-  useEffect(() => { loadData(); }, [durumFilter]);
+  useEffect(() => {
+    loadData();
+    authService.getUsers().then(r => {
+      const aktif = (r.data || []).filter(u => u.onaylandi);
+      setKullanicilar(aktif);
+    }).catch(() => {});
+  }, [durumFilter]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Bu iş emrini silmek istediğinizden emin misiniz?')) return;
@@ -132,7 +139,7 @@ const IsEmirleri = () => {
         ariza_sikayetler: d.ariza_sikayetler || '', aciklama: d.aciklama || '',
         odeme_detaylari: d.odeme_detaylari || '', durum: d.durum || 'beklemede',
         teslim_alan_ad_soyad: d.teslim_alan_ad_soyad || d.olusturan_kisi || '',
-        teslim_eden_teknisyen: d.teslim_eden_teknisyen || '',
+        teslim_eden_teknisyen: d.teslim_eden_teknisyen || d.olusturan_kisi || '',
         teslim_tarihi: d.teslim_tarihi ? new Date(d.teslim_tarihi).toLocaleDateString('en-CA') : ''
       });
       setParcalar(d.parcalar || []);
@@ -156,7 +163,7 @@ const IsEmirleri = () => {
 
   const handleMusteriSelect = (musteri) => {
     if (musteri) {
-      setFormData({ ...formData, musteri_ad_soyad: musteri.ad_soyad || '', telefon: musteri.telefon || '' });
+      setFormData({ ...formData, musteri_ad_soyad: musteri.ad_soyad || '', telefon: musteri.telefon || '', adres: musteri.adres || '' });
     }
   };
 
@@ -223,7 +230,7 @@ const IsEmirleri = () => {
                 </Box>
                 <Typography variant="body2" fontWeight="bold">{ie.musteri_ad_soyad}</Typography>
                 <Typography variant="body2" color="text.secondary">{ie.marka} {ie.model_tip} • {ie.telefon || '-'}</Typography>
-                <Typography variant="body2" color="text.secondary">{formatDate(ie.created_at || ie.tarih)} • {ie.olusturan_kisi || '-'}</Typography>
+                <Typography variant="body2" color="text.secondary">{formatDate(ie.created_at || ie.tarih)} • {ie.teslim_eden_teknisyen || ie.teslim_alan_ad_soyad || ie.olusturan_kisi || '-'}</Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                   <Typography variant="body2">Toplam: <strong>₺{toplam.toLocaleString('tr-TR')}</strong></Typography>
                   <Typography variant="body2" sx={{ color: kar >= 0 ? '#2e7d32' : '#c62828' }}>Kâr: <strong>₺{kar.toLocaleString('tr-TR')}</strong></Typography>
@@ -263,7 +270,7 @@ const IsEmirleri = () => {
                     <Chip label={durumLabel(ie.durum)} size="small" color={durumRenk(ie.durum)}
                       sx={{ height: 20, fontSize: '0.7rem', mt: 0.3 }} />
                   </TableCell>
-                  <TableCell sx={{ fontSize: '0.8rem' }}>{ie.olusturan_kisi || '-'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.8rem' }}>{ie.teslim_eden_teknisyen || ie.teslim_alan_ad_soyad || ie.olusturan_kisi || '-'}</TableCell>
                   <TableCell>{ie.ariza_sikayetler || '-'}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>₺{toplam.toLocaleString('tr-TR')}</TableCell>
                   <TableCell sx={{ color: '#C62828' }}>₺{maliyet.toLocaleString('tr-TR')}</TableCell>
@@ -306,11 +313,21 @@ const IsEmirleri = () => {
               <Grid container spacing={2}>
                 <Grid size={{ xs: 6 }}>
                   <TextField fullWidth size="small" label="Ad Soyad *" value={formData.musteri_ad_soyad}
-                    onChange={e => { setFormData({ ...formData, musteri_ad_soyad: e.target.value }); handleMusteriSearch(e.target.value); }} />
+                    onChange={e => setFormData({ ...formData, musteri_ad_soyad: e.target.value })} />
                 </Grid>
-                <Grid size={{ xs: 6 }}>
+                <Grid size={{ xs: 6 }} sx={{ position: 'relative' }}>
                   <TextField fullWidth size="small" label="Telefon" value={formData.telefon}
-                    onChange={e => setFormData({ ...formData, telefon: e.target.value })} />
+                    onChange={e => { setFormData({ ...formData, telefon: e.target.value }); handleMusteriSearch(e.target.value); }} />
+                  {musteriOptions.length > 0 && formData.telefon.length >= 2 && (
+                    <Paper sx={{ position: 'absolute', zIndex: 10, left: 16, right: 0, maxHeight: 200, overflow: 'auto', boxShadow: 3, bgcolor: 'white' }}>
+                      {musteriOptions.map(m => (
+                        <Box key={m.id} sx={{ p: 1, cursor: 'pointer', '&:hover': { bgcolor: '#f5f5f5' }, borderBottom: '1px solid #eee' }}
+                          onClick={() => { handleMusteriSelect(m); setMusteriOptions([]); }}>
+                          <Typography variant="body2"><strong>{m.telefon}</strong> - {m.ad_soyad}</Typography>
+                        </Box>
+                      ))}
+                    </Paper>
+                  )}
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <TextField fullWidth size="small" label="KM" value={formData.km}
@@ -476,12 +493,18 @@ const IsEmirleri = () => {
                         onChange={e => setFormData({ ...formData, teslim_tarihi: e.target.value })} InputLabelProps={{ shrink: true }} />
                     </Grid>
                     <Grid size={{ xs: 6 }}>
-                      <TextField fullWidth size="small" label="Teslim Alan" value={formData.teslim_alan_ad_soyad}
-                        onChange={e => setFormData({ ...formData, teslim_alan_ad_soyad: e.target.value })} />
+                      <TextField select fullWidth size="small" label="Teslim Alan" value={formData.teslim_alan_ad_soyad}
+                        onChange={e => setFormData({ ...formData, teslim_alan_ad_soyad: e.target.value })}>
+                        <MenuItem value="">Seçiniz</MenuItem>
+                        {kullanicilar.map(k => <MenuItem key={k.id} value={k.ad_soyad}>{k.ad_soyad}</MenuItem>)}
+                      </TextField>
                     </Grid>
                     <Grid size={{ xs: 12 }}>
-                      <TextField fullWidth size="small" label="Teslim Eden Teknisyen" value={formData.teslim_eden_teknisyen}
-                        onChange={e => setFormData({ ...formData, teslim_eden_teknisyen: e.target.value })} />
+                      <TextField select fullWidth size="small" label="Teslim Eden Teknisyen" value={formData.teslim_eden_teknisyen}
+                        onChange={e => setFormData({ ...formData, teslim_eden_teknisyen: e.target.value })}>
+                        <MenuItem value="">Seçiniz</MenuItem>
+                        {kullanicilar.map(k => <MenuItem key={k.id} value={k.ad_soyad}>{k.ad_soyad}</MenuItem>)}
+                      </TextField>
                     </Grid>
                   </Grid>
                 </>

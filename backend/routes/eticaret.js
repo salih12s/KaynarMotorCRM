@@ -5,6 +5,70 @@ const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
 
 const emptyToZero = (v) => { if (v === '' || v === undefined || v === null) return 0; const n = Number(v); return isNaN(n) ? 0 : n; };
 
+const detectPlatform = (platformAdi) => {
+  if (!platformAdi) return 'trendyol';
+  const name = platformAdi.toLowerCase();
+  if (name.includes('hepsiburada') || name.includes('hepsi burada') || name.includes('hb')) return 'hepsiburada';
+  if (name.includes('n11')) return 'n11';
+  if (name.includes('shoppier') || name.includes('shopier')) return 'shoppier';
+  return 'trendyol';
+};
+
+const hesaplaKomisyon = (satisFiyati, alisFiyati, komisyonOrani, kdvOrani, kargoUcreti, adet, platformTipi) => {
+  const satis = Number(satisFiyati) || 0;
+  const alis = Number(alisFiyati) || 0;
+  const komisyon = Number(komisyonOrani) || 0;
+  const kdv = Number(kdvOrani) || 20;
+  const kargo = Number(kargoUcreti) || 0;
+  const miktar = Number(adet) || 1;
+
+  const kdvHaricSatis = satis / (1 + kdv / 100);
+  const kdvHaricAlis = alis / (1 + kdv / 100);
+  const kdvHaricKargo = kargo / (1 + kdv / 100);
+  const satistanKDV = satis - kdvHaricSatis;
+  const alisKDV = alis - kdvHaricAlis;
+  const kargoKDV = kargo - kdvHaricKargo;
+
+  let komisyonTutari, komisyonKDV, hizmetBedeli, hizmetKDV, stopaj;
+
+  if (platformTipi === 'hepsiburada') {
+    const netKomisyon = satis * komisyon / 100;
+    komisyonTutari = netKomisyon * (1 + kdv / 100);
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    const odemeBedeli = satis * 0.0096;
+    const islemBedeli = satis * 0.00315;
+    hizmetBedeli = odemeBedeli + islemBedeli;
+    hizmetKDV = hizmetBedeli - hizmetBedeli / (1 + kdv / 100);
+    stopaj = kdvHaricSatis * 0.01;
+  } else if (platformTipi === 'n11') {
+    komisyonTutari = satis * komisyon / 100;
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    hizmetBedeli = satis * 0.01258;
+    hizmetKDV = hizmetBedeli - hizmetBedeli / (1 + kdv / 100);
+    stopaj = kdvHaricSatis * 0.01;
+  } else if (platformTipi === 'shoppier') {
+    komisyonTutari = satis * komisyon / 100;
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    hizmetBedeli = 0;
+    hizmetKDV = 0;
+    stopaj = 0;
+  } else {
+    komisyonTutari = satis * komisyon / 100;
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    hizmetBedeli = satis * 0.00347;
+    hizmetKDV = hizmetBedeli - hizmetBedeli / (1 + kdv / 100);
+    const kdvHaricKomisyon = komisyonTutari / (1 + kdv / 100);
+    stopaj = kdvHaricKomisyon * 0.077;
+  }
+
+  const toplamKomisyon = komisyonTutari + hizmetBedeli + stopaj;
+  const odenecekKDV = satistanKDV - alisKDV - kargoKDV - komisyonKDV - hizmetKDV;
+  const netKar = satis - alis - kargo - komisyonTutari - hizmetBedeli - stopaj - odenecekKDV;
+
+  const r = (v) => Math.round(v * 100) / 100;
+  return { komisyonTutari: r(komisyonTutari * miktar), toplamKesinti: r(toplamKomisyon * miktar), netKar: r(netKar * miktar) };
+};
+
 // ============ PLATFORMLAR ============
 
 // GET /platformlar
@@ -126,8 +190,16 @@ router.post('/', async (req, res) => {
     const komisyon = emptyToZero(komisyon_orani);
     const kdv = (kdv_orani !== '' && kdv_orani !== undefined && kdv_orani !== null) ? emptyToZero(kdv_orani) : 20;
     const kargo = emptyToZero(kargo_ucreti);
-    const komisyonTutari = (satis * komisyon / 100) * miktar;
-    const kar = (satis * miktar) - (alis * miktar) - komisyonTutari;
+
+    // Platform tipini belirle
+    let platformTipi = 'trendyol';
+    if (platform_id) {
+      const pRes = await client.query('SELECT platform_adi FROM eticaret_platformlar WHERE id = $1', [platform_id]);
+      if (pRes.rows.length > 0) platformTipi = detectPlatform(pRes.rows[0].platform_adi);
+    }
+    const hesap = hesaplaKomisyon(satis, alis, komisyon, kdv, kargo, miktar, platformTipi);
+    const komisyonTutari = hesap.komisyonTutari;
+    const kar = hesap.netKar;
 
     const result = await client.query(
       `INSERT INTO eticaret_satislar (stok_id, platform_id, urun_adi, alis_fiyati, satis_fiyati, komisyon_orani, komisyon_tutari, kdv_orani, kargo_ucreti, kar, adet, tarih)
@@ -194,8 +266,16 @@ router.put('/:id', async (req, res) => {
     const komisyon = emptyToZero(komisyon_orani);
     const kdv = (kdv_orani !== '' && kdv_orani !== undefined && kdv_orani !== null) ? emptyToZero(kdv_orani) : 20;
     const kargo = emptyToZero(kargo_ucreti);
-    const komisyonTutari = (satis * komisyon / 100) * miktar;
-    const kar = (satis * miktar) - (alis * miktar) - komisyonTutari;
+
+    // Platform tipini belirle
+    let platformTipi = 'trendyol';
+    if (platform_id) {
+      const pRes = await client.query('SELECT platform_adi FROM eticaret_platformlar WHERE id = $1', [platform_id]);
+      if (pRes.rows.length > 0) platformTipi = detectPlatform(pRes.rows[0].platform_adi);
+    }
+    const hesap = hesaplaKomisyon(satis, alis, komisyon, kdv, kargo, miktar, platformTipi);
+    const komisyonTutari = hesap.komisyonTutari;
+    const kar = hesap.netKar;
 
     await client.query(
       `UPDATE eticaret_satislar SET stok_id=$1, platform_id=$2, urun_adi=$3, alis_fiyati=$4,

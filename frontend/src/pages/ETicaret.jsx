@@ -14,6 +14,7 @@ const detectPlatform = (platformAdi) => {
   const name = platformAdi.toLowerCase();
   if (name.includes('hepsiburada') || name.includes('hepsi burada') || name.includes('hb')) return 'hepsiburada';
   if (name.includes('n11')) return 'n11';
+  if (name.includes('shoppier') || name.includes('shopier')) return 'shoppier';
   return 'trendyol';
 };
 
@@ -72,6 +73,14 @@ const hesaplaKomisyon = (satisFiyati, alisFiyati, komisyonOrani, kdvOrani, kargo
 
     // Stopaj: KDV hariç satış * %1
     stopaj = kdvHaricSatis * 0.01;
+
+  } else if (platformTipi === 'shoppier') {
+    // Shoppier: sadece komisyon, hizmet/stopaj yok
+    komisyonTutari = satis * komisyon / 100;
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    hizmetBedeli = 0;
+    hizmetKDV = 0;
+    stopaj = 0;
 
   } else {
     // Trendyol (varsayılan)
@@ -250,6 +259,13 @@ const ETicaret = () => {
 
   const formatTL = (v) => parseFloat(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // Tüm satışlar için doğru hesaplanmış toplam kâr
+  const hesaplananToplamKar = satislar.reduce((t, s) => {
+    const pt = detectPlatform(s.platform_adi);
+    const h = hesaplaKomisyon(s.satis_fiyati, s.alis_fiyati, s.komisyon_orani, s.kdv_orani || 20, s.kargo_ucreti || 0, s.adet, pt);
+    return t + h.netKar;
+  }, 0);
+
   return (
     <Box>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
@@ -257,7 +273,7 @@ const ETicaret = () => {
           { label: `Satış: ${stats.toplam_satis || 0}`, color: '#C62828', bg: '#ffebee' },
           { label: `Gelir: ₺${parseFloat(stats.toplam_gelir || 0).toLocaleString('tr-TR')}`, color: '#C62828', bg: '#ffebee' },
           { label: `Komisyon: ₺${parseFloat(stats.toplam_komisyon || 0).toLocaleString('tr-TR')}`, color: '#C62828', bg: '#ffebee' },
-          { label: `Kâr: ₺${parseFloat(stats.toplam_kar || 0).toLocaleString('tr-TR')}`, color: '#C62828', bg: '#ffebee' },
+          { label: `Kâr: ₺${hesaplananToplamKar.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`, color: '#C62828', bg: '#ffebee' },
         ].map((c, i) => (
           <Chip key={i} label={c.label} sx={{ bgcolor: c.bg, color: c.color, fontWeight: 'bold', fontSize: '0.8rem', borderLeft: `4px solid ${c.color}` }} />
         ))}
@@ -285,7 +301,10 @@ const ETicaret = () => {
         return isMobile ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {filtered.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
-          {filtered.map(s => (
+          {filtered.map(s => {
+            const sPlatformTipi = detectPlatform(s.platform_adi);
+            const sHesap = hesaplaKomisyon(s.satis_fiyati, s.alis_fiyati, s.komisyon_orani, s.kdv_orani || 20, s.kargo_ucreti || 0, s.adet, sPlatformTipi);
+            return (
             <Paper key={s.id} sx={{ p: 1.5 }} onClick={() => setDetayDialog({ open: true, data: s })}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                 <Typography variant="subtitle2" fontWeight="bold">{s.urun_adi}</Typography>
@@ -295,14 +314,15 @@ const ETicaret = () => {
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                 <Typography variant="body2">Alış: <strong>{formatTL(s.alis_fiyati)} ₺</strong></Typography>
                 <Typography variant="body2">Satış: <strong>{formatTL(s.satis_fiyati)} ₺</strong></Typography>
-                <Typography variant="body2" sx={{ color: parseFloat(s.kar || 0) >= 0 ? 'green' : 'red' }}>Kâr: <strong>{formatTL(s.kar)} ₺</strong></Typography>
+                <Typography variant="body2" sx={{ color: sHesap.netKar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{formatTL(sHesap.netKar)} ₺</strong></Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
                 <IconButton size="small" color="info" onClick={() => openSatisDialog(s)}><EditIcon /></IconButton>
                 <IconButton size="small" color="error" onClick={() => handleSatisDelete(s.id)}><DeleteIcon /></IconButton>
               </Box>
             </Paper>
-          ))}
+            );
+          })}
         </Box>
         ) : (
         <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
@@ -315,7 +335,10 @@ const ETicaret = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.map(s => (
+              {filtered.map(s => {
+                const sPlatformTipi = detectPlatform(s.platform_adi);
+                const sHesap = hesaplaKomisyon(s.satis_fiyati, s.alis_fiyati, s.komisyon_orani, s.kdv_orani || 20, s.kargo_ucreti || 0, s.adet, sPlatformTipi);
+                return (
                 <TableRow key={s.id} hover>
                   <TableCell>{s.urun_adi}</TableCell>
                   <TableCell>{s.platform_adi || '-'}</TableCell>
@@ -324,8 +347,8 @@ const ETicaret = () => {
                   <TableCell>{formatTL(s.satis_fiyati)}</TableCell>
                   <TableCell>%{parseFloat(s.komisyon_orani || 0).toFixed(2)}</TableCell>
                   <TableCell>%{parseFloat(s.kdv_orani || 20).toFixed(0)}</TableCell>
-                  <TableCell>{formatTL(s.komisyon_tutari)}</TableCell>
-                  <TableCell sx={{ color: parseFloat(s.kar || 0) >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>{formatTL(s.kar)}</TableCell>
+                  <TableCell>{formatTL(sHesap.komisyonTutari)}</TableCell>
+                  <TableCell sx={{ color: sHesap.netKar >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>{formatTL(sHesap.netKar)}</TableCell>
                   <TableCell>{s.tarih ? new Date(s.tarih).toLocaleDateString('tr-TR') : '-'}</TableCell>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>
                     <IconButton size="small" color="primary" onClick={() => setDetayDialog({ open: true, data: s })}><ViewIcon /></IconButton>
@@ -333,7 +356,8 @@ const ETicaret = () => {
                     <IconButton size="small" color="error" onClick={() => handleSatisDelete(s.id)}><DeleteIcon /></IconButton>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {filtered.length === 0 && <TableRow><TableCell colSpan={11} align="center">Kayıt yok</TableCell></TableRow>}
             </TableBody>
           </Table>
