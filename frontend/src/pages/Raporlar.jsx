@@ -7,6 +7,73 @@ import {
 import { Visibility as ViewIcon } from '@mui/icons-material';
 import { raporService, aksesuarStokService } from '../services/api';
 
+// Platform tipi algılama
+const detectPlatform = (platformAdi) => {
+  if (!platformAdi) return 'trendyol';
+  const name = platformAdi.toLowerCase();
+  if (name.includes('hepsiburada') || name.includes('hepsi burada') || name.includes('hb')) return 'hepsiburada';
+  if (name.includes('n11')) return 'n11';
+  if (name.includes('shoppier') || name.includes('shopier')) return 'shoppier';
+  return 'trendyol';
+};
+
+// Komisyon hesaplama (ETicaret ile senkron)
+const hesaplaKomisyon = (satisFiyati, alisFiyati, komisyonOrani, kdvOrani, kargoUcreti, adet, platformTipi = 'trendyol') => {
+  const satis = Number(satisFiyati) || 0;
+  const alis = Number(alisFiyati) || 0;
+  const komisyon = Number(komisyonOrani) || 0;
+  const kdv = Number(kdvOrani) || 20;
+  const kargo = Number(kargoUcreti) || 0;
+  const miktar = Number(adet) || 1;
+  const kdvHaricSatis = satis / (1 + kdv / 100);
+  const kdvHaricAlis = alis / (1 + kdv / 100);
+  const kdvHaricKargo = kargo / (1 + kdv / 100);
+  const satistanKDV = satis - kdvHaricSatis;
+  const alisKDV = alis - kdvHaricAlis;
+  const kargoKDV = kargo - kdvHaricKargo;
+  let komisyonTutari, komisyonKDV, hizmetBedeli, hizmetKDV, stopaj;
+  let odemeBedeli = 0, islemBedeli = 0, odemIslemKDV = 0;
+  let pazarlamaHizmet = 0, pazarlamaHizmetKDV = 0;
+  if (platformTipi === 'hepsiburada') {
+    const netKomisyon = satis * komisyon / 100;
+    komisyonTutari = netKomisyon * (1 + kdv / 100);
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    odemeBedeli = satis * 0.0096;
+    islemBedeli = satis * 0.00315;
+    odemIslemKDV = (odemeBedeli + islemBedeli) - (odemeBedeli + islemBedeli) / (1 + kdv / 100);
+    hizmetBedeli = odemeBedeli + islemBedeli;
+    hizmetKDV = odemIslemKDV;
+    stopaj = kdvHaricSatis * 0.01;
+  } else if (platformTipi === 'n11') {
+    komisyonTutari = satis * komisyon / 100;
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    pazarlamaHizmet = satis * 0.01258;
+    pazarlamaHizmetKDV = pazarlamaHizmet - pazarlamaHizmet / (1 + kdv / 100);
+    hizmetBedeli = pazarlamaHizmet;
+    hizmetKDV = pazarlamaHizmetKDV;
+    stopaj = kdvHaricSatis * 0.01;
+  } else if (platformTipi === 'shoppier') {
+    komisyonTutari = satis * komisyon / 100;
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    hizmetBedeli = 0; hizmetKDV = 0; stopaj = 0;
+  } else {
+    komisyonTutari = satis * komisyon / 100;
+    komisyonKDV = komisyonTutari - komisyonTutari / (1 + kdv / 100);
+    hizmetBedeli = satis * 0.00347;
+    hizmetKDV = hizmetBedeli - hizmetBedeli / (1 + kdv / 100);
+    const kdvHaricKomisyon = komisyonTutari / (1 + kdv / 100);
+    stopaj = kdvHaricKomisyon * 0.077;
+  }
+  const odenecekKDV = satistanKDV - alisKDV - kargoKDV - komisyonKDV - hizmetKDV;
+  const netKar = satis - alis - kargo - komisyonTutari - hizmetBedeli - stopaj - odenecekKDV;
+  const r = (v) => Math.round(v * 100) / 100;
+  return {
+    netKar: r(netKar * miktar),
+    komisyonTutari: r(komisyonTutari * miktar),
+    toplamKomisyon: r((komisyonTutari + hizmetBedeli + stopaj) * miktar),
+  };
+};
+
 const Raporlar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [tab, setTab] = useState(0);
@@ -64,12 +131,19 @@ const Raporlar = () => {
   const formatTL = (v) => parseFloat(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
 
-  const KartItem = ({ label, value, color = '#C62828', prefix = '' }) => (
-    <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#ffebee', borderLeft: `4px solid ${color}` }}>
-      <Typography variant="body2" color="text.secondary">{label}</Typography>
-      <Typography variant="h5" fontWeight="bold" sx={{ color }}>{prefix}{value}</Typography>
-    </Paper>
-  );
+  const KartItem = ({ label, value, color = '#C62828', prefix = '' }) => {
+    const bgMap = {
+      '#C62828': '#ffebee', '#1565C0': '#e3f2fd', '#E65100': '#fff3e0', '#2e7d32': '#e8f5e9',
+      '#6A1B9A': '#f3e5f5', '#00695C': '#e0f2f1', '#4A148C': '#ede7f6', '#f57f17': '#fff8e1',
+    };
+    const bg = bgMap[color] || '#ffebee';
+    return (
+      <Paper sx={{ p: 2, textAlign: 'center', bgcolor: bg, borderLeft: `4px solid ${color}` }}>
+        <Typography variant="body2" color="text.secondary">{label}</Typography>
+        <Typography variant="h5" fontWeight="bold" sx={{ color }}>{prefix}{value}</Typography>
+      </Paper>
+    );
+  };
 
   const headerSx = { color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' };
   const karColor = (v) => parseFloat(v || 0) >= 0 ? '#2e7d32' : '#C62828';
@@ -88,6 +162,14 @@ const Raporlar = () => {
     const d = map[durum] || { label: durum || '-', color: '#666', bg: '#f5f5f5' };
     return <Chip size="small" label={d.label} sx={{ bgcolor: d.bg, color: d.color, fontWeight: 'bold', fontSize: '0.7rem' }} />;
   };
+
+  // E-ticaret kar senkronizasyonu - hesaplaKomisyon ile canlı hesaplama
+  const hesaplananEticaretKar = rapor?.eticaret?.reduce((t, e) => {
+    const pt = detectPlatform(e.platform_adi);
+    const h = hesaplaKomisyon(e.satis_fiyati, e.alis_fiyati, e.komisyon_orani, e.kdv_orani || 20, e.kargo_ucreti || 0, e.adet, pt);
+    return t + h.netKar;
+  }, 0) || 0;
+  const duzeltilmisTotalKar = rapor ? (parseFloat(rapor.motorKar || 0) + parseFloat(rapor.isEmriKar || 0) + parseFloat(rapor.aksesuarKar || 0) + hesaplananEticaretKar) : 0;
 
   return (
     <Box>
@@ -139,9 +221,9 @@ const Raporlar = () => {
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
-              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: parseFloat(rapor.toplam?.kar || 0) >= 0 ? '#2e7d32' : '#C62828', color: 'white', borderRadius: 2 }}>
+              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: duzeltilmisTotalKar >= 0 ? '#2e7d32' : '#C62828', color: 'white', borderRadius: 2 }}>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>Toplam Kâr</Typography>
-                <Typography variant="h4" fontWeight="bold">₺{formatTL(rapor.toplam?.kar)}</Typography>
+                <Typography variant="h4" fontWeight="bold">₺{formatTL(duzeltilmisTotalKar)}</Typography>
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
@@ -165,7 +247,7 @@ const Raporlar = () => {
               { label: 'Motor Satışları', count: rapor.motorlar?.length || 0, gelir: rapor.motorGelir, maliyet: rapor.motorMaliyet, kar: rapor.motorKar },
               { label: 'İş Emirleri (Servis)', count: rapor.isEmirleri?.length || 0, gelir: rapor.isEmriGelir, maliyet: rapor.isEmriMaliyet, kar: rapor.isEmriKar },
               { label: 'Aksesuar Satışları', count: rapor.aksesuarlar?.length || 0, gelir: rapor.aksesuarGelir, maliyet: rapor.aksesuarMaliyet, kar: rapor.aksesuarKar },
-              { label: 'E-Ticaret', count: rapor.eticaret?.length || 0, gelir: rapor.eticaretGelir, maliyet: rapor.eticaretMaliyet, kar: rapor.eticaretKar },
+              { label: 'E-Ticaret', count: rapor.eticaret?.length || 0, gelir: rapor.eticaretGelir, maliyet: rapor.eticaretMaliyet, kar: hesaplananEticaretKar },
               { label: 'Yedek Parça (Envanter)', count: rapor.yedekParcalar?.length || 0, gelir: rapor.yedekParcaToplamDeger, maliyet: rapor.yedekParcaToplamMaliyet, kar: (rapor.yedekParcaToplamDeger || 0) - (rapor.yedekParcaToplamMaliyet || 0) },
             ].map((row, i) => {
               const oran = parseFloat(row.gelir || 0) > 0 ? ((parseFloat(row.kar || 0) / parseFloat(row.gelir || 1)) * 100).toFixed(1) : '0.0';
@@ -192,7 +274,7 @@ const Raporlar = () => {
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 <Typography variant="body2">Gelir: <strong>{formatTL(rapor.toplam?.gelir)} ₺</strong></Typography>
                 <Typography variant="body2">Maliyet: <strong>{formatTL(rapor.toplam?.maliyet)} ₺</strong></Typography>
-                <Typography variant="body2" sx={{ color: karColor(rapor.toplam?.kar) }}>Kâr: <strong>{formatTL(rapor.toplam?.kar)} ₺</strong></Typography>
+                <Typography variant="body2" sx={{ color: karColor(duzeltilmisTotalKar) }}>Kâr: <strong>{formatTL(duzeltilmisTotalKar)} ₺</strong></Typography>
               </Box>
             </Paper>
           </Box>
@@ -211,7 +293,7 @@ const Raporlar = () => {
                   { label: 'Motor Satışları', count: rapor.motorlar?.length || 0, gelir: rapor.motorGelir, maliyet: rapor.motorMaliyet, kar: rapor.motorKar },
                   { label: 'İş Emirleri (Servis)', count: rapor.isEmirleri?.length || 0, gelir: rapor.isEmriGelir, maliyet: rapor.isEmriMaliyet, kar: rapor.isEmriKar },
                   { label: 'Aksesuar Satışları', count: rapor.aksesuarlar?.length || 0, gelir: rapor.aksesuarGelir, maliyet: rapor.aksesuarMaliyet, kar: rapor.aksesuarKar },
-                  { label: 'E-Ticaret', count: rapor.eticaret?.length || 0, gelir: rapor.eticaretGelir, maliyet: rapor.eticaretMaliyet, kar: rapor.eticaretKar },
+                  { label: 'E-Ticaret', count: rapor.eticaret?.length || 0, gelir: rapor.eticaretGelir, maliyet: rapor.eticaretMaliyet, kar: hesaplananEticaretKar },
                   { label: 'Yedek Parça (Envanter)', count: rapor.yedekParcalar?.length || 0, gelir: rapor.yedekParcaToplamDeger, maliyet: rapor.yedekParcaToplamMaliyet, kar: (rapor.yedekParcaToplamDeger || 0) - (rapor.yedekParcaToplamMaliyet || 0) },
                 ].map((row, i) => {
                   const oran = parseFloat(row.gelir || 0) > 0 ? ((parseFloat(row.kar || 0) / parseFloat(row.gelir || 1)) * 100).toFixed(1) : '0.0';
@@ -232,9 +314,9 @@ const Raporlar = () => {
                   <TableCell sx={{ fontWeight: 'bold' }}>{(rapor.motorlar?.length || 0) + (rapor.isEmirleri?.length || 0) + (rapor.aksesuarlar?.length || 0) + (rapor.eticaret?.length || 0)}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(rapor.toplam?.gelir)} ₺</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(rapor.toplam?.maliyet)} ₺</TableCell>
-                  <TableCell sx={{ color: karColor(rapor.toplam?.kar), fontWeight: 'bold', fontSize: '1rem' }}>{formatTL(rapor.toplam?.kar)} ₺</TableCell>
-                  <TableCell sx={{ color: karColor(rapor.toplam?.kar), fontWeight: 'bold' }}>
-                    %{parseFloat(rapor.toplam?.gelir || 0) > 0 ? ((parseFloat(rapor.toplam?.kar || 0) / parseFloat(rapor.toplam?.gelir || 1)) * 100).toFixed(1) : '0.0'}
+                  <TableCell sx={{ color: karColor(duzeltilmisTotalKar), fontWeight: 'bold', fontSize: '1rem' }}>{formatTL(duzeltilmisTotalKar)} ₺</TableCell>
+                  <TableCell sx={{ color: karColor(duzeltilmisTotalKar), fontWeight: 'bold' }}>
+                    %{parseFloat(rapor.toplam?.gelir || 0) > 0 ? ((duzeltilmisTotalKar / parseFloat(rapor.toplam?.gelir || 1)) * 100).toFixed(1) : '0.0'}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -249,12 +331,12 @@ const Raporlar = () => {
         <>
           <Grid container spacing={2} sx={{ mb: 2 }}>
             {[
-              { label: 'Toplam Satış', value: rapor.motorlar?.length || 0 },
-              { label: 'Motor Gelir', value: `₺${formatTL(rapor.motorGelir)}` },
-              { label: 'Motor Maliyet', value: `₺${formatTL(rapor.motorMaliyet)}` },
-              { label: 'Motor Kâr', value: `₺${formatTL(rapor.motorKar)}` },
-              { label: 'Noter Satış Cirosu', value: `₺${formatTL(rapor.motorNoterSatisCiro)}` },
-              { label: 'Faturalı', value: (rapor.motorlar || []).filter(m => m.fatura_kesildi).length, color: '#2e7d32' },
+              { label: 'Toplam Satış', value: rapor.motorlar?.length || 0, color: '#C62828' },
+              { label: 'Motor Gelir', value: `₺${formatTL(rapor.motorGelir)}`, color: '#1565C0' },
+              { label: 'Motor Maliyet', value: `₺${formatTL(rapor.motorMaliyet)}`, color: '#E65100' },
+              { label: 'Motor Kâr', value: `₺${formatTL(rapor.motorKar)}`, color: '#2e7d32' },
+              { label: 'Noter Satış Cirosu', value: `₺${formatTL(rapor.motorNoterSatisCiro)}`, color: '#6A1B9A' },
+              { label: 'Faturalı', value: (rapor.motorlar || []).filter(m => m.fatura_kesildi).length, color: '#00695C' },
               { label: 'Motor Stok Değeri', value: `₺${formatTL(rapor.motorStokToplam)}`, color: '#4A148C' },
             ].map((k, i) => (
               <Grid size={{ xs: 12, md: 2 }} key={i}>
@@ -322,7 +404,11 @@ const Raporlar = () => {
 
       {/* İş Emirleri Tab */}
       {tab === 2 && rapor && !loading && (() => {
-        const filtered = (rapor.isEmirleri || []).filter(ie => !seciliPersonel || ie.olusturan_kisi === seciliPersonel);
+        const filtered = (rapor.isEmirleri || []).filter(ie => {
+          if (!seciliPersonel) return true;
+          const personel = (ie.teslim_eden_teknisyen || ie.olusturan_kisi || '').toLowerCase();
+          return personel === seciliPersonel.toLowerCase();
+        });
         const fGelir = filtered.reduce((t, r) => t + parseFloat(r.gercek_toplam_ucret || 0), 0);
         const fMaliyet = filtered.reduce((t, r) => t + parseFloat(r.toplam_maliyet || 0), 0);
         const fKar = filtered.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
@@ -350,7 +436,7 @@ const Raporlar = () => {
                     <Typography variant="caption" color="text.secondary">{formatDate(ie.tamamlama_tarihi || ie.created_at)}</Typography>
                   </Box>
                   <Typography variant="body2">{ie.musteri_ad_soyad} • {ie.marka} {ie.model_tip || ''}</Typography>
-                  <Typography variant="body2" color="text.secondary">{ie.olusturan_kisi || '-'} • {ie.km ? `${parseInt(ie.km).toLocaleString('tr-TR')} km` : ''}</Typography>
+                  <Typography variant="body2" color="text.secondary">{ie.teslim_eden_teknisyen || ie.olusturan_kisi || '-'} • {ie.km ? `${parseInt(ie.km).toLocaleString('tr-TR')} km` : ''}</Typography>
                   <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                     <Typography variant="body2">Gelir: <strong>{formatTL(ie.gercek_toplam_ucret)} ₺</strong></Typography>
                     <Typography variant="body2" sx={{ color: karColor(ie.kar) }}>Kâr: <strong>{formatTL(ie.kar)} ₺</strong></Typography>
@@ -378,7 +464,7 @@ const Raporlar = () => {
                       <TableCell>{ie.telefon || '-'}</TableCell>
                       <TableCell>{ie.marka} {ie.model_tip || ''}</TableCell>
                       <TableCell>{ie.km ? `${parseInt(ie.km).toLocaleString('tr-TR')} km` : '-'}</TableCell>
-                      <TableCell>{ie.olusturan_kisi || '-'}</TableCell>
+                      <TableCell>{ie.teslim_eden_teknisyen || ie.olusturan_kisi || '-'}</TableCell>
                       <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ie.ariza_sikayetler || '-'}</TableCell>
                       <TableCell>{formatTL(ie.gercek_toplam_ucret)} ₺</TableCell>
                       <TableCell>{formatTL(ie.toplam_maliyet)} ₺</TableCell>
@@ -430,7 +516,7 @@ const Raporlar = () => {
                   <Grid size={{ xs: 12, md: 4 }}>
                     <Paper sx={{ p: 1.5, bgcolor: '#fafafa' }}>
                       <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>İş Emri Bilgileri</Typography>
-                      <Typography variant="body2"><strong>Personel:</strong> {d.olusturan_kisi || '-'}</Typography>
+                      <Typography variant="body2"><strong>Personel:</strong> {d.teslim_eden_teknisyen || d.olusturan_kisi || '-'}</Typography>
                       <Typography variant="body2"><strong>Tarih:</strong> {formatDate(d.created_at)}</Typography>
                       <Typography variant="body2"><strong>Tamamlanma:</strong> {formatDate(d.tamamlama_tarihi)}</Typography>
                     </Paper>
@@ -599,7 +685,7 @@ const Raporlar = () => {
               { label: 'Toplam Satış', value: rapor.eticaret?.length || 0 },
               { label: 'E-Ticaret Gelir', value: `₺${formatTL(rapor.eticaretGelir)}` },
               { label: 'E-Ticaret Maliyet', value: `₺${formatTL(rapor.eticaretMaliyet)}` },
-              { label: 'E-Ticaret Kâr', value: `₺${formatTL(rapor.eticaretKar)}` },
+              { label: 'E-Ticaret Kâr', value: `₺${formatTL(hesaplananEticaretKar)}` },
             ].map((k, i) => (
               <Grid size={{ xs: 12, md: 3 }} key={i}>
                 <KartItem label={k.label} value={k.value} />
@@ -614,14 +700,10 @@ const Raporlar = () => {
                 const satis = parseFloat(e.satis_fiyati || 0);
                 const alis = parseFloat(e.alis_fiyati || 0);
                 const komisyonOrani = parseFloat(e.komisyon_orani || 0);
-                const kdvOrani = parseFloat(e.kdv_orani || 20);
                 const kargoUcreti = parseFloat(e.kargo_ucreti || 0);
-                const komisyonTutari = satis * komisyonOrani / 100;
-                const hizmetBedeli = satis * 0.00347;
-                const kdvHaricKomisyon = komisyonTutari / (1 + kdvOrani / 100);
-                const stopaj = kdvHaricKomisyon * 0.077;
-                const toplamKesinti = (komisyonTutari + hizmetBedeli + stopaj + kargoUcreti) * miktar;
-                const netKar = (satis * miktar) - (alis * miktar) - toplamKesinti;
+                const pt = detectPlatform(e.platform_adi);
+                const hesap = hesaplaKomisyon(e.satis_fiyati, e.alis_fiyati, e.komisyon_orani, e.kdv_orani || 20, e.kargo_ucreti || 0, e.adet, pt);
+                const netKar = hesap.netKar;
                 return (
                   <Paper key={i} sx={{ p: 1.5 }} onClick={() => setEticaretDetayModal({ open: true, data: e })}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
@@ -650,14 +732,10 @@ const Raporlar = () => {
                     const satis = parseFloat(e.satis_fiyati || 0);
                     const alis = parseFloat(e.alis_fiyati || 0);
                     const komisyonOrani = parseFloat(e.komisyon_orani || 0);
-                    const kdvOrani = parseFloat(e.kdv_orani || 20);
                     const kargoUcreti = parseFloat(e.kargo_ucreti || 0);
-                    const komisyonTutari = satis * komisyonOrani / 100;
-                    const hizmetBedeli = satis * 0.00347;
-                    const kdvHaricKomisyon = komisyonTutari / (1 + kdvOrani / 100);
-                    const stopaj = kdvHaricKomisyon * 0.077;
-                    const toplamKesinti = (komisyonTutari + hizmetBedeli + stopaj + kargoUcreti) * miktar;
-                    const netKar = (satis * miktar) - (alis * miktar) - toplamKesinti;
+                    const pt = detectPlatform(e.platform_adi);
+                    const hesap = hesaplaKomisyon(e.satis_fiyati, e.alis_fiyati, e.komisyon_orani, e.kdv_orani || 20, e.kargo_ucreti || 0, e.adet, pt);
+                    const netKar = hesap.netKar;
                     return (
                       <TableRow key={i} hover>
                         <TableCell>
@@ -672,8 +750,8 @@ const Raporlar = () => {
                         <TableCell>{formatTL(alis)} ₺</TableCell>
                         <TableCell>{formatTL(satis)} ₺</TableCell>
                         <TableCell>{formatTL(kargoUcreti)} ₺</TableCell>
-                        <TableCell>{formatTL(komisyonTutari * miktar)} ₺ (%{komisyonOrani})</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(toplamKesinti)} ₺</TableCell>
+                        <TableCell>{formatTL(hesap.komisyonTutari)} ₺ (%{komisyonOrani})</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(hesap.toplamKomisyon)} ₺</TableCell>
                         <TableCell sx={{ color: karColor(netKar), fontWeight: 'bold' }}>{formatTL(netKar)} ₺</TableCell>
                       </TableRow>
                     );
@@ -1088,14 +1166,13 @@ const Raporlar = () => {
           const komisyonOrani = parseFloat(e.komisyon_orani || 0);
           const kdvOrani = parseFloat(e.kdv_orani || 20);
           const kargoUcreti = parseFloat(e.kargo_ucreti || 0);
-          const komisyonTutari = satis * komisyonOrani / 100;
-          const hizmetBedeli = satis * 0.00347;
-          const kdvHaricKomisyon = komisyonTutari / (1 + kdvOrani / 100);
-          const stopaj = kdvHaricKomisyon * 0.077;
-          const toplamKesinti = (komisyonTutari + hizmetBedeli + stopaj + kargoUcreti) * miktar;
+          const pt = detectPlatform(e.platform_adi);
+          const hesap = hesaplaKomisyon(e.satis_fiyati, e.alis_fiyati, e.komisyon_orani, e.kdv_orani || 20, e.kargo_ucreti || 0, e.adet, pt);
+          const komisyonTutari = hesap.komisyonTutari;
           const toplamSatis = satis * miktar;
           const toplamAlis = alis * miktar;
-          const netKar = toplamSatis - toplamAlis - toplamKesinti;
+          const netKar = hesap.netKar;
+          const toplamKesinti = hesap.toplamKomisyon;
           const karOrani = toplamSatis > 0 ? ((netKar / toplamSatis) * 100).toFixed(1) : '0.0';
           return (
             <>
@@ -1132,15 +1209,13 @@ const Raporlar = () => {
                   </Grid>
                 </Grid>
 
-                <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>Komisyon Detayları (Birim)</Typography>
+                <Typography variant="subtitle2" color="#C62828" fontWeight="bold" gutterBottom>Kesinti Detayları</Typography>
                 <TableContainer component={Paper} variant="outlined" sx={{ mb: 2, overflowX: 'auto' }}>
                   <Table size="small">
                     <TableBody>
-                      <TableRow><TableCell>Komisyon Tutarı (%{komisyonOrani})</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(komisyonTutari)}</TableCell></TableRow>
-                      <TableRow><TableCell>Hizmet Bedeli (%0.347)</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(hizmetBedeli)}</TableCell></TableRow>
-                      <TableRow><TableCell>Stopaj (%7.7)</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(stopaj)}</TableCell></TableRow>
+                      <TableRow><TableCell>Komisyon Tutarı (%{komisyonOrani})</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(komisyonTutari / miktar)}</TableCell></TableRow>
                       <TableRow><TableCell>Kargo Ücreti</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(kargoUcreti)}</TableCell></TableRow>
-                      <TableRow sx={{ bgcolor: '#f5f5f5' }}><TableCell sx={{ fontWeight: 'bold' }}>Birim Toplam Kesinti</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(komisyonTutari + hizmetBedeli + stopaj + kargoUcreti)}</TableCell></TableRow>
+                      <TableRow sx={{ bgcolor: '#f5f5f5' }}><TableCell sx={{ fontWeight: 'bold' }}>Toplam Kesinti ({miktar} adet)</TableCell><TableCell align="right" sx={{ fontWeight: 'bold' }}>₺{formatTL(toplamKesinti)}</TableCell></TableRow>
                     </TableBody>
                   </Table>
                 </TableContainer>

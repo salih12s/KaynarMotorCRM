@@ -28,10 +28,10 @@ router.get('/:id', async (req, res) => {
 // POST /
 router.post('/', async (req, res) => {
   try {
-    const { urun_adi, alis_fiyati, satis_fiyati } = req.body;
+    const { urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon } = req.body;
     const result = await pool.query(
-      'INSERT INTO yedek_parcalar (urun_adi, alis_fiyati, satis_fiyati) VALUES ($1, $2, $3) RETURNING *',
-      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati)]
+      'INSERT INTO yedek_parcalar (urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati), musteri_adi || null, musteri_telefon || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -42,10 +42,10 @@ router.post('/', async (req, res) => {
 // PUT /:id
 router.put('/:id', async (req, res) => {
   try {
-    const { urun_adi, alis_fiyati, satis_fiyati } = req.body;
+    const { urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon } = req.body;
     const result = await pool.query(
-      'UPDATE yedek_parcalar SET urun_adi=$1, alis_fiyati=$2, satis_fiyati=$3, updated_at=CURRENT_TIMESTAMP WHERE id=$4 RETURNING *',
-      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati), req.params.id]
+      'UPDATE yedek_parcalar SET urun_adi=$1, alis_fiyati=$2, satis_fiyati=$3, musteri_adi=$4, musteri_telefon=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6 RETURNING *',
+      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati), musteri_adi || null, musteri_telefon || null, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Yedek parça bulunamadı' });
     res.json(result.rows[0]);
