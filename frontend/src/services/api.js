@@ -54,6 +54,7 @@ export const musteriService = {
   update: (id, data) => api.put(`/musteriler/${id}`, data),
   delete: (id) => api.delete(`/musteriler/${id}`),
   search: (query) => api.get(`/musteriler/ara/${query}`),
+  searchByPhone: (telefon) => api.get(`/musteriler/telefon/${encodeURIComponent(telefon)}`),
 };
 
 // İş Emirleri

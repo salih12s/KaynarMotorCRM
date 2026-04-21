@@ -18,6 +18,7 @@ const IkinciElMotor = () => {
     alis_fiyati: '', satis_fiyati: '', noter_alis: '', noter_satis: '', masraflar: '',
     alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '', aciklama: '',
     satici_adi: '', satici_tc: '',
+    komisyoncu_adi: '', komisyoncu_telefon: '', komisyoncu_tutari: '',
     durum: 'stokta', odeme_sekli: 'nakit', stok_tipi: 'sahip',
     kalan_odeme: '', odeme_tamamlandi: true, fatura_kesildi: false, yevmiye_no: '',
     satis_tarihi: new Date().toISOString().split('T')[0]
@@ -59,9 +60,11 @@ const IkinciElMotor = () => {
       alici_telefon: motor.alici_telefon || '', alici_adres: motor.alici_adres || '',
       aciklama: motor.aciklama || '',
       satici_adi: motor.satici_adi || '', satici_tc: motor.satici_tc || '',
+      komisyoncu_adi: motor.komisyoncu_adi || '', komisyoncu_telefon: motor.komisyoncu_telefon || '', komisyoncu_tutari: motor.komisyoncu_tutari || '',
       durum: motor.durum || 'tamamlandi', odeme_sekli: motor.odeme_sekli || 'nakit',
       kalan_odeme: motor.kalan_odeme || '', odeme_tamamlandi: !parseFloat(motor.kalan_odeme || 0),
       fatura_kesildi: motor.fatura_kesildi || false,
+      yevmiye_no: motor.yevmiye_no || '',
       tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : '',
       satis_tarihi: motor.satis_tarihi ? new Date(motor.satis_tarihi).toISOString().split('T')[0] : ''
     } : {
@@ -69,8 +72,9 @@ const IkinciElMotor = () => {
       alis_fiyati: '', satis_fiyati: '', noter_alis: '', noter_satis: '', masraflar: '',
       alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '', aciklama: '',
       satici_adi: '', satici_tc: '',
+      komisyoncu_adi: '', komisyoncu_telefon: '', komisyoncu_tutari: '',
       durum: 'tamamlandi', odeme_sekli: 'nakit',
-      kalan_odeme: '', odeme_tamamlandi: true, fatura_kesildi: false,
+      kalan_odeme: '', odeme_tamamlandi: true, fatura_kesildi: false, yevmiye_no: '',
       tarih: '', satis_tarihi: new Date().toISOString().split('T')[0]
     });
     setDialog({ open: true, data: motor });
@@ -101,7 +105,30 @@ const IkinciElMotor = () => {
   };
 
   const f = formData;
-  const canliKar = (Number(f.satis_fiyati) || 0) - (Number(f.alis_fiyati) || 0) - (Number(f.masraflar) || 0);
+  const canliKar = (Number(f.satis_fiyati) || 0) - (Number(f.alis_fiyati) || 0) - (Number(f.masraflar) || 0) - (Number(f.komisyoncu_tutari) || 0);
+
+  // Telefon numarasına göre müşteri bilgilerini otomatik doldur
+  const autofillByPhone = async (telefon, target) => {
+    const tel = (telefon || '').replace(/\D/g, '');
+    if (!tel || tel.length < 7) return;
+    try {
+      const res = await musteriService.searchByPhone(tel);
+      const m = res.data;
+      if (!m) return;
+      setFormData(prev => {
+        if (target === 'alici') {
+          return { ...prev,
+            alici_adi: prev.alici_adi || m.ad_soyad || '',
+            alici_adres: prev.alici_adres || m.adres || ''
+          };
+        }
+        if (target === 'komisyoncu') {
+          return { ...prev, komisyoncu_adi: prev.komisyoncu_adi || m.ad_soyad || '' };
+        }
+        return prev;
+      });
+    } catch {}
+  };
 
   const [search, setSearch] = useState('');
   const [tarihBaslangic, setTarihBaslangic] = useState('');
@@ -293,6 +320,9 @@ const IkinciElMotor = () => {
               <TextField fullWidth label="Satış Tarihi" type="date" value={f.satis_tarihi} onChange={e => setFormData({ ...f, satis_tarihi: e.target.value })} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
+              <TextField fullWidth label="Yevmiye No" value={f.yevmiye_no} onChange={e => setFormData({ ...f, yevmiye_no: e.target.value })} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <FormControlLabel control={<Checkbox checked={f.fatura_kesildi} onChange={e => setFormData({ ...f, fatura_kesildi: e.target.checked })} />} label="Fatura Kesildi" />
             </Grid>
           </Grid>
@@ -309,7 +339,7 @@ const IkinciElMotor = () => {
             <Typography variant="h6" sx={{ color: canliKar >= 0 ? 'green' : 'red' }}>
               Net Kâr: <strong>{canliKar.toLocaleString('tr-TR')} ₺</strong>
             </Typography>
-            <Typography variant="caption" color="text.secondary">Kâr = Satış - (Alış + Masraflar)</Typography>
+            <Typography variant="caption" color="text.secondary">Kâr = Satış - (Alış + Masraflar + Komisyoncu Tutarı)</Typography>
           </Paper>
 
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Satıcı Bilgileri</Typography>
@@ -336,8 +366,21 @@ const IkinciElMotor = () => {
               />
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="TC No" value={f.alici_tc} onChange={e => setFormData({ ...f, alici_tc: e.target.value })} /></Grid>
-            <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Telefon" value={f.alici_telefon} onChange={e => setFormData({ ...f, alici_telefon: e.target.value })} /></Grid>
+            <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Telefon" value={f.alici_telefon} onChange={e => setFormData({ ...f, alici_telefon: e.target.value })} onBlur={e => autofillByPhone(e.target.value, 'alici')} /></Grid>
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Adres" value={f.alici_adres} onChange={e => setFormData({ ...f, alici_adres: e.target.value })} /></Grid>
+          </Grid>
+
+          <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Komisyoncu Bilgileri <Typography component="span" variant="caption" color="text.secondary">(opsiyonel)</Typography></Typography>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField fullWidth label="Komisyoncu Ad Soyad" value={f.komisyoncu_adi} onChange={e => setFormData({ ...f, komisyoncu_adi: e.target.value })} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField fullWidth label="Komisyoncu Telefon" value={f.komisyoncu_telefon} onChange={e => setFormData({ ...f, komisyoncu_telefon: e.target.value })} onBlur={e => autofillByPhone(e.target.value, 'komisyoncu')} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField fullWidth label="Komisyoncu Tutarı (₺)" type="number" value={f.komisyoncu_tutari} onChange={e => setFormData({ ...f, komisyoncu_tutari: e.target.value })} helperText="Masraf olarak net kârdan düşülür" />
+            </Grid>
           </Grid>
 
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Kalan Ödeme</Typography>
@@ -436,6 +479,18 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
                 <Grid size={{ xs: 12, md: 3 }}><InfoRow label="TC Kimlik" value={data.alici_tc} /></Grid>
                 <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Telefon" value={data.alici_telefon} /></Grid>
                 <Grid size={{ xs: 12, md: 3 }}><InfoRow label="Kalan Ödeme" value={parseFloat(data.kalan_odeme || 0) > 0 ? `₺${parseFloat(data.kalan_odeme).toLocaleString('tr-TR')}` : 'Tamamlandı ✓'} /></Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {data.komisyoncu_adi && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>🤝 Komisyoncu</Typography>
+              <Divider sx={{ mb: 1 }} />
+              <Grid container spacing={3}>
+                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Ad Soyad" value={data.komisyoncu_adi} /></Grid>
+                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Telefon" value={data.komisyoncu_telefon} /></Grid>
+                <Grid size={{ xs: 12, md: 4 }}><InfoRow label="Tutar" value={`₺${parseFloat(data.komisyoncu_tutari || 0).toLocaleString('tr-TR')}`} /></Grid>
               </Grid>
             </Box>
           )}

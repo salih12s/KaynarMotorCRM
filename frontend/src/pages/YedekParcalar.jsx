@@ -4,7 +4,7 @@ import {
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
-import { yedekParcaService } from '../services/api';
+import { yedekParcaService, musteriService } from '../services/api';
 
 const YedekParcalar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -148,7 +148,17 @@ const YedekParcalar = () => {
               <TextField fullWidth label="Müşteri Adı" value={formData.musteri_adi} onChange={e => setFormData({ ...formData, musteri_adi: e.target.value })} />
             </Grid>
             <Grid size={{ xs: 6 }}>
-              <TextField fullWidth label="Müşteri Telefon" value={formData.musteri_telefon} onChange={e => setFormData({ ...formData, musteri_telefon: e.target.value })} />
+              <TextField fullWidth label="Müşteri Telefon" value={formData.musteri_telefon}
+                onChange={e => setFormData({ ...formData, musteri_telefon: e.target.value })}
+                onBlur={async e => {
+                  const tel = (e.target.value || '').replace(/\D/g, '');
+                  if (!tel || tel.length < 7) return;
+                  try {
+                    const res = await musteriService.searchByPhone(tel);
+                    const m = res.data;
+                    if (m) setFormData(prev => ({ ...prev, musteri_adi: prev.musteri_adi || m.ad_soyad || '' }));
+                  } catch {}
+                }} />
             </Grid>
           </Grid>
           <Paper sx={{ p: 1, mt: 2, textAlign: 'center', bgcolor: kar >= 0 ? '#e8f5e9' : '#ffebee' }}>

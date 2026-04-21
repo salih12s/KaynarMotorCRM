@@ -64,7 +64,8 @@ router.post('/', async (req, res) => {
       alis_fiyati, satis_fiyati, noter_alis, noter_satis, masraflar,
       alici_adi, alici_tc, alici_telefon, alici_adres,
       odeme_sekli, aciklama, durum, stok_tipi,
-      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi
+      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi,
+      komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari
     } = req.body;
 
     const alis = emptyToZero(alis_fiyati);
@@ -72,22 +73,26 @@ router.post('/', async (req, res) => {
     const nAlis = emptyToZero(noter_alis);
     const nSatis = emptyToZero(noter_satis);
     const masraf = emptyToZero(masraflar);
-    const kar = satis - alis - masraf;
+    const komisyonTutar = emptyToZero(komisyoncu_tutari);
+    const kar = satis - alis - masraf - komisyonTutar;
     const tamamlamaTarihi = durum === 'tamamlandi' ? new Date() : null;
 
     const result = await pool.query(
       `INSERT INTO ikinci_el_motorlar (tarih, plaka, marka, model, km, alis_fiyati, satis_fiyati, noter_alis, noter_satis, masraflar, kar,
         alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli, aciklama, durum, tamamlama_tarihi, stok_tipi,
-        yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27) RETURNING *`,
+        yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi,
+        komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30) RETURNING *`,
       [tarih || new Date(), plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli || 'nakit', aciklama, durum || 'stokta', tamamlamaTarihi, stok_tipi || 'sahip',
-       emptyToZero(yil) || null, satici_adi || null, satici_tc || null, emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, satis_tarihi || null]
+       emptyToZero(yil) || null, satici_adi || null, satici_tc || null, emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, satis_tarihi || null,
+       komisyoncu_adi || null, komisyoncu_telefon || null, komisyonTutar]
     );
 
     // Müşteri auto-collect
     if (satici_adi) await upsertMusteri(satici_adi, null, null);
     if (alici_adi) await upsertMusteri(alici_adi, alici_telefon, alici_adres);
+    if (komisyoncu_adi) await upsertMusteri(komisyoncu_adi, komisyoncu_telefon, null);
 
     await logAktivite({
       kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi,
@@ -114,7 +119,8 @@ router.put('/:id', async (req, res) => {
       alis_fiyati, satis_fiyati, noter_alis, noter_satis, masraflar,
       alici_adi, alici_tc, alici_telefon, alici_adres,
       odeme_sekli, aciklama, durum, stok_tipi,
-      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, eski_kayit, satis_tarihi
+      yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, eski_kayit, satis_tarihi,
+      komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari
     } = req.body;
 
     const alis = emptyToZero(alis_fiyati);
@@ -122,7 +128,8 @@ router.put('/:id', async (req, res) => {
     const nAlis = emptyToZero(noter_alis);
     const nSatis = emptyToZero(noter_satis);
     const masraf = emptyToZero(masraflar);
-    const kar = satis - alis - masraf;
+    const komisyonTutar = emptyToZero(komisyoncu_tutari);
+    const kar = satis - alis - masraf - komisyonTutar;
     const tamamlamaTarihi = (durum === 'tamamlandi' && existing.rows[0].durum !== 'tamamlandi') ? new Date() : null;
 
     const result = await pool.query(
@@ -136,17 +143,20 @@ router.put('/:id', async (req, res) => {
         kalan_odeme=$24, fatura_kesildi=$25, yevmiye_no=$26,
         eski_kayit=COALESCE($28, eski_kayit),
         satis_tarihi=COALESCE($29, satis_tarihi),
+        komisyoncu_adi=$30, komisyoncu_telefon=$31, komisyoncu_tutari=$32,
         updated_at=CURRENT_TIMESTAMP WHERE id=$27 RETURNING *`,
       [tarih, plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli, aciklama, durum,
        tamamlamaTarihi, stok_tipi || 'sahip', emptyToZero(yil) || null, satici_adi || null, satici_tc || null,
        emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, req.params.id,
-       eski_kayit !== undefined ? eski_kayit : null, satis_tarihi || null]
+       eski_kayit !== undefined ? eski_kayit : null, satis_tarihi || null,
+       komisyoncu_adi || null, komisyoncu_telefon || null, komisyonTutar]
     );
 
     // Müşteri auto-collect
     if (satici_adi) await upsertMusteri(satici_adi, null, null);
     if (alici_adi) await upsertMusteri(alici_adi, alici_telefon, alici_adres);
+    if (komisyoncu_adi) await upsertMusteri(komisyoncu_adi, komisyoncu_telefon, null);
 
     await logAktivite({
       kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi,
