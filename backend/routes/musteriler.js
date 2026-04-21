@@ -28,6 +28,26 @@ router.get('/ara/:query', async (req, res) => {
   }
 });
 
+// GET /telefon/:telefon - Telefon numarasına göre müşteri bul (tam eşleşme)
+router.get('/telefon/:telefon', async (req, res) => {
+  try {
+    const tel = (req.params.telefon || '').replace(/\D/g, '');
+    if (!tel || tel.length < 7) return res.json(null);
+    // Normalize: remove non-digits from stored telefon when comparing
+    const result = await pool.query(
+      `SELECT * FROM musteriler
+       WHERE regexp_replace(COALESCE(telefon,''), '\\D', '', 'g') = $1
+       ORDER BY updated_at DESC NULLS LAST, created_at DESC
+       LIMIT 1`,
+      [tel]
+    );
+    res.json(result.rows[0] || null);
+  } catch (error) {
+    console.error('Telefon arama hatası:', error);
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
 // GET /:id - Tek müşteri + işlem geçmişi
 router.get('/:id', async (req, res) => {
   try {

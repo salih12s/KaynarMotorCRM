@@ -91,6 +91,12 @@ const MotorDetay = () => {
                   <Typography variant="body2" color="text.secondary">Ödeme Şekli:</Typography>
                   <Typography>{data.odeme_sekli || 'Nakit'}</Typography>
                 </Box>
+                {data.yevmiye_no && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">Yevmiye No:</Typography>
+                    <Typography fontWeight="bold">{data.yevmiye_no}</Typography>
+                  </Box>
+                )}
               </Box>
             </Grid>
 
@@ -117,6 +123,33 @@ const MotorDetay = () => {
             </Grid>
           </Grid>
         </Paper>
+
+        {data.komisyoncu_adi && (
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>Komisyoncu</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">Ad Soyad:</Typography>
+                  <Typography fontWeight="bold">{data.komisyoncu_adi}</Typography>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">Telefon:</Typography>
+                  <Typography>{data.komisyoncu_telefon || '-'}</Typography>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">Tutar:</Typography>
+                  <Typography fontWeight="bold">₺{parseFloat(data.komisyoncu_tutari || 0).toLocaleString('tr-TR')}</Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+        )}
 
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>Finansal Detaylar</Typography>

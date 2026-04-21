@@ -325,6 +325,11 @@ const initializeDatabase = async () => {
     // Migration: ikinci_el_motorlar tablosuna satis_tarihi ekle
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS satis_tarihi DATE;`);
 
+    // Migration: ikinci_el_motorlar tablosuna komisyoncu alanları ekle
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS komisyoncu_adi VARCHAR(255);`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS komisyoncu_telefon VARCHAR(50);`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS komisyoncu_tutari DECIMAL(12,2) DEFAULT 0;`);
+
     // Migration: yedek_parcalar tablosuna müşteri bilgileri ekle
     await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS musteri_adi VARCHAR(255);`);
     await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS musteri_telefon VARCHAR(50);`);
