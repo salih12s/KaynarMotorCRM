@@ -149,7 +149,17 @@ const YedekParcalar = () => {
             </Grid>
             <Grid size={{ xs: 6 }}>
               <TextField fullWidth label="Müşteri Telefon" value={formData.musteri_telefon}
-                onChange={e => setFormData({ ...formData, musteri_telefon: e.target.value })}
+                onChange={async e => {
+                  const v = e.target.value;
+                  setFormData(prev => ({ ...prev, musteri_telefon: v }));
+                  const tel = (v || '').replace(/\D/g, '');
+                  if (tel.length < 10) return;
+                  try {
+                    const res = await musteriService.searchByPhone(tel);
+                    const m = res.data;
+                    if (m) setFormData(prev => ({ ...prev, musteri_adi: prev.musteri_adi || m.ad_soyad || '' }));
+                  } catch {}
+                }}
                 onBlur={async e => {
                   const tel = (e.target.value || '').replace(/\D/g, '');
                   if (!tel || tel.length < 7) return;

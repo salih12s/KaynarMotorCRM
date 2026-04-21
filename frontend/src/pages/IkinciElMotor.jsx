@@ -366,7 +366,13 @@ const IkinciElMotor = () => {
               />
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="TC No" value={f.alici_tc} onChange={e => setFormData({ ...f, alici_tc: e.target.value })} /></Grid>
-            <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Telefon" value={f.alici_telefon} onChange={e => setFormData({ ...f, alici_telefon: e.target.value })} onBlur={e => autofillByPhone(e.target.value, 'alici')} /></Grid>
+            <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Telefon" value={f.alici_telefon}
+              onChange={e => {
+                const v = e.target.value;
+                setFormData({ ...f, alici_telefon: v });
+                if ((v || '').replace(/\D/g, '').length >= 10) autofillByPhone(v, 'alici');
+              }}
+              onBlur={e => autofillByPhone(e.target.value, 'alici')} /></Grid>
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Adres" value={f.alici_adres} onChange={e => setFormData({ ...f, alici_adres: e.target.value })} /></Grid>
           </Grid>
 
@@ -376,7 +382,13 @@ const IkinciElMotor = () => {
               <TextField fullWidth label="Komisyoncu Ad Soyad" value={f.komisyoncu_adi} onChange={e => setFormData({ ...f, komisyoncu_adi: e.target.value })} />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField fullWidth label="Komisyoncu Telefon" value={f.komisyoncu_telefon} onChange={e => setFormData({ ...f, komisyoncu_telefon: e.target.value })} onBlur={e => autofillByPhone(e.target.value, 'komisyoncu')} />
+              <TextField fullWidth label="Komisyoncu Telefon" value={f.komisyoncu_telefon}
+                onChange={e => {
+                  const v = e.target.value;
+                  setFormData({ ...f, komisyoncu_telefon: v });
+                  if ((v || '').replace(/\D/g, '').length >= 10) autofillByPhone(v, 'komisyoncu');
+                }}
+                onBlur={e => autofillByPhone(e.target.value, 'komisyoncu')} />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField fullWidth label="Komisyoncu Tutarı (₺)" type="number" value={f.komisyoncu_tutari} onChange={e => setFormData({ ...f, komisyoncu_tutari: e.target.value })} helperText="Masraf olarak net kârdan düşülür" />

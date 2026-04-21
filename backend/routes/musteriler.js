@@ -28,18 +28,19 @@ router.get('/ara/:query', async (req, res) => {
   }
 });
 
-// GET /telefon/:telefon - Telefon numarasına göre müşteri bul (tam eşleşme)
+// GET /telefon/:telefon - Telefon numarasına göre müşteri bul (son 10 hane ile eşleşme)
 router.get('/telefon/:telefon', async (req, res) => {
   try {
-    const tel = (req.params.telefon || '').replace(/\D/g, '');
-    if (!tel || tel.length < 7) return res.json(null);
-    // Normalize: remove non-digits from stored telefon when comparing
+    const raw = (req.params.telefon || '').replace(/\D/g, '');
+    if (!raw || raw.length < 7) return res.json(null);
+    // Türkiye cep telefonu 10 haneli (başında 0 veya +90 olabilir) - son 10 haneyi al
+    const tail = raw.slice(-10);
     const result = await pool.query(
       `SELECT * FROM musteriler
-       WHERE regexp_replace(COALESCE(telefon,''), '\\D', '', 'g') = $1
+       WHERE regexp_replace(COALESCE(telefon,''), '\\D', '', 'g') LIKE '%' || $1
        ORDER BY updated_at DESC NULLS LAST, created_at DESC
        LIMIT 1`,
-      [tel]
+      [tail]
     );
     res.json(result.rows[0] || null);
   } catch (error) {

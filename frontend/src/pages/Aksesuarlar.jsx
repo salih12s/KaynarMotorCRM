@@ -223,7 +223,18 @@ const Aksesuarlar = () => {
               />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField fullWidth label="Telefon" value={formData.telefon} onChange={e => setFormData({ ...formData, telefon: e.target.value })}
+              <TextField fullWidth label="Telefon" value={formData.telefon}
+                onChange={async e => {
+                  const v = e.target.value;
+                  setFormData(prev => ({ ...prev, telefon: v }));
+                  const tel = (v || '').replace(/\D/g, '');
+                  if (tel.length < 10) return;
+                  try {
+                    const res = await musteriService.searchByPhone(tel);
+                    const m = res.data;
+                    if (m) setFormData(prev => ({ ...prev, ad_soyad: prev.ad_soyad || m.ad_soyad || '' }));
+                  } catch {}
+                }}
                 onBlur={async e => {
                   const tel = (e.target.value || '').replace(/\D/g, '');
                   if (!tel || tel.length < 7) return;

@@ -316,7 +316,22 @@ const IsEmirleri = () => {
                 </Grid>
                 <Grid size={{ xs: 6 }} sx={{ position: 'relative' }}>
                   <TextField fullWidth size="small" label="Telefon" value={formData.telefon}
-                    onChange={e => { setFormData({ ...formData, telefon: e.target.value }); handleMusteriSearch(e.target.value); }}
+                    onChange={async e => {
+                      const v = e.target.value;
+                      setFormData(prev => ({ ...prev, telefon: v }));
+                      handleMusteriSearch(v);
+                      const tel = (v || '').replace(/\D/g, '');
+                      if (tel.length < 10) return;
+                      try {
+                        const res = await musteriService.searchByPhone(tel);
+                        const m = res.data;
+                        if (m) setFormData(prev => ({
+                          ...prev,
+                          musteri_ad_soyad: prev.musteri_ad_soyad || m.ad_soyad || '',
+                          adres: prev.adres || m.adres || ''
+                        }));
+                      } catch {}
+                    }}
                     onBlur={async e => {
                       const tel = (e.target.value || '').replace(/\D/g, '');
                       if (!tel || tel.length < 7) return;
