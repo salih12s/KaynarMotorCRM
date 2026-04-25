@@ -178,7 +178,10 @@ const Raporlar = () => {
     const h = hesaplaKomisyon(e.satis_fiyati, e.alis_fiyati, e.komisyon_orani, e.kdv_orani || 20, e.kargo_ucreti || 0, e.adet, pt);
     return t + h.netKar;
   }, 0) || 0;
-  const duzeltilmisTotalKar = rapor ? (parseFloat(rapor.motorKar || 0) + parseFloat(rapor.isEmriKar || 0) + parseFloat(rapor.aksesuarKar || 0) + hesaplananEticaretKar) : 0;
+  const yedekParcaKar = rapor ? ((parseFloat(rapor.yedekParcaToplamDeger || 0)) - (parseFloat(rapor.yedekParcaToplamMaliyet || 0))) : 0;
+  const duzeltilmisTotalKar = rapor ? (parseFloat(rapor.motorKar || 0) + parseFloat(rapor.isEmriKar || 0) + parseFloat(rapor.aksesuarKar || 0) + hesaplananEticaretKar + yedekParcaKar) : 0;
+  const duzeltilmisTotalGelir = rapor ? (parseFloat(rapor.toplam?.gelir || 0) + parseFloat(rapor.yedekParcaToplamDeger || 0)) : 0;
+  const duzeltilmisTotalMaliyet = rapor ? (parseFloat(rapor.toplam?.maliyet || 0) + parseFloat(rapor.yedekParcaToplamMaliyet || 0)) : 0;
 
   return (
     <Box>
@@ -220,13 +223,13 @@ const Raporlar = () => {
             <Grid size={{ xs: 12, md: 3 }}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#C62828', color: 'white', borderRadius: 2 }}>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>Toplam Gelir</Typography>
-                <Typography variant="h4" fontWeight="bold">₺{formatTL(rapor.toplam?.gelir)}</Typography>
+                <Typography variant="h4" fontWeight="bold">₺{formatTL(duzeltilmisTotalGelir)}</Typography>
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#1565C0', color: 'white', borderRadius: 2 }}>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>Toplam Maliyet</Typography>
-                <Typography variant="h4" fontWeight="bold">₺{formatTL(rapor.toplam?.maliyet)}</Typography>
+                <Typography variant="h4" fontWeight="bold">₺{formatTL(duzeltilmisTotalMaliyet)}</Typography>
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
@@ -238,7 +241,7 @@ const Raporlar = () => {
             <Grid size={{ xs: 12, md: 3 }}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#E65100', color: 'white', borderRadius: 2 }}>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>Toplam İşlem</Typography>
-                <Typography variant="h4" fontWeight="bold">{(rapor.motorlar?.length || 0) + (rapor.isEmirleri?.length || 0) + (rapor.aksesuarlar?.length || 0) + (rapor.eticaret?.length || 0)}</Typography>
+                <Typography variant="h4" fontWeight="bold">{(rapor.motorlar?.length || 0) + (rapor.isEmirleri?.length || 0) + (rapor.aksesuarlar?.length || 0) + (rapor.eticaret?.length || 0) + (rapor.yedekParcalar?.length || 0)}</Typography>
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
@@ -281,8 +284,8 @@ const Raporlar = () => {
             <Paper sx={{ p: 1.5, bgcolor: '#f5f5f5' }}>
               <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 0.5 }}>TOPLAM</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="body2">Gelir: <strong>{formatTL(rapor.toplam?.gelir)} ₺</strong></Typography>
-                <Typography variant="body2">Maliyet: <strong>{formatTL(rapor.toplam?.maliyet)} ₺</strong></Typography>
+                <Typography variant="body2">Gelir: <strong>{formatTL(duzeltilmisTotalGelir)} ₺</strong></Typography>
+                <Typography variant="body2">Maliyet: <strong>{formatTL(duzeltilmisTotalMaliyet)} ₺</strong></Typography>
                 <Typography variant="body2" sx={{ color: karColor(duzeltilmisTotalKar) }}>Kâr: <strong>{formatTL(duzeltilmisTotalKar)} ₺</strong></Typography>
               </Box>
             </Paper>
@@ -320,12 +323,12 @@ const Raporlar = () => {
                 })}
                 <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                   <TableCell sx={{ fontWeight: 'bold', fontSize: '1rem' }}>TOPLAM</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>{(rapor.motorlar?.length || 0) + (rapor.isEmirleri?.length || 0) + (rapor.aksesuarlar?.length || 0) + (rapor.eticaret?.length || 0)}</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(rapor.toplam?.gelir)} ₺</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(rapor.toplam?.maliyet)} ₺</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{(rapor.motorlar?.length || 0) + (rapor.isEmirleri?.length || 0) + (rapor.aksesuarlar?.length || 0) + (rapor.eticaret?.length || 0) + (rapor.yedekParcalar?.length || 0)}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(duzeltilmisTotalGelir)} ₺</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(duzeltilmisTotalMaliyet)} ₺</TableCell>
                   <TableCell sx={{ color: karColor(duzeltilmisTotalKar), fontWeight: 'bold', fontSize: '1rem' }}>{formatTL(duzeltilmisTotalKar)} ₺</TableCell>
                   <TableCell sx={{ color: karColor(duzeltilmisTotalKar), fontWeight: 'bold' }}>
-                    %{parseFloat(rapor.toplam?.gelir || 0) > 0 ? ((duzeltilmisTotalKar / parseFloat(rapor.toplam?.gelir || 1)) * 100).toFixed(1) : '0.0'}
+                    %{duzeltilmisTotalGelir > 0 ? ((duzeltilmisTotalKar / duzeltilmisTotalGelir) * 100).toFixed(1) : '0.0'}
                   </TableCell>
                 </TableRow>
               </TableBody>
