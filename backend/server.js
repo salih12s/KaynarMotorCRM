@@ -71,6 +71,7 @@ const ikinciElMotorRoutes = require('./routes/ikinciElMotor');
 const eticaretRoutes = require('./routes/eticaret');
 const yedekParcaRoutes = require('./routes/yedekParcalar');
 const raporRoutes = require('./routes/raporlar');
+const veresiyeRoutes = require('./routes/veresiye');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/musteriler', authenticateToken, musteriRoutes);
@@ -81,6 +82,7 @@ app.use('/api/ikinci-el-motor', authenticateToken, ikinciElMotorRoutes);
 app.use('/api/eticaret', authenticateToken, eticaretRoutes);
 app.use('/api/yedek-parcalar', authenticateToken, yedekParcaRoutes);
 app.use('/api/raporlar', authenticateToken, raporRoutes);
+app.use('/api/veresiye', authenticateToken, veresiyeRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

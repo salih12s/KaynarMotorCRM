@@ -8,7 +8,7 @@ import {
   Menu as MenuIcon, Build as BuildIcon, People as PeopleIcon, TwoWheeler as MotorIcon,
   ShoppingCart as ShopIcon, Inventory as StokIcon, Store as StoreIcon, Sell as SellIcon,
   Assessment as ReportIcon, SupervisorAccount as AdminIcon, ExpandLess, ExpandMore,
-  Logout as LogoutIcon, Settings as SettingsIcon
+  Logout as LogoutIcon, Settings as SettingsIcon, AccountBalanceWallet as VeresiyeIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useCustomTheme } from '../context/ThemeContext';
@@ -71,6 +71,7 @@ const Layout = () => {
     if (pathname === '/aksesuar-stok') return 'Aksesuar Stok';
     if (pathname === '/eticaret') return 'E-Ticaret';
     if (pathname === '/yedek-parcalar') return 'Yedek Parça';
+    if (pathname === '/veresiye') return 'Veresiye';
     if (pathname === '/raporlar') return 'Raporlar';
     if (pathname === '/musteriler') return 'Müşteriler';
     if (pathname === '/kullanicilar') return 'Kullanıcılar';
@@ -101,6 +102,7 @@ const Layout = () => {
     },
     { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: isAdmin || hasEticaret, color: '#C62828' },
     { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: isAdmin || hasYedekParca, color: '#C62828' },
+    { title: 'Veresiye', path: '/veresiye', icon: <VeresiyeIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Müşteriler', path: '/musteriler', icon: <PeopleIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: isAdmin, color: '#C62828' },
@@ -111,8 +113,9 @@ const Layout = () => {
 
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#1a1a1a', color: 'white', overflow: 'hidden' }}>
-      <Box sx={{ p: 2, textAlign: 'center' }}>
-        <Typography variant="h6" fontWeight="bold" sx={{ letterSpacing: 1 }}>
+      <Box sx={{ p: 2, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
+        <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 56, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+        <Typography variant="h7" fontWeight="bold" sx={{ letterSpacing: 1 }}>
           <span>KAYNAR </span><span style={{ color: '#C62828' }}>MOTOR</span>
         </Typography>
       </Box>
@@ -175,9 +178,6 @@ const Layout = () => {
         ))}
       </List>
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
-      <Box sx={{ p: 2, textAlign: 'center' }}>
-        <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ width: '80%', maxWidth: 160, borderRadius: 8, filter: 'brightness(0) invert(1) drop-shadow(0 0 8px rgba(255,255,255,0.3))'}} />
-      </Box>
     </Box>
   );
 

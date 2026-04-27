@@ -58,7 +58,7 @@ router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, parcalar } = req.body;
+    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, kalan_odeme, satis_tarihi, parcalar } = req.body;
     const olusturan_kisi = req.user?.ad_soyad || req.user?.kullanici_adi || null;
 
     let toplamMaliyet = 0, toplamSatis = 0;
@@ -72,9 +72,9 @@ router.post('/', async (req, res) => {
     const tamamlamaTarihi = durum === 'tamamlandi' ? new Date() : null;
 
     const result = await client.query(
-      `INSERT INTO aksesuarlar (ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplam_maliyet, toplam_satis, kar, tamamlama_tarihi, olusturan_kisi)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [ad_soyad, telefon, odeme_sekli, aciklama, durum || 'beklemede', odeme_detaylari, satis_tarihi || new Date(), toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, olusturan_kisi]
+      `INSERT INTO aksesuarlar (ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplam_maliyet, toplam_satis, kar, tamamlama_tarihi, olusturan_kisi, kalan_odeme)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [ad_soyad, telefon, odeme_sekli, aciklama, durum || 'beklemede', odeme_detaylari, satis_tarihi || new Date(), toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, olusturan_kisi, emptyToZero(kalan_odeme)]
     );
     const aksesuarId = result.rows[0].id;
 
@@ -125,7 +125,7 @@ router.put('/:id', async (req, res) => {
     if (existing.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Bulunamadı' }); }
     const eskiDurum = existing.rows[0].durum;
 
-    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, parcalar } = req.body;
+    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, kalan_odeme, satis_tarihi, parcalar } = req.body;
 
     // Eski durum tamamlandi ise stokları geri ekle
     if (eskiDurum === 'tamamlandi') {
@@ -171,8 +171,8 @@ router.put('/:id', async (req, res) => {
     await client.query(
       `UPDATE aksesuarlar SET ad_soyad=$1, telefon=$2, odeme_sekli=$3, aciklama=$4, durum=$5,
        odeme_detaylari=$6, satis_tarihi=$7, toplam_maliyet=$8, toplam_satis=$9, kar=$10,
-       tamamlama_tarihi=COALESCE($11, tamamlama_tarihi), updated_at=CURRENT_TIMESTAMP WHERE id=$12`,
-      [ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, req.params.id]
+       tamamlama_tarihi=COALESCE($11, tamamlama_tarihi), kalan_odeme=$13, updated_at=CURRENT_TIMESTAMP WHERE id=$12`,
+      [ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, req.params.id, emptyToZero(kalan_odeme)]
     );
 
     await client.query('COMMIT');

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box, Paper, Typography, TextField, Button, Grid, MenuItem, IconButton, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Alert, Autocomplete, useMediaQuery, useTheme
+  TableCell, TableContainer, TableHead, TableRow, Alert, Autocomplete, Checkbox, FormControlLabel, useMediaQuery, useTheme
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon, ArrowBack as BackIcon } from '@mui/icons-material';
 import { isEmriService, musteriService } from '../services/api';
@@ -16,7 +16,8 @@ const IsEmriForm = () => {
   const [formData, setFormData] = useState({
     musteri_ad_soyad: '', adres: '', telefon: '', km: '', model_tip: '', marka: '',
     aciklama: '', ariza_sikayetler: '', tahmini_teslim_tarihi: '', tahmini_toplam_ucret: '',
-    durum: 'beklemede', odeme_detaylari: '', teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: ''
+    durum: 'beklemede', odeme_detaylari: '', teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: '',
+    kalan_odeme: '', odeme_tamamlandi: true
   });
   const [parcalar, setParcalar] = useState([]);
   const [fisNo, setFisNo] = useState('');
@@ -43,7 +44,8 @@ const IsEmriForm = () => {
         tahmini_toplam_ucret: data.tahmini_toplam_ucret || '', durum: data.durum || 'beklemede',
         odeme_detaylari: data.odeme_detaylari || '', teslim_alan_ad_soyad: data.teslim_alan_ad_soyad || '',
         teslim_eden_teknisyen: data.teslim_eden_teknisyen || '',
-        teslim_tarihi: data.teslim_tarihi ? data.teslim_tarihi.split('T')[0] : ''
+        teslim_tarihi: data.teslim_tarihi ? data.teslim_tarihi.split('T')[0] : '',
+        kalan_odeme: data.kalan_odeme || '', odeme_tamamlandi: !parseFloat(data.kalan_odeme || 0)
       });
       setFisNo(data.fis_no);
       setParcalar(data.parcalar || []);
@@ -93,7 +95,8 @@ const IsEmriForm = () => {
     e.preventDefault();
     setError('');
     try {
-      const payload = { ...formData, parcalar };
+      const payload = { ...formData, parcalar, kalan_odeme: formData.odeme_tamamlandi ? 0 : (formData.kalan_odeme || 0) };
+      delete payload.odeme_tamamlandi;
       if (isEdit) {
         await isEmriService.update(id, payload);
       } else {
@@ -251,6 +254,30 @@ const IsEmriForm = () => {
             <Grid size={{ xs: 12 }}>
               <TextField fullWidth label="Ödeme Detayları" name="odeme_detaylari" value={formData.odeme_detaylari} onChange={handleChange} multiline rows={2} />
             </Grid>
+          </Grid>
+        </Paper>
+
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>Kalan Ödeme</Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={<Checkbox checked={formData.odeme_tamamlandi} onChange={e => setFormData({ ...formData, odeme_tamamlandi: e.target.checked, kalan_odeme: e.target.checked ? '' : formData.kalan_odeme })} />}
+                label="Ödeme Tamamlandı"
+              />
+            </Grid>
+            {!formData.odeme_tamamlandi && (
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField fullWidth label="Kalan Ödeme (₺)" type="number" value={formData.kalan_odeme} onChange={e => setFormData({ ...formData, kalan_odeme: e.target.value })} />
+              </Grid>
+            )}
+            {!formData.odeme_tamamlandi && (
+              <Grid size={{ xs: 12 }}>
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                  Bu kayıt, kaydedildiğinde Veresiye sayfasında listelenecektir.
+                </Alert>
+              </Grid>
+            )}
           </Grid>
         </Paper>
 

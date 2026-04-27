@@ -20,6 +20,7 @@ import Raporlar from './pages/Raporlar';
 import Kullanicilar from './pages/Kullanicilar';
 import Musteriler from './pages/Musteriler';
 import MotorDetay from './pages/MotorDetay';
+import Veresiye from './pages/Veresiye';
 
 // Route Guards
 const ProtectedRoute = ({ children }) => {
@@ -137,6 +138,7 @@ const ThemedApp = () => {
               <Route path="/motor/:id" element={<MotorSatisRoute><MotorDetay /></MotorSatisRoute>} />
               <Route path="/eticaret" element={<EticaretRoute><ETicaret /></EticaretRoute>} />
               <Route path="/yedek-parcalar" element={<YedekParcaRoute><YedekParcalar /></YedekParcaRoute>} />
+              <Route path="/veresiye" element={<AdminRoute><Veresiye /></AdminRoute>} />
               <Route path="/raporlar" element={<AdminRoute><Raporlar /></AdminRoute>} />
               <Route path="/kullanicilar" element={<AdminRoute><Kullanicilar /></AdminRoute>} />
               <Route path="/musteriler" element={<AdminRoute><Musteriler /></AdminRoute>} />

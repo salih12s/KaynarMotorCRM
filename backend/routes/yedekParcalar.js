@@ -28,10 +28,10 @@ router.get('/:id', async (req, res) => {
 // POST /
 router.post('/', async (req, res) => {
   try {
-    const { urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon } = req.body;
+    const { urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon, kalan_odeme } = req.body;
     const result = await pool.query(
-      'INSERT INTO yedek_parcalar (urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati), musteri_adi || null, musteri_telefon || null]
+      'INSERT INTO yedek_parcalar (urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon, kalan_odeme) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati), musteri_adi || null, musteri_telefon || null, emptyToZero(kalan_odeme)]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -42,10 +42,10 @@ router.post('/', async (req, res) => {
 // PUT /:id
 router.put('/:id', async (req, res) => {
   try {
-    const { urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon } = req.body;
+    const { urun_adi, alis_fiyati, satis_fiyati, musteri_adi, musteri_telefon, kalan_odeme } = req.body;
     const result = await pool.query(
-      'UPDATE yedek_parcalar SET urun_adi=$1, alis_fiyati=$2, satis_fiyati=$3, musteri_adi=$4, musteri_telefon=$5, updated_at=CURRENT_TIMESTAMP WHERE id=$6 RETURNING *',
-      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati), musteri_adi || null, musteri_telefon || null, req.params.id]
+      'UPDATE yedek_parcalar SET urun_adi=$1, alis_fiyati=$2, satis_fiyati=$3, musteri_adi=$4, musteri_telefon=$5, kalan_odeme=$7, updated_at=CURRENT_TIMESTAMP WHERE id=$6 RETURNING *',
+      [urun_adi, emptyToZero(alis_fiyati), emptyToZero(satis_fiyati), musteri_adi || null, musteri_telefon || null, req.params.id, emptyToZero(kalan_odeme)]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Yedek parça bulunamadı' });
     res.json(result.rows[0]);

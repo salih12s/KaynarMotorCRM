@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
     const {
       musteri_ad_soyad, adres, telefon, km, model_tip, marka,
       aciklama, ariza_sikayetler, tahmini_teslim_tarihi, tahmini_toplam_ucret,
-      durum, odeme_detaylari, parcalar
+      durum, odeme_detaylari, kalan_odeme, parcalar
     } = req.body;
 
     // Fiş numarası
@@ -101,13 +101,13 @@ router.post('/', async (req, res) => {
     // İş emri INSERT
     const isEmriResult = await client.query(
       `INSERT INTO is_emirleri (fis_no, musteri_id, musteri_ad_soyad, adres, telefon, km, model_tip, marka,
-        aciklama, ariza_sikayetler, tahmini_teslim_tarihi, tahmini_toplam_ucret, durum, odeme_detaylari,
+        aciklama, ariza_sikayetler, tahmini_teslim_tarihi, tahmini_toplam_ucret, durum, odeme_detaylari, kalan_odeme,
         olusturan_kullanici_id, olusturan_kisi, teslim_eden_teknisyen)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [fisNo, musteriId, musteri_ad_soyad, adres, telefon, emptyToZero(km), model_tip, marka,
        aciklama, ariza_sikayetler, emptyToNull(tahmini_teslim_tarihi), emptyToZero(tahmini_toplam_ucret),
-       durum || 'beklemede', odeme_detaylari, req.user.id, req.user.ad_soyad, req.user.ad_soyad]
+       durum || 'beklemede', odeme_detaylari, emptyToZero(kalan_odeme), req.user.id, req.user.ad_soyad, req.user.ad_soyad]
     );
 
     const isEmriId = isEmriResult.rows[0].id;
@@ -180,7 +180,7 @@ router.put('/:id', async (req, res) => {
     const {
       musteri_ad_soyad, adres, telefon, km, model_tip, marka,
       aciklama, ariza_sikayetler, tahmini_teslim_tarihi, tahmini_toplam_ucret,
-      durum, odeme_detaylari, teslim_alan_ad_soyad, teslim_eden_teknisyen,
+      durum, odeme_detaylari, kalan_odeme, teslim_alan_ad_soyad, teslim_eden_teknisyen,
       teslim_tarihi, parcalar
     } = req.body;
 
@@ -204,12 +204,12 @@ router.put('/:id', async (req, res) => {
         musteri_ad_soyad=$1, adres=$2, telefon=$3, km=$4, model_tip=$5, marka=$6,
         aciklama=$7, ariza_sikayetler=$8, tahmini_teslim_tarihi=$9, tahmini_toplam_ucret=$10,
         durum=$11, odeme_detaylari=$12, teslim_alan_ad_soyad=$13, teslim_eden_teknisyen=$14,
-        teslim_tarihi=$15, tamamlama_tarihi=COALESCE($16, tamamlama_tarihi),
+        teslim_tarihi=$15, tamamlama_tarihi=COALESCE($16, tamamlama_tarihi), kalan_odeme=$18,
         updated_at=CURRENT_TIMESTAMP WHERE id=$17`,
       [musteri_ad_soyad, adres, telefon, emptyToZero(km), model_tip, marka,
        aciklama, ariza_sikayetler, emptyToNull(tahmini_teslim_tarihi), emptyToZero(tahmini_toplam_ucret),
        durum, odeme_detaylari, teslim_alan_ad_soyad, teslim_eden_teknisyen,
-       emptyToNull(teslim_tarihi), tamamlamaTarihi, req.params.id]
+       emptyToNull(teslim_tarihi), tamamlamaTarihi, req.params.id, emptyToZero(kalan_odeme)]
     );
 
     // Parçaları yeniden oluştur

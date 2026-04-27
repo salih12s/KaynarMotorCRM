@@ -2,16 +2,19 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Grid, Alert, MenuItem, InputAdornment, Autocomplete, Divider, useTheme, useMediaQuery
+  TextField, Grid, Alert, MenuItem, InputAdornment, Autocomplete, Checkbox, FormControlLabel, Divider, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon } from '@mui/icons-material';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { aksesuarService, aksesuarStokService, musteriService } from '../services/api';
 
 const Aksesuarlar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
+  const location = useLocation();
+  const navigate = useNavigate();
   const [satislar, setSatislar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
-  const [formData, setFormData] = useState({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: '' });
+  const [formData, setFormData] = useState({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: '', kalan_odeme: '', odeme_tamamlandi: true });
   const [parcalar, setParcalar] = useState([]);
   const [stokOptions, setStokOptions] = useState([]);
   const [error, setError] = useState('');
@@ -41,17 +44,26 @@ const Aksesuarlar = () => {
 
   useEffect(() => { loadData(); loadStok(); }, []);
 
+  useEffect(() => {
+    const id = location.state?.openDetailId;
+    if (!id) return;
+    (async () => {
+      try { const res = await aksesuarService.getById(id); setDetayDialog({ open: true, data: res.data }); } catch {}
+    })();
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state]);
+
   const openDialog = async (satis = null) => {
     setError('');
     if (satis) {
       try {
         const res = await aksesuarService.getById(satis.id);
         const d = res.data;
-        setFormData({ ad_soyad: d.ad_soyad || '', telefon: d.telefon || '', odeme_sekli: d.odeme_sekli || '', aciklama: d.aciklama || '', durum: d.durum || 'beklemede', odeme_detaylari: d.odeme_detaylari || '', satis_tarihi: d.satis_tarihi ? d.satis_tarihi.split('T')[0] : '' });
+        setFormData({ ad_soyad: d.ad_soyad || '', telefon: d.telefon || '', odeme_sekli: d.odeme_sekli || '', aciklama: d.aciklama || '', durum: d.durum || 'beklemede', odeme_detaylari: d.odeme_detaylari || '', satis_tarihi: d.satis_tarihi ? d.satis_tarihi.split('T')[0] : '', kalan_odeme: d.kalan_odeme || '', odeme_tamamlandi: !parseFloat(d.kalan_odeme || 0) });
         setParcalar(d.parcalar || []);
       } catch { setError('Yükleme hatası'); }
     } else {
-      setFormData({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: new Date().toISOString().split('T')[0] });
+      setFormData({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: new Date().toISOString().split('T')[0], kalan_odeme: '', odeme_tamamlandi: true });
       setParcalar([]);
     }
     setDialog({ open: true, data: satis });
@@ -81,7 +93,8 @@ const Aksesuarlar = () => {
   const handleSave = async () => {
     setError('');
     try {
-      const payload = { ...formData, parcalar };
+      const payload = { ...formData, parcalar, kalan_odeme: formData.odeme_tamamlandi ? 0 : (formData.kalan_odeme || 0) };
+      delete payload.odeme_tamamlandi;
       if (dialog.data) {
         await aksesuarService.update(dialog.data.id, payload);
       } else {
@@ -331,6 +344,23 @@ const Aksesuarlar = () => {
             <Typography>Toplam: <strong>{toplamSatis.toLocaleString('tr-TR')} ₺</strong></Typography>
             <Typography sx={{ color: kar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{kar.toLocaleString('tr-TR')} ₺</strong></Typography>
           </Box>
+
+          <Box sx={{ mt: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Kalan Ödeme</Typography>
+            <Grid container spacing={2} alignItems="center">
+              <Grid size={{ xs: 12, md: 4 }}>
+                <FormControlLabel
+                  control={<Checkbox checked={formData.odeme_tamamlandi} onChange={e => setFormData({ ...formData, odeme_tamamlandi: e.target.checked, kalan_odeme: e.target.checked ? '' : formData.kalan_odeme })} />}
+                  label="Ödeme Tamamlandı"
+                />
+              </Grid>
+              {!formData.odeme_tamamlandi && (
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField fullWidth label="Kalan Ödeme (₺)" type="number" value={formData.kalan_odeme} onChange={e => setFormData({ ...formData, kalan_odeme: e.target.value })} />
+                </Grid>
+              )}
+            </Grid>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialog({ open: false, data: null })}>İptal</Button>
@@ -471,7 +501,11 @@ const Aksesuarlar = () => {
                     <Typography variant="body2">Kâr: <strong style={{ color: dKar >= 0 ? '#2e7d32' : '#c62828' }}>₺{dKar.toLocaleString('tr-TR')}</strong></Typography>
                   </Paper>
                 </Box>
-              </DialogContent>
+                <Paper sx={{ mt: 2, p: 1.5, bgcolor: parseFloat(d.kalan_odeme || 0) > 0 ? '#fff3e0' : '#e8f5e9', borderLeft: '4px solid', borderColor: parseFloat(d.kalan_odeme || 0) > 0 ? '#ed6c02' : '#2e7d32' }}>
+                  <Typography variant="subtitle2" fontWeight="bold" sx={{ color: parseFloat(d.kalan_odeme || 0) > 0 ? '#ed6c02' : '#2e7d32' }}>
+                    {parseFloat(d.kalan_odeme || 0) > 0 ? `Kalan Ödeme: ₺${parseFloat(d.kalan_odeme).toLocaleString('tr-TR')}` : 'Ödeme Tamamlandı ✓'}
+                  </Typography>
+                </Paper>              </DialogContent>
               <DialogActions>
                 <Button onClick={() => { setDetayDialog({ open: false, data: null }); openDialog(d); }} variant="outlined" startIcon={<EditIcon />}>Düzenle</Button>
                 <Button onClick={() => setDetayDialog({ open: false, data: null })}>Kapat</Button>

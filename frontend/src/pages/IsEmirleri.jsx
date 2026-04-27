@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, Chip, IconButton, TextField, MenuItem, InputAdornment, Dialog, DialogTitle, DialogContent,
@@ -9,11 +9,13 @@ import {
   Add as AddIcon, Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
   Search as SearchIcon, Close as CloseIcon, Save as SaveIcon, Print as PrintIcon
 } from '@mui/icons-material';
+import { Checkbox, FormControlLabel } from '@mui/material';
 import { isEmriService, musteriService, authService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const IsEmirleri = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [isEmirleri, setIsEmirleri] = useState([]);
@@ -29,7 +31,8 @@ const IsEmirleri = () => {
     musteri_ad_soyad: '', telefon: '', adres: '', km: '', marka: '', model_tip: '',
     tahmini_teslim_tarihi: '', tahmini_toplam_ucret: '',
     ariza_sikayetler: '', aciklama: '', odeme_detaylari: '', durum: 'beklemede',
-    teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: ''
+    teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: '',
+    kalan_odeme: '', odeme_tamamlandi: true
   });
   const [parcalar, setParcalar] = useState([]);
   const [newParca, setNewParca] = useState({ takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
@@ -55,6 +58,15 @@ const IsEmirleri = () => {
       setKullanicilar(r.data || []);
     }).catch(() => {});
   }, [durumFilter]);
+
+  useEffect(() => {
+    const id = location.state?.openDetailId;
+    if (!id) return;
+    (async () => {
+      try { const res = await isEmriService.getById(id); setDetayModal({ open: true, data: res.data }); } catch {}
+    })();
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Bu iş emrini silmek istediğinizden emin misiniz?')) return;
@@ -116,7 +128,8 @@ const IsEmirleri = () => {
       musteri_ad_soyad: '', telefon: '', adres: '', km: '', marka: '', model_tip: '',
       tahmini_teslim_tarihi: '', tahmini_toplam_ucret: '',
       ariza_sikayetler: '', aciklama: '', odeme_detaylari: '', durum: 'beklemede',
-      teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: ''
+      teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: '',
+      kalan_odeme: '', odeme_tamamlandi: true
     });
     setParcalar([]);
     setNewParca({ takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
@@ -139,7 +152,8 @@ const IsEmirleri = () => {
         odeme_detaylari: d.odeme_detaylari || '', durum: d.durum || 'beklemede',
         teslim_alan_ad_soyad: d.teslim_alan_ad_soyad || d.olusturan_kisi || '',
         teslim_eden_teknisyen: d.teslim_eden_teknisyen || d.olusturan_kisi || '',
-        teslim_tarihi: d.teslim_tarihi ? new Date(d.teslim_tarihi).toLocaleDateString('en-CA') : ''
+        teslim_tarihi: d.teslim_tarihi ? new Date(d.teslim_tarihi).toLocaleDateString('en-CA') : '',
+        kalan_odeme: d.kalan_odeme || '', odeme_tamamlandi: !parseFloat(d.kalan_odeme || 0)
       });
       setParcalar(d.parcalar || []);
       setNewParca({ takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
@@ -170,7 +184,8 @@ const IsEmirleri = () => {
     setError('');
     if (!formData.musteri_ad_soyad.trim()) { setError('Ad Soyad zorunlu'); return; }
     try {
-      const payload = { ...formData, parcalar };
+      const payload = { ...formData, parcalar, kalan_odeme: formData.odeme_tamamlandi ? 0 : (formData.kalan_odeme || 0) };
+      delete payload.odeme_tamamlandi;
       if (editId) {
         await isEmriService.update(editId, payload);
       } else {
@@ -509,6 +524,31 @@ const IsEmirleri = () => {
               <TextField fullWidth size="small" placeholder="Örn: Nakit, Kart..." value={formData.odeme_detaylari}
                 onChange={e => setFormData({ ...formData, odeme_detaylari: e.target.value })} multiline rows={2} />
 
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 2, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                💰 Kalan Ödeme
+              </Typography>
+              <Paper variant="outlined" sx={{ p: 1.5, bgcolor: formData.odeme_tamamlandi ? '#e8f5e9' : '#fff3e0' }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <FormControlLabel
+                      control={<Checkbox checked={formData.odeme_tamamlandi} onChange={e => setFormData({ ...formData, odeme_tamamlandi: e.target.checked, kalan_odeme: e.target.checked ? '' : formData.kalan_odeme })} />}
+                      label="Ödeme Tamamlandı"
+                    />
+                  </Grid>
+                  {!formData.odeme_tamamlandi && (
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField fullWidth size="small" label="Kalan Ödeme (₺)" type="number" value={formData.kalan_odeme}
+                        onChange={e => setFormData({ ...formData, kalan_odeme: e.target.value })} />
+                    </Grid>
+                  )}
+                </Grid>
+                {!formData.odeme_tamamlandi && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Bu kayıt Veresiye sayfasında listelenecektir.
+                  </Typography>
+                )}
+              </Paper>
+
               {editId && (
                 <>
                   <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 2, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -786,12 +826,43 @@ const IsEmriDetayModal = ({ open, data, onClose, onEdit, isMobile }) => {
           </Paper>
 
           {data.odeme_detaylari && (
-            <Paper sx={{ p: 2 }}>
+            <Paper sx={{ p: 2, mb: 2 }}>
               <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>💳 Ödeme Detayları</Typography>
               <Divider sx={{ mb: 1 }} />
               <Typography>{data.odeme_detaylari}</Typography>
             </Paper>
           )}
+
+          {/* Ödeme Durumu */}
+          {(() => {
+            const kalan = parseFloat(data.kalan_odeme || 0);
+            const toplam = parseFloat(data.gercek_toplam_ucret || data.tahmini_toplam_ucret || 0);
+            const odenen = Math.max(0, toplam - kalan);
+            return (
+              <Paper sx={{ p: 2, bgcolor: kalan > 0 ? '#fff3e0' : '#e8f5e9', borderLeft: `4px solid ${kalan > 0 ? '#ed6c02' : '#2e7d32'}` }}>
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ color: kalan > 0 ? '#ed6c02' : '#2e7d32' }} gutterBottom>
+                  {kalan > 0 ? '⚠️ Kalan Ödeme' : '✓ Ödeme Tamamlandı'}
+                </Typography>
+                <Divider sx={{ mb: 1 }} />
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 4 }}>
+                    <Typography variant="caption" color="text.secondary">Toplam Tutar</Typography>
+                    <Typography fontWeight="bold">₺{toplam.toLocaleString('tr-TR')}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <Typography variant="caption" color="text.secondary">Ödenen</Typography>
+                    <Typography fontWeight="bold" sx={{ color: '#2e7d32' }}>₺{odenen.toLocaleString('tr-TR')}</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 4 }}>
+                    <Typography variant="caption" color="text.secondary">Kalan Borç</Typography>
+                    <Typography fontWeight="bold" sx={{ color: kalan > 0 ? '#C62828' : '#2e7d32' }}>
+                      {kalan > 0 ? `₺${kalan.toLocaleString('tr-TR')}` : 'Tamamlandı'}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            );
+          })()}
         </Box>
       </DialogContent>
     </Dialog>

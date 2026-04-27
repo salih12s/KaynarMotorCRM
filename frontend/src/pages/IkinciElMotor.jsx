@@ -5,10 +5,13 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ikinciElMotorService, musteriService } from '../services/api';
 
 const IkinciElMotor = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
+  const location = useLocation();
+  const navigate = useNavigate();
   const [motorlar, setMotorlar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
   const [detayModal, setDetayModal] = useState({ open: false, data: null });
@@ -46,6 +49,15 @@ const IkinciElMotor = () => {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    const id = location.state?.openDetailId;
+    if (!id) return;
+    (async () => {
+      try { const res = await ikinciElMotorService.getById(id); setDetayModal({ open: true, data: res.data }); } catch {}
+    })();
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state]);
 
   const openDialog = (motor = null) => {
     setError('');

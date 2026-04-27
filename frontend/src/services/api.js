@@ -137,4 +137,9 @@ export const raporService = {
   getPersoneller: () => api.get('/raporlar/personeller'),
 };
 
+// Veresiye (Açık borçlar)
+export const veresiyeService = {
+  getAll: () => api.get('/veresiye'),
+};
+
 export default api;

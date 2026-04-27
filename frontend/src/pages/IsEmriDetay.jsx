@@ -183,6 +183,24 @@ const IsEmriDetay = () => {
           )}
         </Paper>
 
+        {/* Ödeme Durumu */}
+        <Paper sx={{ p: 3, mb: 3, bgcolor: parseFloat(data.kalan_odeme || 0) > 0 ? '#fff3e0' : '#e8f5e9', border: '2px solid', borderColor: parseFloat(data.kalan_odeme || 0) > 0 ? '#ed6c02' : '#2e7d32' }}>
+          <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: parseFloat(data.kalan_odeme || 0) > 0 ? '#ed6c02' : '#2e7d32' }}>
+            💰 Ödeme Durumu
+          </Typography>
+          <Divider sx={{ mb: 1 }} />
+          {parseFloat(data.kalan_odeme || 0) > 0 ? (
+            <Typography variant="h6" sx={{ color: '#ed6c02' }}>
+              Kalan Ödeme: <strong>₺{parseFloat(data.kalan_odeme).toLocaleString('tr-TR')}</strong>
+            </Typography>
+          ) : (
+            <Typography variant="h6" sx={{ color: '#2e7d32' }}>Ödeme Tamamlandı ✓</Typography>
+          )}
+          {data.odeme_detaylari && (
+            <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">{data.odeme_detaylari}</Typography>
+          )}
+        </Paper>
+
         {/* Ödeme */}
         {data.odeme_detaylari && (
           <Paper sx={{ p: 3 }}>

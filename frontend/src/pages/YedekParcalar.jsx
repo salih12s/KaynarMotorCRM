@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, useTheme, useMediaQuery
+  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Checkbox, FormControlLabel, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { yedekParcaService, musteriService } from '../services/api';
 
 const YedekParcalar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
+  const location = useLocation();
+  const navigate = useNavigate();
   const [parcalar, setParcalar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
-  const [formData, setFormData] = useState({ urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '' });
+  const [formData, setFormData] = useState({ urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '', kalan_odeme: '', odeme_tamamlandi: true });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
@@ -19,6 +22,14 @@ const YedekParcalar = () => {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    const id = location.state?.openDetailId;
+    if (!id || parcalar.length === 0) return;
+    const p = parcalar.find(x => x.id === id);
+    if (p) openDialog(p);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, parcalar]);
 
   const filtered = parcalar.filter(p =>
     (p.urun_adi || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -30,18 +41,21 @@ const YedekParcalar = () => {
     setError('');
     setFormData(parca ? {
       urun_adi: parca.urun_adi || '', alis_fiyati: parca.alis_fiyati || '', satis_fiyati: parca.satis_fiyati || '',
-      musteri_adi: parca.musteri_adi || '', musteri_telefon: parca.musteri_telefon || ''
-    } : { urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '' });
+      musteri_adi: parca.musteri_adi || '', musteri_telefon: parca.musteri_telefon || '',
+      kalan_odeme: parca.kalan_odeme || '', odeme_tamamlandi: !parseFloat(parca.kalan_odeme || 0)
+    } : { urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '', kalan_odeme: '', odeme_tamamlandi: true });
     setDialog({ open: true, data: parca });
   };
 
   const handleSave = async () => {
     setError('');
     try {
+      const payload = { ...formData, kalan_odeme: formData.odeme_tamamlandi ? 0 : (formData.kalan_odeme || 0) };
+      delete payload.odeme_tamamlandi;
       if (dialog.data) {
-        await yedekParcaService.update(dialog.data.id, formData);
+        await yedekParcaService.update(dialog.data.id, payload);
       } else {
-        await yedekParcaService.create(formData);
+        await yedekParcaService.create(payload);
       }
       setDialog({ open: false, data: null });
       loadData();
@@ -73,6 +87,7 @@ const YedekParcalar = () => {
           {filtered.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
           {filtered.map(p => {
             const pKar = parseFloat(p.satis_fiyati || 0) - parseFloat(p.alis_fiyati || 0);
+            const kalan = parseFloat(p.kalan_odeme || 0);
             return (
               <Paper key={p.id} sx={{ p: 1.5 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
@@ -86,6 +101,13 @@ const YedekParcalar = () => {
                   <Typography variant="body2">Alış: <strong>{parseFloat(p.alis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
                   <Typography variant="body2">Satış: <strong>{parseFloat(p.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
                   <Typography variant="body2" sx={{ color: pKar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{pKar.toLocaleString('tr-TR')} ₺</strong></Typography>
+                </Box>
+                <Box sx={{ mt: 0.5 }}>
+                  {kalan > 0 ? (
+                    <Chip size="small" label={`Kalan: ₺${kalan.toLocaleString('tr-TR')}`} sx={{ bgcolor: '#fff3e0', color: '#ed6c02', fontWeight: 'bold' }} />
+                  ) : (
+                    <Chip size="small" label="Ödeme Tamamlandı" sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 'bold' }} />
+                  )}
                 </Box>
                 {(p.musteri_adi || p.musteri_telefon) && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -101,7 +123,7 @@ const YedekParcalar = () => {
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Ürün Adı', 'Alış Fiyatı (₺)', 'Satış Fiyatı (₺)', 'Müşteri', 'Telefon', 'Kâr (₺)', 'İşlemler'].map(h => (
+              {['Ürün Adı', 'Alış Fiyatı (₺)', 'Satış Fiyatı (₺)', 'Müşteri', 'Telefon', 'Kâr (₺)', 'Ödeme Durumu', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -109,6 +131,7 @@ const YedekParcalar = () => {
           <TableBody>
             {filtered.map(p => {
               const pKar = parseFloat(p.satis_fiyati || 0) - parseFloat(p.alis_fiyati || 0);
+              const kalan = parseFloat(p.kalan_odeme || 0);
               return (
                 <TableRow key={p.id} hover>
                   <TableCell>{p.urun_adi}</TableCell>
@@ -118,13 +141,20 @@ const YedekParcalar = () => {
                   <TableCell>{p.musteri_telefon || '-'}</TableCell>
                   <TableCell sx={{ color: pKar >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>{pKar.toLocaleString('tr-TR')}</TableCell>
                   <TableCell>
+                    {kalan > 0 ? (
+                      <Chip size="small" label={`Kalan: ₺${kalan.toLocaleString('tr-TR')}`} sx={{ bgcolor: '#fff3e0', color: '#ed6c02', fontWeight: 'bold', borderLeft: '3px solid #ed6c02' }} />
+                    ) : (
+                      <Chip size="small" label="Tamamlandı" sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 'bold', borderLeft: '3px solid #2e7d32' }} />
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <IconButton size="small" color="info" onClick={() => openDialog(p)}><EditIcon /></IconButton>
                     <IconButton size="small" color="error" onClick={() => handleDelete(p.id)}><DeleteIcon /></IconButton>
                   </TableCell>
                 </TableRow>
               );
             })}
-            {filtered.length === 0 && <TableRow><TableCell colSpan={7} align="center">Kayıt yok</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={8} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>
@@ -174,7 +204,22 @@ const YedekParcalar = () => {
           <Paper sx={{ p: 1, mt: 2, textAlign: 'center', bgcolor: kar >= 0 ? '#e8f5e9' : '#ffebee' }}>
             <Typography sx={{ color: kar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{kar.toLocaleString('tr-TR')} ₺</strong></Typography>
           </Paper>
-        </DialogContent>
+          <Box sx={{ mt: 2, p: 1.5, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1 }}>Kalan Ödeme</Typography>
+            <Grid container spacing={2} alignItems="center">
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <FormControlLabel
+                  control={<Checkbox checked={formData.odeme_tamamlandi} onChange={e => setFormData({ ...formData, odeme_tamamlandi: e.target.checked, kalan_odeme: e.target.checked ? '' : formData.kalan_odeme })} />}
+                  label="Ödeme Tamamlandı"
+                />
+              </Grid>
+              {!formData.odeme_tamamlandi && (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField fullWidth size="small" label="Kalan Ödeme (₺)" type="number" value={formData.kalan_odeme} onChange={e => setFormData({ ...formData, kalan_odeme: e.target.value })} />
+                </Grid>
+              )}
+            </Grid>
+          </Box>        </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialog({ open: false, data: null })}>İptal</Button>
           <Button variant="contained" onClick={handleSave}>{dialog.data ? 'Güncelle' : 'Kaydet'}</Button>
