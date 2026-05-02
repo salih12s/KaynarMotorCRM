@@ -102,7 +102,8 @@ router.get('/aralik', async (req, res) => {
     );
 
     const yedekParcalar = await pool.query(
-      `SELECT * FROM yedek_parcalar ORDER BY urun_adi`
+      `SELECT * FROM yedek_parcalar WHERE DATE(created_at) BETWEEN $1 AND $2 ORDER BY urun_adi`,
+      [baslangic, bitis]
     );
 
     const isEmriKar = isEmirleri.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
