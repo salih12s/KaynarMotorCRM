@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, Chip, IconButton, Switch, FormControlLabel, Alert, Dialog, DialogTitle, DialogContent, DialogActions, useTheme, useMediaQuery
+  Button, Chip, IconButton, Switch, FormControlLabel, Alert, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid, useTheme, useMediaQuery
 } from '@mui/material';
-import { Delete as DeleteIcon, Check as CheckIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Check as CheckIcon, Close as CloseIcon, PersonAdd as PersonAddIcon } from '@mui/icons-material';
 import { authService } from '../services/api';
 
 const Kullanicilar = () => {
@@ -11,6 +11,8 @@ const Kullanicilar = () => {
   const [users, setUsers] = useState([]);
   const [error, setError] = useState('');
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null });
+  const [createDialog, setCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState({ kullanici_adi: '', sifre: '', ad_soyad: '', rol: 'yatirimci' });
 
   const loadUsers = async () => {
     try {
@@ -20,6 +22,19 @@ const Kullanicilar = () => {
   };
 
   useEffect(() => { loadUsers(); }, []);
+
+  const handleCreate = async () => {
+    setError('');
+    if (!createForm.kullanici_adi || !createForm.sifre || !createForm.ad_soyad) {
+      setError('Tüm alanlar zorunludur'); return;
+    }
+    try {
+      await authService.createUser(createForm);
+      setCreateDialog(false);
+      setCreateForm({ kullanici_adi: '', sifre: '', ad_soyad: '', rol: 'yatirimci' });
+      loadUsers();
+    } catch (err) { setError(err.response?.data?.message || 'Oluşturma hatası'); }
+  };
 
   const handleApprove = async (id) => {
     try { await authService.approveUser(id); loadUsers(); } catch { setError('Onaylama hatası'); }
@@ -69,7 +84,12 @@ const Kullanicilar = () => {
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight="bold" mb={3}>Kullanıcı Yönetimi</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+        <Typography variant="h5" fontWeight="bold">Kullanıcı Yönetimi</Typography>
+        <Button variant="contained" startIcon={<PersonAddIcon />} onClick={() => { setError(''); setCreateDialog(true); }} sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' } }}>
+          Kullanıcı / Yatırımcı Ekle
+        </Button>
+      </Box>
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
       {isMobile ? (
@@ -180,6 +200,31 @@ const Kullanicilar = () => {
         <DialogActions>
           <Button onClick={() => setDeleteDialog({ open: false, user: null })}>İptal</Button>
           <Button color="error" variant="contained" onClick={handleDelete}>Sil</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={createDialog} onClose={() => setCreateDialog(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
+        <DialogTitle>Yeni Kullanıcı / Yatırımcı Ekle</DialogTitle>
+        <DialogContent>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid size={{ xs: 12 }}>
+              <TextField select fullWidth label="Rol" value={createForm.rol} onChange={e => setCreateForm({ ...createForm, rol: e.target.value })}>
+                <MenuItem value="yatirimci">Yatırımcı</MenuItem>
+                <MenuItem value="personel">Personel</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12 }}><TextField fullWidth label="Ad Soyad" value={createForm.ad_soyad} onChange={e => setCreateForm({ ...createForm, ad_soyad: e.target.value })} required /></Grid>
+            <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="Kullanıcı Adı" value={createForm.kullanici_adi} onChange={e => setCreateForm({ ...createForm, kullanici_adi: e.target.value })} required /></Grid>
+            <Grid size={{ xs: 12, sm: 6 }}><TextField fullWidth label="Şifre" value={createForm.sifre} onChange={e => setCreateForm({ ...createForm, sifre: e.target.value })} required /></Grid>
+          </Grid>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Yatırımcılar giriş yapınca sadece kendi motorlarını ve raporlarını görür. Personel yetkileri oluşturduktan sonra tabloda ve Yetkilendirme ekranında ayarlanabilir.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateDialog(false)}>İptal</Button>
+          <Button variant="contained" onClick={handleCreate}>Oluştur</Button>
         </DialogActions>
       </Dialog>
     </Box>

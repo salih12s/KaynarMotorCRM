@@ -45,6 +45,24 @@ router.get('/ara', async (req, res) => {
   }
 });
 
+// GET /barkod/:kod - Barkod (stok kodu) ile tek ürün getir
+router.get('/barkod/:kod', async (req, res) => {
+  try {
+    const kod = (req.params.kod || '').trim();
+    if (!kod) return res.status(400).json({ message: 'Barkod gerekli' });
+    const result = await pool.query(
+      'SELECT * FROM aksesuar_stok WHERE stok_kodu = $1 LIMIT 1',
+      [kod]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Bu barkoda ait ürün bulunamadı' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
 // POST / - Stok ekle
 router.post('/', async (req, res) => {
   try {

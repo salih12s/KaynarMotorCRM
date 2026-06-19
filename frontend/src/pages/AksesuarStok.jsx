@@ -3,11 +3,54 @@ import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, MenuItem, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon, FilterList as FilterIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Upload as UploadIcon, Search as SearchIcon, FilterList as FilterIcon, Print as PrintIcon } from '@mui/icons-material';
 import { aksesuarStokService } from '../services/api';
+import JsBarcode from 'jsbarcode';
 
 const BEDEN_OPTIONS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const KATEGORI_OPTIONS = ['Aksesuar', 'Demir', 'Tank Ped', 'Yedek Parça', 'Ekipman', 'Sticker'];
+
+const escapeHtml = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
+// Ürün etiketi yazdır: ÜRÜN ADI / FİYAT / BARKOD
+const printAksesuarLabel = (stok) => {
+  const kod = String(stok.stok_kodu || '').trim();
+  if (!kod) {
+    alert('Bu ürünün stok kodu (barkod) yok. Lütfen önce stok kodu girin.');
+    return;
+  }
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  try {
+    JsBarcode(svg, kod, { format: 'CODE128', displayValue: true, fontSize: 16, height: 55, margin: 4, width: 2 });
+  } catch (e) {
+    alert('Barkod oluşturulamadı: ' + e.message);
+    return;
+  }
+  const svgStr = new XMLSerializer().serializeToString(svg);
+  const fiyat = parseFloat(stok.satis_fiyati || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺';
+  const win = window.open('', '_blank', 'width=420,height=320');
+  if (!win) {
+    alert('Yazdırma penceresi açılamadı. Tarayıcı pop-up engelleyicisini kapatın.');
+    return;
+  }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Etiket - ${escapeHtml(stok.stok_adi)}</title>
+    <style>
+      @page { size: 58mm 40mm; margin: 1mm; }
+      * { box-sizing: border-box; }
+      body { font-family: Arial, Helvetica, sans-serif; text-align: center; margin: 0; padding: 6px; }
+      .urun { font-size: 15px; font-weight: bold; line-height: 1.2; margin-bottom: 2px; word-break: break-word; }
+      .fiyat { font-size: 20px; font-weight: bold; margin-bottom: 4px; }
+      .barcode svg { max-width: 100%; height: auto; }
+    </style></head><body>
+      <div class="urun">${escapeHtml(stok.stok_adi)}</div>
+      <div class="fiyat">${escapeHtml(fiyat)}</div>
+      <div class="barcode">${svgStr}</div>
+      <script>window.onload=function(){window.focus();window.print();window.onafterprint=function(){window.close();};setTimeout(function(){window.close();},800);};</script>
+    </body></html>`);
+  win.document.close();
+};
 
 const AksesuarStok = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -138,6 +181,7 @@ const AksesuarStok = () => {
                 <Typography variant="body2">Satış: <strong>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                <IconButton size="small" color="primary" onClick={() => printAksesuarLabel(s)} title="Etiket Yazdır"><PrintIcon /></IconButton>
                 <IconButton size="small" color="info" onClick={() => openDialog(s)}><EditIcon /></IconButton>
                 <IconButton size="small" color="error" onClick={() => handleDelete(s.id)}><DeleteIcon /></IconButton>
               </Box>
@@ -167,6 +211,7 @@ const AksesuarStok = () => {
                 <TableCell>{parseFloat(s.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: (s.mevcut || 0) <= 0 ? 'red' : 'green' }}>{s.mevcut || 0}</TableCell>
                 <TableCell>
+                  <IconButton size="small" color="primary" onClick={() => printAksesuarLabel(s)} title="Etiket Yazdır"><PrintIcon /></IconButton>
                   <IconButton size="small" color="info" onClick={() => openDialog(s)}><EditIcon /></IconButton>
                   <IconButton size="small" color="error" onClick={() => handleDelete(s.id)}><DeleteIcon /></IconButton>
                 </TableCell>
@@ -224,6 +269,7 @@ const AksesuarStok = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialog({ open: false, data: null })}>İptal</Button>
+          <Button startIcon={<PrintIcon />} onClick={() => printAksesuarLabel(formData)} disabled={!formData.stok_kodu}>Etiket Yazdır</Button>
           <Button variant="contained" onClick={handleSave}>{dialog.data ? 'Güncelle' : 'Kaydet'}</Button>
         </DialogActions>
       </Dialog>

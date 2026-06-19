@@ -55,6 +55,7 @@ const Layout = () => {
   };
 
   const isAdmin = user?.rol === 'admin';
+  const isYatirimci = user?.rol === 'yatirimci';
   const hasAksesuar = user?.aksesuar_yetkisi;
   const hasMotor = user?.motor_satis_yetkisi;
   const hasEticaret = user?.eticaret_yetkisi;
@@ -75,6 +76,7 @@ const Layout = () => {
     if (pathname === '/raporlar') return 'Raporlar';
     if (pathname === '/musteriler') return 'Müşteriler';
     if (pathname === '/kullanicilar') return 'Kullanıcılar';
+    if (pathname === '/yetkilendirme') return 'Yetkilendirme';
     if (pathname.startsWith('/is-emri/') && pathname.includes('duzenle')) return 'İş Emri Düzenle';
     if (pathname === '/is-emri/yeni') return 'Yeni İş Emri';
     if (pathname.startsWith('/is-emri/')) return 'İş Emri Detay';
@@ -86,10 +88,10 @@ const Layout = () => {
 
   const menuItems = [
     {
-      title: 'Motorsiklet', icon: <MotorIcon />, color: '#C62828', show: isAdmin || hasMotor, key: 'motor',
+      title: 'Motorsiklet', icon: <MotorIcon />, color: '#C62828', show: isAdmin || hasMotor || isYatirimci, key: 'motor',
       subItems: [
-        { title: 'Motor Satış', path: '/ikinci-el-motor', icon: <SellIcon /> },
-        { title: 'Motor Stok', path: '/motor-stok', icon: <StokIcon /> },
+        ...((isAdmin || hasMotor) ? [{ title: 'Motor Satış', path: '/ikinci-el-motor', icon: <SellIcon /> }] : []),
+        { title: isYatirimci ? 'Motorlarım' : 'Motor Stok', path: '/motor-stok', icon: <StokIcon /> },
       ]
     },
     { title: 'Servis', path: '/', icon: <BuildIcon />, show: isAdmin || hasServis, color: '#C62828' },
@@ -103,9 +105,10 @@ const Layout = () => {
     { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: isAdmin || hasEticaret, color: '#C62828' },
     { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: isAdmin || hasYedekParca, color: '#C62828' },
     { title: 'Veresiye', path: '/veresiye', icon: <VeresiyeIcon />, show: isAdmin, color: '#C62828' },
-    { title: 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin, color: '#C62828' },
+    { title: isYatirimci ? 'Raporum' : 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin || isYatirimci, color: '#C62828' },
     { title: 'Müşteriler', path: '/musteriler', icon: <PeopleIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: isAdmin, color: '#C62828' },
+    { title: 'Yetkilendirme', path: '/yetkilendirme', icon: <SettingsIcon />, show: isAdmin, color: '#C62828' },
   ];
 
   const isActive = (path) => pathname === path;

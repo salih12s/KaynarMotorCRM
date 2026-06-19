@@ -3,7 +3,7 @@ import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Divider, MenuItem, Checkbox, FormControlLabel, Autocomplete, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon, FileDownload as FileDownloadIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ikinciElMotorService, musteriService } from '../services/api';
@@ -172,6 +172,32 @@ const IkinciElMotor = () => {
     { label: `Kâr: ₺${parseFloat(stats.toplam_kar || 0).toLocaleString('tr-TR')}`, color: '#C62828', bg: '#ffebee' },
   ];
 
+  const exportToExcel = () => {
+    const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '';
+    const num = (v) => parseFloat(v || 0).toLocaleString('tr-TR');
+    const headers = ['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Alış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Satıcı', 'Alıcı', 'Alıcı Tel', 'Ödeme Şekli', 'Yevmiye No', 'Satış Tarihi'];
+    const escape = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rowsHtml = filteredMotorlar.map(m => {
+      const cells = [
+        m.plaka || '', m.marka || '', m.model || '', m.yil || '',
+        m.km ? Number(m.km).toLocaleString('tr-TR') : '',
+        num(m.alis_fiyati), num(m.satis_fiyati), num(m.noter_alis), num(m.noter_satis), num(m.kar),
+        m.satici_adi || '', m.alici_adi || '', m.alici_telefon || '',
+        m.odeme_sekli || '', m.yevmiye_no || '', formatDate(m.satis_tarihi || m.tarih)
+      ];
+      return '<tr>' + cells.map(c => `<td style="border:1px solid #555;padding:8px;font-size:12px;">${escape(c)}</td>`).join('') + '</tr>';
+    }).join('');
+    const headerHtml = '<tr>' + headers.map(h => `<th style="border:1px solid #333;background:#C62828;color:#fff;padding:10px;font-size:13px;text-align:center;">${escape(h)}</th>`).join('') + '</tr>';
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Motor Satış</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table style="border-collapse:collapse;font-family:Arial;">${headerHtml}${rowsHtml}</table></body></html>`;
+    const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+    a.href = url; a.download = `Motor_Satis_${today}.xls`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
@@ -179,6 +205,7 @@ const IkinciElMotor = () => {
           <Chip key={i} label={c.label} sx={{ bgcolor: c.bg, color: c.color, fontWeight: 'bold', fontSize: '0.8rem', borderLeft: `4px solid ${c.color}` }} />
         ))}
         <Box sx={{ flexGrow: 1 }} />
+        <Button variant="outlined" size="large" startIcon={<FileDownloadIcon />} onClick={exportToExcel} sx={{ mr: 1, color: '#1B5E20', borderColor: '#1B5E20', '&:hover': { borderColor: '#1B5E20', bgcolor: '#E8F5E9' } }}>Excel'e Aktar</Button>
         <Button variant="contained" size="large" startIcon={<AddIcon />} onClick={() => openDialog()} sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' } }}>Motor Satış</Button>
       </Box>
 
@@ -218,6 +245,7 @@ const IkinciElMotor = () => {
                 <Typography variant="body2">Satış: <strong>₺{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
+                <Typography variant="body2">Noter Alış: <strong>₺{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</strong></Typography>
                 <Typography variant="body2">Noter Satış: <strong>₺{parseFloat(m.noter_satis || 0).toLocaleString('tr-TR')}</strong></Typography>
                 <Typography variant="body2" sx={{ color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>Kâr: <strong>₺{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</strong></Typography>
                 </Box>
@@ -234,7 +262,7 @@ const IkinciElMotor = () => {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Alıcı', 'Satış Tarihi', 'İşlemler'].map(h => (
+              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Alış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Alıcı', 'Satış Tarihi', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -251,6 +279,7 @@ const IkinciElMotor = () => {
                   <TableCell>{m.km ? Number(m.km).toLocaleString('tr-TR') : '-'}</TableCell>
                   <TableCell>{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
+                  <TableCell>{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{parseFloat(m.noter_satis || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{m.alici_adi || '-'}</TableCell>
@@ -263,7 +292,7 @@ const IkinciElMotor = () => {
                 </TableRow>
               );
             })}
-            {filteredMotorlar.length === 0 && <TableRow><TableCell colSpan={12} align="center">Kayıt yok</TableCell></TableRow>}
+            {filteredMotorlar.length === 0 && <TableRow><TableCell colSpan={13} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>

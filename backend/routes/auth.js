@@ -80,17 +80,30 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Geçersiz kullanıcı adı veya şifre' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, kullanici_adi: user.kullanici_adi, rol: user.rol, ad_soyad: user.ad_soyad, aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi, eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi, aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const tokenPayload = {
+      id: user.id, kullanici_adi: user.kullanici_adi, rol: user.rol, ad_soyad: user.ad_soyad,
+      aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi,
+      eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi,
+      aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi,
+      liste_fiyati_gor: user.liste_fiyati_gor, alis_fiyati_gor: user.alis_fiyati_gor,
+      satis_fiyati_gor: user.satis_fiyati_gor, kar_gor: user.kar_gor,
+      musteri_gor: user.musteri_gor, satis_gecmisi_gor: user.satis_gecmisi_gor
+    };
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '24h' });
 
     await logAktivite({ kullanici_id: user.id, kullanici_adi, islem_tipi: ISLEM_TIPLERI.LOGIN, islem_detay: 'Giriş yapıldı', ip_adresi: req.ip });
 
     res.json({
       token,
-      user: { id: user.id, kullanici_adi: user.kullanici_adi, ad_soyad: user.ad_soyad, rol: user.rol, aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi, eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi, aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi }
+      user: {
+        id: user.id, kullanici_adi: user.kullanici_adi, ad_soyad: user.ad_soyad, rol: user.rol,
+        aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi,
+        eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi,
+        aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi,
+        liste_fiyati_gor: user.liste_fiyati_gor, alis_fiyati_gor: user.alis_fiyati_gor,
+        satis_fiyati_gor: user.satis_fiyati_gor, kar_gor: user.kar_gor,
+        musteri_gor: user.musteri_gor, satis_gecmisi_gor: user.satis_gecmisi_gor
+      }
     });
   } catch (error) {
     console.error('Login hatası:', error);
@@ -112,7 +125,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
 router.get('/verify', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, kullanici_adi, ad_soyad, rol, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi FROM kullanicilar WHERE id = $1',
+      'SELECT id, kullanici_adi, ad_soyad, rol, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, liste_fiyati_gor, alis_fiyati_gor, satis_fiyati_gor, kar_gor, musteri_gor, satis_gecmisi_gor FROM kullanicilar WHERE id = $1',
       [req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
@@ -138,7 +151,7 @@ router.get('/personel-listesi', authenticateToken, async (req, res) => {
 router.get('/users', authenticateToken, isAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, kullanici_adi, ad_soyad, rol, onay_durumu, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, plain_sifre, created_at FROM kullanicilar ORDER BY created_at DESC'
+      'SELECT id, kullanici_adi, ad_soyad, rol, onay_durumu, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, liste_fiyati_gor, alis_fiyati_gor, satis_fiyati_gor, kar_gor, musteri_gor, satis_gecmisi_gor, plain_sifre, created_at FROM kullanicilar ORDER BY created_at DESC'
     );
     res.json(result.rows);
   } catch (error) {
@@ -243,6 +256,92 @@ router.patch('/users/:id/yedek-parca-yetkisi', authenticateToken, isAdmin, async
     await pool.query('UPDATE kullanicilar SET yedek_parca_yetkisi = $1 WHERE id = $2', [yedek_parca_yetkisi, req.params.id]);
     res.json({ message: 'Yedek parça yetkisi güncellendi' });
   } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
+// POST /users [ADMIN] - Kullanıcı / yatırımcı oluştur
+router.post('/users', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { kullanici_adi, sifre, ad_soyad, rol } = req.body;
+    if (!kullanici_adi || !sifre || !ad_soyad) {
+      return res.status(400).json({ message: 'Kullanıcı adı, şifre ve ad soyad zorunludur' });
+    }
+    const gecerliRoller = ['personel', 'yatirimci'];
+    const yeniRol = gecerliRoller.includes(rol) ? rol : 'personel';
+
+    const existing = await pool.query('SELECT id FROM kullanicilar WHERE kullanici_adi = $1', [kullanici_adi]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ message: 'Bu kullanıcı adı zaten kullanılıyor' });
+    }
+
+    const hashedPassword = await bcrypt.hash(sifre, 10);
+    const result = await pool.query(
+      `INSERT INTO kullanicilar (kullanici_adi, sifre, plain_sifre, ad_soyad, rol, onay_durumu)
+       VALUES ($1, $2, $3, $4, $5, 'onaylandi')
+       RETURNING id, kullanici_adi, ad_soyad, rol, onay_durumu`,
+      [kullanici_adi, hashedPassword, sifre, ad_soyad, yeniRol]
+    );
+
+    await logAktivite({
+      kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi,
+      islem_tipi: ISLEM_TIPLERI.REGISTER,
+      islem_detay: `${yeniRol === 'yatirimci' ? 'Yatırımcı' : 'Kullanıcı'} oluşturuldu: ${ad_soyad}`,
+      hedef_tablo: 'kullanicilar', hedef_id: result.rows[0].id
+    });
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Kullanıcı oluşturma hatası:', error);
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
+// GET /yatirimcilar - Yatırımcı listesi (motor stok ekranı için)
+router.get('/yatirimcilar', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, ad_soyad, kullanici_adi FROM kullanicilar WHERE rol = 'yatirimci' AND onay_durumu = 'onaylandi' ORDER BY ad_soyad"
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
+// PATCH /users/:id/yetkiler [ADMIN] - Alan bazlı görüntüleme yetkilerini güncelle
+router.patch('/users/:id/yetkiler', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const izinliAlanlar = [
+      'liste_fiyati_gor', 'alis_fiyati_gor', 'satis_fiyati_gor',
+      'kar_gor', 'musteri_gor', 'satis_gecmisi_gor',
+      'aksesuar_yetkisi', 'motor_satis_yetkisi', 'eticaret_yetkisi',
+      'servis_yetkisi', 'aksesuar_stok_yetkisi', 'yedek_parca_yetkisi'
+    ];
+    const setParts = [];
+    const params = [];
+    for (const [key, value] of Object.entries(req.body || {})) {
+      if (izinliAlanlar.includes(key)) {
+        params.push(!!value);
+        setParts.push(`${key} = $${params.length}`);
+      }
+    }
+    if (setParts.length === 0) {
+      return res.status(400).json({ message: 'Güncellenecek geçerli alan yok' });
+    }
+    params.push(req.params.id);
+    await pool.query(`UPDATE kullanicilar SET ${setParts.join(', ')} WHERE id = $${params.length}`, params);
+
+    await logAktivite({
+      kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi,
+      islem_tipi: ISLEM_TIPLERI.APPROVE,
+      islem_detay: `Kullanıcı #${req.params.id} yetkileri güncellendi`,
+      hedef_tablo: 'kullanicilar', hedef_id: parseInt(req.params.id)
+    });
+
+    res.json({ message: 'Yetkiler güncellendi' });
+  } catch (error) {
+    console.error('Yetki güncelleme hatası:', error);
     res.status(500).json({ message: 'Sunucu hatası' });
   }
 });

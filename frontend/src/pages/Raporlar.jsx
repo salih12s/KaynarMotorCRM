@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { Visibility as ViewIcon } from '@mui/icons-material';
 import { raporService, aksesuarStokService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 // Platform tipi algılama
 const detectPlatform = (platformAdi) => {
@@ -74,7 +75,137 @@ const hesaplaKomisyon = (satisFiyati, alisFiyati, komisyonOrani, kdvOrani, kargo
   };
 };
 
+// Yatırımcı kendi raporu görünümü
+const YatirimciRapor = ({ isMobile }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const formatTL = (v) => parseFloat(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
+
+  useEffect(() => {
+    raporService.getYatirimciRapor()
+      .then(r => setData(r.data))
+      .catch(() => setError('Rapor yüklenirken hata oluştu'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress sx={{ color: '#C62828' }} /></Box>;
+  if (error) return <Alert severity="error">{error}</Alert>;
+  if (!data) return null;
+
+  const o = data.ozet || {};
+  const stoktakiler = data.stoktakiler || [];
+  const satilanlar = data.satilanlar || [];
+  const headerSx = { color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' };
+
+  return (
+    <Box>
+      <Typography variant="h5" fontWeight="bold" mb={2}>Yatırım Raporum</Typography>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          { label: 'Stoktaki Motor', value: o.stok_adet || 0, color: '#C62828' },
+          { label: 'Satılan Motor', value: o.satilan_adet || 0, color: '#1565C0' },
+          { label: 'Stok Değeri', value: `₺${formatTL(o.stok_degeri)}`, color: '#E65100' },
+          { label: 'Toplam Kazancım', value: `₺${formatTL(o.toplam_yatirimci_kar)}`, color: '#2e7d32' },
+        ].map((k, i) => {
+          const bgMap = { '#C62828': '#ffebee', '#1565C0': '#e3f2fd', '#E65100': '#fff3e0', '#2e7d32': '#e8f5e9' };
+          return (
+            <Grid size={{ xs: 6, md: 3 }} key={i}>
+              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: bgMap[k.color], borderLeft: `4px solid ${k.color}` }}>
+                <Typography variant="body2" color="text.secondary">{k.label}</Typography>
+                <Typography variant="h5" fontWeight="bold" sx={{ color: k.color }}>{k.value}</Typography>
+              </Paper>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      <Typography variant="h6" fontWeight="bold" mb={1}>Stoktaki Motorlarım ({stoktakiler.length})</Typography>
+      {stoktakiler.length === 0 ? (
+        <Alert severity="info" sx={{ mb: 3 }}>Stokta motorunuz bulunmuyor.</Alert>
+      ) : isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
+          {stoktakiler.map((m, i) => (
+            <Paper key={i} sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" fontWeight="bold">{m.plaka} • {m.marka} {m.model}</Typography>
+              <Typography variant="body2" color="text.secondary">{m.yil || '-'} • {formatDate(m.tarih)}</Typography>
+              <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
+                <Typography variant="body2">Alış: <strong>{formatTL(m.alis_fiyati)} ₺</strong></Typography>
+                <Typography variant="body2">Liste: <strong>{formatTL(m.liste_fiyati)} ₺</strong></Typography>
+                <Typography variant="body2">Kâr Oranım: <strong>%{m.yatirimci_kar_orani || 0}</strong></Typography>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ mb: 3, overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
+              {['Tarih', 'Plaka', 'Marka/Model', 'Yıl', 'Alış', 'Liste Fiyatı', 'Kâr Oranım'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
+            </TableRow></TableHead>
+            <TableBody>
+              {stoktakiler.map((m, i) => (
+                <TableRow key={i} hover>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(m.tarih)}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{m.plaka}</TableCell>
+                  <TableCell>{m.marka} {m.model}</TableCell>
+                  <TableCell>{m.yil || '-'}</TableCell>
+                  <TableCell>{formatTL(m.alis_fiyati)} ₺</TableCell>
+                  <TableCell>{formatTL(m.liste_fiyati)} ₺</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>%{m.yatirimci_kar_orani || 0}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      <Typography variant="h6" fontWeight="bold" mb={1}>Satılan Motorlarım ({satilanlar.length})</Typography>
+      {satilanlar.length === 0 ? (
+        <Alert severity="info">Henüz satılan motorunuz yok.</Alert>
+      ) : isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {satilanlar.map((m, i) => (
+            <Paper key={i} sx={{ p: 1.5 }}>
+              <Typography variant="subtitle2" fontWeight="bold">{m.plaka} • {m.marka} {m.model}</Typography>
+              <Typography variant="body2" color="text.secondary">Satış: {formatDate(m.satis_tarihi || m.tamamlama_tarihi)}</Typography>
+              <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
+                <Typography variant="body2">Satış: <strong>{formatTL(m.satis_fiyati)} ₺</strong></Typography>
+                <Typography variant="body2" sx={{ color: '#2e7d32' }}>Kazancım: <strong>{formatTL(m.yatirimci_kar)} ₺</strong></Typography>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
+      ) : (
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
+              {['Satış Tarihi', 'Plaka', 'Marka/Model', 'Satış Fiyatı', 'Kâr Oranım', 'Kazancım'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
+            </TableRow></TableHead>
+            <TableBody>
+              {satilanlar.map((m, i) => (
+                <TableRow key={i} hover>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(m.satis_tarihi || m.tamamlama_tarihi)}</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>{m.plaka}</TableCell>
+                  <TableCell>{m.marka} {m.model}</TableCell>
+                  <TableCell>{formatTL(m.satis_fiyati)} ₺</TableCell>
+                  <TableCell>%{m.yatirimci_kar_orani || 0}</TableCell>
+                  <TableCell sx={{ color: '#2e7d32', fontWeight: 'bold' }}>{formatTL(m.yatirimci_kar)} ₺</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
+  );
+};
+
 const Raporlar = () => {
+  const { user } = useAuth();
+  const isYatirimci = user?.rol === 'yatirimci';
+  const isAdmin = user?.rol === 'admin';
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [tab, setTab] = useState(0);
   const today = new Date();
@@ -101,6 +232,7 @@ const Raporlar = () => {
   const [eticaretDetayModal, setEticaretDetayModal] = useState({ open: false, data: null });
   const [motorDetayModal, setMotorDetayModal] = useState({ open: false, data: null });
   const [stokOptions, setStokOptions] = useState([]);
+  const [yatirimciOzet, setYatirimciOzet] = useState([]);
 
   const loadRapor = async () => {
     setLoading(true);
@@ -131,10 +263,12 @@ const Raporlar = () => {
   const handleTabChange = (_, v) => { setTab(v); };
 
   useEffect(() => {
+    if (isYatirimci) return;
     loadRapor();
     loadFisKar();
     raporService.getPersoneller().then(r => setPersoneller(r.data)).catch(() => {});
     aksesuarStokService.getAll().then(r => setStokOptions(r.data)).catch(() => {});
+    if (isAdmin) raporService.getYatirimciOzet().then(r => setYatirimciOzet(r.data)).catch(() => {});
   }, [baslangic, bitis]);
 
   const formatTL = (v) => parseFloat(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
@@ -183,6 +317,8 @@ const Raporlar = () => {
   const duzeltilmisTotalGelir = rapor ? (parseFloat(rapor.toplam?.gelir || 0) + parseFloat(rapor.yedekParcaToplamDeger || 0)) : 0;
   const duzeltilmisTotalMaliyet = rapor ? (parseFloat(rapor.toplam?.maliyet || 0) + parseFloat(rapor.yedekParcaToplamMaliyet || 0)) : 0;
 
+  if (isYatirimci) return <YatirimciRapor isMobile={isMobile} />;
+
   return (
     <Box>
       <Paper sx={{ mb: 2 }}>
@@ -196,6 +332,7 @@ const Raporlar = () => {
           <Tab label="E-Ticaret" />
           <Tab label="Yedek Parça" />
           <Tab label="Fiş Kâr Analizi" />
+          {isAdmin && <Tab label="Yatırımcılar" />}
         </Tabs>
       </Paper>
 
@@ -981,6 +1118,69 @@ const Raporlar = () => {
             </>
           ) : (
             <Alert severity="info">Seçilen tarih aralığında tamamlanmış fiş bulunamadı.</Alert>
+          )}
+        </>
+      )}
+
+      {/* Yatırımcılar Tab (admin) */}
+      {tab === 7 && isAdmin && !loading && (
+        <>
+          {yatirimciOzet.length === 0 ? (
+            <Alert severity="info">Henüz yatırımcı bulunmuyor. Kullanıcı Yönetimi ekranından yatırımcı ekleyebilirsiniz.</Alert>
+          ) : (
+            <>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                {[
+                  { label: 'Yatırımcı Sayısı', value: yatirimciOzet.length, color: '#C62828' },
+                  { label: 'Toplam Stok', value: yatirimciOzet.reduce((t, y) => t + Number(y.stok_adet || 0), 0), color: '#1565C0' },
+                  { label: 'Toplam Satılan', value: yatirimciOzet.reduce((t, y) => t + Number(y.satilan_adet || 0), 0), color: '#E65100' },
+                  { label: 'Toplam Yatırımcı Kârı', value: `₺${formatTL(yatirimciOzet.reduce((t, y) => t + Number(y.yatirimci_kar || 0), 0))}`, color: '#2e7d32' },
+                ].map((k, i) => (
+                  <Grid size={{ xs: 12, md: 3 }} key={i}>
+                    <KartItem label={k.label} value={k.value} color={k.color} />
+                  </Grid>
+                ))}
+              </Grid>
+              {isMobile ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {yatirimciOzet.map((y, i) => (
+                    <Paper key={i} sx={{ p: 1.5 }}>
+                      <Typography variant="subtitle2" fontWeight="bold">{y.ad_soyad}</Typography>
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 0.5 }}>
+                        <Typography variant="body2">Stok: <strong>{y.stok_adet}</strong></Typography>
+                        <Typography variant="body2">Satılan: <strong>{y.satilan_adet}</strong></Typography>
+                        <Typography variant="body2">Stok Değeri: <strong>{formatTL(y.stok_degeri)} ₺</strong></Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: '#1565C0' }}>Yatırımcı Kârı: <strong>{formatTL(y.yatirimci_kar)} ₺</strong></Typography>
+                        <Typography variant="body2" sx={{ color: '#2e7d32' }}>İşletme Kârı: <strong>{formatTL(y.isletme_kar)} ₺</strong></Typography>
+                      </Box>
+                    </Paper>
+                  ))}
+                </Box>
+              ) : (
+                <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+                  <Table size="small">
+                    <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
+                      {['Yatırımcı', 'Stok Adet', 'Satılan', 'Stok Değeri', 'Toplam Satış', 'Yatırımcı Kârı', 'İşletme Kârı'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
+                    </TableRow></TableHead>
+                    <TableBody>
+                      {yatirimciOzet.map((y, i) => (
+                        <TableRow key={i} hover>
+                          <TableCell sx={{ fontWeight: 'bold' }}>{y.ad_soyad}</TableCell>
+                          <TableCell>{y.stok_adet}</TableCell>
+                          <TableCell>{y.satilan_adet}</TableCell>
+                          <TableCell>{formatTL(y.stok_degeri)} ₺</TableCell>
+                          <TableCell>{formatTL(y.toplam_satis)} ₺</TableCell>
+                          <TableCell sx={{ color: '#1565C0', fontWeight: 'bold' }}>{formatTL(y.yatirimci_kar)} ₺</TableCell>
+                          <TableCell sx={{ color: '#2e7d32', fontWeight: 'bold' }}>{formatTL(y.isletme_kar)} ₺</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </>
           )}
         </>
       )}

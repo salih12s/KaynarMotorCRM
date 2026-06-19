@@ -337,6 +337,21 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE is_emirleri ADD COLUMN IF NOT EXISTS kalan_odeme DECIMAL(12,2) DEFAULT 0;`);
     await client.query(`ALTER TABLE aksesuarlar ADD COLUMN IF NOT EXISTS kalan_odeme DECIMAL(12,2) DEFAULT 0;`);
     await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS kalan_odeme DECIMAL(12,2) DEFAULT 0;`);
+
+    // Migration: ikinci_el_motorlar tablosuna yatırımcı ve liste fiyatı alanları ekle
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS yatirimci_id INTEGER REFERENCES kullanicilar(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS yatirimci_kar_orani DECIMAL(5,2) DEFAULT 0;`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS yatirimci_kar DECIMAL(12,2) DEFAULT 0;`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS liste_fiyati DECIMAL(12,2) DEFAULT 0;`);
+
+    // Migration: kullanicilar tablosuna alan bazlı görüntüleme yetkileri ekle
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS liste_fiyati_gor BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS alis_fiyati_gor BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS satis_fiyati_gor BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS kar_gor BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS musteri_gor BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS satis_gecmisi_gor BOOLEAN DEFAULT FALSE;`);
+
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
     console.error('Veritabanı başlatma hatası:', error.message);

@@ -4,7 +4,7 @@ import {
   Button, IconButton, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Grid, Alert, MenuItem, InputAdornment, Autocomplete, Checkbox, FormControlLabel, Divider, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, QrCodeScanner as ScannerIcon } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { aksesuarService, aksesuarStokService, musteriService } from '../services/api';
 
@@ -24,6 +24,7 @@ const Aksesuarlar = () => {
   const [aksEnd, setAksEnd] = useState('');
   const [detayDialog, setDetayDialog] = useState({ open: false, data: null });
   const [musteriOptions, setMusteriOptions] = useState([]);
+  const [barkodInput, setBarkodInput] = useState('');
 
   const searchMusteri = async (query) => {
     if (!query || query.length < 2) { setMusteriOptions([]); return; }
@@ -70,6 +71,45 @@ const Aksesuarlar = () => {
   };
 
   const addParca = () => setParcalar([...parcalar, { urun_adi: '', adet: 1, maliyet: 0, satis_fiyati: 0 }]);
+
+  // Barkod okutulduğunda ürünü otomatik ekle / adedini artır
+  const addOrIncrementStok = (stok) => {
+    setParcalar(prev => {
+      const idx = prev.findIndex(p => p.urun_adi === stok.stok_adi);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], adet: (Number(updated[idx].adet) || 0) + 1 };
+        return updated;
+      }
+      return [...prev, {
+        urun_adi: stok.stok_adi,
+        adet: 1,
+        maliyet: parseFloat(stok.alis_fiyati || 0),
+        satis_fiyati: parseFloat(stok.satis_fiyati || 0),
+      }];
+    });
+  };
+
+  const handleBarkodScan = async (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const kod = barkodInput.trim();
+    if (!kod) return;
+    setError('');
+    let stok = stokOptions.find(s => String(s.stok_kodu || '').trim() === kod);
+    if (!stok) {
+      try {
+        const res = await aksesuarStokService.getByBarkod(kod);
+        stok = res.data;
+      } catch {
+        setError(`Barkod bulunamadı: ${kod}`);
+        setBarkodInput('');
+        return;
+      }
+    }
+    addOrIncrementStok(stok);
+    setBarkodInput('');
+  };
 
   const updateParca = (i, field, value) => {
     const updated = [...parcalar];
@@ -282,6 +322,15 @@ const Aksesuarlar = () => {
             <Typography variant="h6">Ürünler</Typography>
             <Button startIcon={<AddIcon />} onClick={addParca} size="small" variant="outlined">Ürün Ekle</Button>
           </Box>
+          <TextField
+            fullWidth size="small" value={barkodInput}
+            onChange={e => setBarkodInput(e.target.value)}
+            onKeyDown={handleBarkodScan}
+            placeholder="Barkod okutun veya stok kodu girip Enter'a basın"
+            autoComplete="off"
+            sx={{ mt: 1 }}
+            InputProps={{ startAdornment: <InputAdornment position="start"><ScannerIcon color="action" /></InputAdornment> }}
+          />
           {parcalar.length > 0 && (
             isMobile ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>

@@ -18,6 +18,7 @@ import ETicaret from './pages/ETicaret';
 import YedekParcalar from './pages/YedekParcalar';
 import Raporlar from './pages/Raporlar';
 import Kullanicilar from './pages/Kullanicilar';
+import Yetkilendirme from './pages/Yetkilendirme';
 import Musteriler from './pages/Musteriler';
 import MotorDetay from './pages/MotorDetay';
 import Veresiye from './pages/Veresiye';
@@ -51,6 +52,24 @@ const MotorSatisRoute = ({ children }) => {
   if (loading) return null;
   if (!user) return <Navigate to="/login" />;
   if (user.rol !== 'admin' && !user.motor_satis_yetkisi) return <Navigate to="/" />;
+  return children;
+};
+
+// Motor Stok: admin, motor yetkisi olan personel veya yatırımcı erişebilir
+const MotorStokRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (user.rol !== 'admin' && user.rol !== 'yatirimci' && !user.motor_satis_yetkisi) return <Navigate to="/" />;
+  return children;
+};
+
+// Raporlar: admin veya yatırımcı (yatırımcı sadece kendi raporunu görür)
+const RaporRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (user.rol !== 'admin' && user.rol !== 'yatirimci') return <Navigate to="/" />;
   return children;
 };
 
@@ -91,6 +110,7 @@ const PublicRoute = ({ children }) => {
   if (loading) return null;
   if (user) {
     if (user.rol === 'admin') return <Navigate to="/" />;
+    if (user.rol === 'yatirimci') return <Navigate to="/motor-stok" />;
     if (user.servis_yetkisi) return <Navigate to="/" />;
     if (user.aksesuar_yetkisi) return <Navigate to="/aksesuarlar" />;
     if (user.motor_satis_yetkisi) return <Navigate to="/ikinci-el-motor" />;
@@ -106,6 +126,7 @@ const NormalRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" />;
+  if (user.rol === 'yatirimci') return <Navigate to="/motor-stok" />;
   if (user.rol !== 'admin' && !user.servis_yetkisi) {
     if (user.aksesuar_yetkisi) return <Navigate to="/aksesuarlar" />;
     if (user.motor_satis_yetkisi) return <Navigate to="/ikinci-el-motor" />;
@@ -134,13 +155,14 @@ const ThemedApp = () => {
               <Route path="/aksesuarlar" element={<AksesuarRoute><Aksesuarlar /></AksesuarRoute>} />
               <Route path="/aksesuar-stok" element={<AksesuarStokRoute><AksesuarStok /></AksesuarStokRoute>} />
               <Route path="/ikinci-el-motor" element={<MotorSatisRoute><IkinciElMotor /></MotorSatisRoute>} />
-              <Route path="/motor-stok" element={<MotorSatisRoute><MotorStok /></MotorSatisRoute>} />
+              <Route path="/motor-stok" element={<MotorStokRoute><MotorStok /></MotorStokRoute>} />
               <Route path="/motor/:id" element={<MotorSatisRoute><MotorDetay /></MotorSatisRoute>} />
               <Route path="/eticaret" element={<EticaretRoute><ETicaret /></EticaretRoute>} />
               <Route path="/yedek-parcalar" element={<YedekParcaRoute><YedekParcalar /></YedekParcaRoute>} />
               <Route path="/veresiye" element={<AdminRoute><Veresiye /></AdminRoute>} />
-              <Route path="/raporlar" element={<AdminRoute><Raporlar /></AdminRoute>} />
+              <Route path="/raporlar" element={<RaporRoute><Raporlar /></RaporRoute>} />
               <Route path="/kullanicilar" element={<AdminRoute><Kullanicilar /></AdminRoute>} />
+              <Route path="/yetkilendirme" element={<AdminRoute><Yetkilendirme /></AdminRoute>} />
               <Route path="/musteriler" element={<AdminRoute><Musteriler /></AdminRoute>} />
             </Route>
             <Route path="*" element={<Navigate to="/" />} />

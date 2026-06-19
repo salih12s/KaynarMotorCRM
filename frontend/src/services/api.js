@@ -32,6 +32,8 @@ export const authService = {
   logout: () => api.post('/auth/logout'),
   verify: () => api.get('/auth/verify'),
   getUsers: () => api.get('/auth/users'),
+  createUser: (data) => api.post('/auth/users', data),
+  getYatirimcilar: () => api.get('/auth/yatirimcilar'),
   getPersonelListesi: () => api.get('/auth/personel-listesi'),
   approveUser: (id) => api.patch(`/auth/users/${id}/approve`),
   rejectUser: (id) => api.patch(`/auth/users/${id}/reject`),
@@ -42,6 +44,7 @@ export const authService = {
   setServisYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/servis-yetkisi`, { servis_yetkisi: yetkisi }),
   setAksesuarStokYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/aksesuar-stok-yetkisi`, { aksesuar_stok_yetkisi: yetkisi }),
   setYedekParcaYetkisi: (id, yetkisi) => api.patch(`/auth/users/${id}/yedek-parca-yetkisi`, { yedek_parca_yetkisi: yetkisi }),
+  setYetkiler: (id, yetkiler) => api.patch(`/auth/users/${id}/yetkiler`, yetkiler),
   getActivityLogs: () => api.get('/auth/activity-logs'),
   getUserActivityLogs: (id) => api.get(`/auth/users/${id}/activity-logs`),
 };
@@ -81,6 +84,7 @@ export const aksesuarService = {
 export const aksesuarStokService = {
   getAll: () => api.get('/aksesuar-stok'),
   search: (q) => api.get('/aksesuar-stok/ara', { params: { q } }),
+  getByBarkod: (kod) => api.get(`/aksesuar-stok/barkod/${encodeURIComponent(kod)}`),
   getNextStokKodu: () => api.get('/aksesuar-stok/next-stok-kodu'),
   create: (data) => api.post('/aksesuar-stok', data),
   update: (id, data) => api.put(`/aksesuar-stok/${id}`, data),
@@ -135,6 +139,8 @@ export const raporService = {
   getGenel: () => api.get('/raporlar/genel'),
   getFisKar: (baslangic, bitis) => api.get('/raporlar/fis-kar', { params: { baslangic, bitis } }),
   getPersoneller: () => api.get('/raporlar/personeller'),
+  getYatirimciRapor: (params) => api.get('/raporlar/yatirimci-rapor', { params }),
+  getYatirimciOzet: () => api.get('/raporlar/yatirimci-ozet'),
 };
 
 // Veresiye (Açık borçlar)

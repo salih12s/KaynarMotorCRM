@@ -9,6 +9,7 @@
     "@mui/material": "^7.3.6",
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",
+    "jsbarcode": "^3.12.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
@@ -22,7 +23,15 @@
     "eject": "react-scripts eject"
   },
   "browserslist": {
-    "production": [">0.2%", "not dead", "not op_mini all"],
-    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
