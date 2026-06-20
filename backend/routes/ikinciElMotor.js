@@ -11,8 +11,23 @@ const sanitizeMotor = (row, user) => {
   if (!row) return row;
   // Admin her şeyi görür
   if (user.rol === 'admin') return row;
-  // Yatırımcı kendi motorunu tam görür (sadece kendi kaydı listelenir)
-  if (user.rol === 'yatirimci') return row;
+  // Yatırımcı:
+  //  - liste_fiyati_gor AÇIK ise "vitrin" modundadır: tüm satılık motorları SADECE liste fiyatıyla görür
+  //  - kapalı ise kendi motorlarını tam detayıyla görür
+  if (user.rol === 'yatirimci') {
+    if (!user.liste_fiyati_gor) return row;
+    return {
+      id: row.id, plaka: row.plaka, marka: row.marka, model: row.model,
+      yil: row.yil, km: row.km, durum: row.durum, stok_tipi: row.stok_tipi,
+      tarih: row.tarih, liste_fiyati: row.liste_fiyati,
+      // Hassas alanlar gizli
+      alis_fiyati: null, noter_alis: null, satis_fiyati: null, noter_satis: null,
+      masraflar: null, kar: null, yatirimci_id: null, yatirimci_kar: null, yatirimci_kar_orani: null,
+      satici_adi: null, satici_tc: null, alici_adi: null, alici_tc: null,
+      alici_telefon: null, alici_adres: null,
+      komisyoncu_adi: null, komisyoncu_telefon: null, komisyoncu_tutari: null
+    };
+  }
 
   const m = { ...row };
   if (!user.alis_fiyati_gor) { m.alis_fiyati = null; m.noter_alis = null; }
@@ -58,10 +73,16 @@ router.get('/', async (req, res) => {
     if (bitis) { params.push(bitis); query += ` AND tarih <= $${params.length}`; }
     if (durum) { params.push(durum); query += ` AND durum = $${params.length}`; }
 
-    // Yatırımcı sadece kendi motorlarını görür
+    // Yatırımcı:
     if (req.user.rol === 'yatirimci') {
-      params.push(req.user.id);
-      query += ` AND yatirimci_id = $${params.length}`;
+      if (req.user.liste_fiyati_gor) {
+        // Vitrin modu: satılan/perte hariç tüm satılık motorlar (sadece liste fiyatı görünür)
+        query += ` AND durum NOT IN ('tamamlandi', 'perte')`;
+      } else {
+        // Kendi motorları
+        params.push(req.user.id);
+        query += ` AND yatirimci_id = $${params.length}`;
+      }
     } else if (req.user.rol !== 'admin' && !req.user.satis_gecmisi_gor) {
       // Satış geçmişi yetkisi olmayan personel satılan motorları görmez
       query += ` AND durum <> 'tamamlandi'`;
@@ -81,8 +102,8 @@ router.get('/:id', async (req, res) => {
     const result = await pool.query('SELECT * FROM ikinci_el_motorlar WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Kayıt bulunamadı' });
     const row = result.rows[0];
-    // Yatırımcı başka birine ait motoru göremez
-    if (req.user.rol === 'yatirimci' && row.yatirimci_id !== req.user.id) {
+    // Yatırımcı (vitrin modu hariç) başka birine ait motoru göremez
+    if (req.user.rol === 'yatirimci' && !req.user.liste_fiyati_gor && row.yatirimci_id !== req.user.id) {
       return res.status(403).json({ message: 'Bu kayda erişim yetkiniz yok' });
     }
     res.json(sanitizeMotor(row, req.user));
@@ -101,7 +122,7 @@ router.post('/', async (req, res) => {
       odeme_sekli, aciklama, durum, stok_tipi,
       yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi,
       komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
-      yatirimci_id, yatirimci_kar_orani, liste_fiyati
+      yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati
     } = req.body;
 
     const alis = emptyToZero(alis_fiyati);
@@ -113,7 +134,8 @@ router.post('/', async (req, res) => {
     const kar = satis - alis - masraf - komisyonTutar;
     const yatirimciId = yatirimci_id ? parseInt(yatirimci_id) : null;
     const yatirimciOran = yatirimciId ? emptyToZero(yatirimci_kar_orani) : 0;
-    const yatirimciKar = yatirimciId ? Math.round(kar * yatirimciOran) / 100 : 0;
+    // Yatırımcı kârı artık satış esnasında elle (tutar olarak) girilir; komisyoncu gibi işletme kârından düşer
+    const yatirimciKar = yatirimciId ? emptyToZero(yatirimci_kar) : 0;
     const listeFiyati = emptyToZero(liste_fiyati);
     const tamamlamaTarihi = durum === 'tamamlandi' ? new Date() : null;
 
@@ -174,7 +196,7 @@ router.put('/:id', async (req, res) => {
       odeme_sekli, aciklama, durum, stok_tipi,
       yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, eski_kayit, satis_tarihi,
       komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
-      yatirimci_id, yatirimci_kar_orani, liste_fiyati
+      yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati
     } = req.body;
 
     // Hassas alanlar: yetkisi olmayan kullanıcının gönderdiği (boş/null) değerle veriyi bozmamak için DB değerini koru
@@ -187,7 +209,9 @@ router.put('/:id', async (req, res) => {
     const kar = satis - alis - masraf - komisyonTutar;
     const yatirimciId = canKar ? (yatirimci_id ? parseInt(yatirimci_id) : (yatirimci_id === null ? null : (mevcut.yatirimci_id || null))) : (mevcut.yatirimci_id || null);
     const yatirimciOran = canKar ? (yatirimciId ? emptyToZero(yatirimci_kar_orani) : 0) : parseFloat(mevcut.yatirimci_kar_orani || 0);
-    const yatirimciKar = yatirimciId ? Math.round(kar * yatirimciOran) / 100 : 0;
+    // Yatırımcı kârı: satışta elle girilen tutar. Body'de yoksa (örn. stok düzenleme) mevcut değeri koru.
+    const yatirimciKar = !yatirimciId ? 0
+      : (canKar && yatirimci_kar !== undefined ? emptyToZero(yatirimci_kar) : parseFloat(mevcut.yatirimci_kar || 0));
     const listeFiyati = canListe ? emptyToZero(liste_fiyati) : parseFloat(mevcut.liste_fiyati || 0);
     const tamamlamaTarihi = (durum === 'tamamlandi' && mevcut.durum !== 'tamamlandi') ? new Date() : null;
 

@@ -76,6 +76,11 @@ const Kullanicilar = () => {
     try { await authService.setYedekParcaYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
   };
 
+  // Yatırımcı için: açıkken yatırımcı tüm satılık motorları SADECE liste fiyatıyla görür (salt okunur vitrin)
+  const handleListeFiyatiYetkisi = async (id, value) => {
+    try { await authService.setYetkiler(id, { liste_fiyati_gor: value }); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
+  };
+
   const durumRenk = (durum) => {
     if (durum === 'onaylandi') return 'success';
     if (durum === 'reddedildi') return 'error';
@@ -111,6 +116,9 @@ const Kullanicilar = () => {
                 <Typography variant="body2">Aks.Stok: <Switch checked={user.aksesuar_stok_yetkisi || false} onChange={(e) => handleAksesuarStokYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
                 <Typography variant="body2">E-Ticaret: <Switch checked={user.eticaret_yetkisi || false} onChange={(e) => handleEticaretYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
                 <Typography variant="body2">Y.Parça: <Switch checked={user.yedek_parca_yetkisi || false} onChange={(e) => handleYedekParcaYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
+                {user.rol === 'yatirimci' && (
+                  <Typography variant="body2">Liste Fiyatı: <Switch checked={user.liste_fiyati_gor || false} onChange={(e) => handleListeFiyatiYetkisi(user.id, e.target.checked)} size="small" color="info" /></Typography>
+                )}
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
                 {user.onay_durumu === 'beklemede' && (
@@ -131,7 +139,7 @@ const Kullanicilar = () => {
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
-              {['Ad Soyad', 'Kullanıcı Adı', 'Şifre', 'Rol', 'Durum', 'Servis', 'Motor', 'Aksesuar', 'Aks.Stok', 'E-Ticaret', 'Y.Parça', 'İşlemler'].map(h => (
+              {['Ad Soyad', 'Kullanıcı Adı', 'Şifre', 'Rol', 'Durum', 'Servis', 'Motor', 'Aksesuar', 'Aks.Stok', 'E-Ticaret', 'Y.Parça', 'Liste Fiyatı', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', px: 1 }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -173,6 +181,13 @@ const Kullanicilar = () => {
                   <Switch checked={user.yedek_parca_yetkisi || false}
                     onChange={(e) => handleYedekParcaYetkisi(user.id, e.target.checked)}
                     disabled={user.rol === 'admin'} size="small" />
+                </TableCell>
+                <TableCell align="center">
+                  {user.rol === 'yatirimci' ? (
+                    <Switch checked={user.liste_fiyati_gor || false}
+                      onChange={(e) => handleListeFiyatiYetkisi(user.id, e.target.checked)}
+                      size="small" color="info" />
+                  ) : '-'}
                 </TableCell>
                 <TableCell>
                   {user.onay_durumu === 'beklemede' && (

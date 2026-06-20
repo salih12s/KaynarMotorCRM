@@ -133,7 +133,6 @@ const YatirimciRapor = ({ isMobile }) => {
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
                 <Typography variant="body2">Alış: <strong>{formatTL(m.alis_fiyati)} ₺</strong></Typography>
                 <Typography variant="body2">Liste: <strong>{formatTL(m.liste_fiyati)} ₺</strong></Typography>
-                <Typography variant="body2">Kâr Oranım: <strong>%{m.yatirimci_kar_orani || 0}</strong></Typography>
               </Box>
             </Paper>
           ))}
@@ -142,7 +141,7 @@ const YatirimciRapor = ({ isMobile }) => {
         <TableContainer component={Paper} sx={{ mb: 3, overflowX: 'auto' }}>
           <Table size="small">
             <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Tarih', 'Plaka', 'Marka/Model', 'Yıl', 'Alış', 'Liste Fiyatı', 'Kâr Oranım'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
+              {['Tarih', 'Plaka', 'Marka/Model', 'Yıl', 'Alış', 'Liste Fiyatı'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
             </TableRow></TableHead>
             <TableBody>
               {stoktakiler.map((m, i) => (
@@ -153,7 +152,6 @@ const YatirimciRapor = ({ isMobile }) => {
                   <TableCell>{m.yil || '-'}</TableCell>
                   <TableCell>{formatTL(m.alis_fiyati)} ₺</TableCell>
                   <TableCell>{formatTL(m.liste_fiyati)} ₺</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>%{m.yatirimci_kar_orani || 0}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -181,7 +179,7 @@ const YatirimciRapor = ({ isMobile }) => {
         <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Satış Tarihi', 'Plaka', 'Marka/Model', 'Satış Fiyatı', 'Kâr Oranım', 'Kazancım'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
+              {['Satış Tarihi', 'Plaka', 'Marka/Model', 'Satış Fiyatı', 'Kazancım'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
             </TableRow></TableHead>
             <TableBody>
               {satilanlar.map((m, i) => (
@@ -190,7 +188,6 @@ const YatirimciRapor = ({ isMobile }) => {
                   <TableCell sx={{ fontWeight: 'bold' }}>{m.plaka}</TableCell>
                   <TableCell>{m.marka} {m.model}</TableCell>
                   <TableCell>{formatTL(m.satis_fiyati)} ₺</TableCell>
-                  <TableCell>%{m.yatirimci_kar_orani || 0}</TableCell>
                   <TableCell sx={{ color: '#2e7d32', fontWeight: 'bold' }}>{formatTL(m.yatirimci_kar)} ₺</TableCell>
                 </TableRow>
               ))}

@@ -13,7 +13,11 @@ const MotorStok = () => {
   const { user } = useAuth();
   const isAdmin = user?.rol === 'admin';
   const isYatirimci = user?.rol === 'yatirimci';
-  const full = isAdmin || isYatirimci; // Yatırımcı kendi verisini tam görür
+  // Liste fiyatı açık yatırımcı = "vitrin" modu: tüm satılık motorları SADECE liste fiyatıyla görür, hiçbir şey yapamaz
+  const isYatirimciVitrin = isYatirimci && !!user?.liste_fiyati_gor;
+  // Liste fiyatı kapalı yatırımcı: kendi motorlarını tam detayıyla görür
+  const isYatirimciSahip = isYatirimci && !isYatirimciVitrin;
+  const full = isAdmin || isYatirimciSahip; // Admin ve kendi motoru olan yatırımcı tam görür
   const canAlis = full || !!user?.alis_fiyati_gor;
   const canMusteri = full || !!user?.musteri_gor;
   const canListe = full || !!user?.liste_fiyati_gor;
@@ -40,7 +44,7 @@ const MotorStok = () => {
   const [hizliForm, setHizliForm] = useState({
     satis_fiyati: '', noter_satis: '', masraflar: '',
     alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '',
-    yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0]
+    yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0], yatirimci_kar: ''
   });
   const [musteriOptions, setMusteriOptions] = useState([]);
 
@@ -109,7 +113,8 @@ const MotorStok = () => {
     setHizliForm({
       satis_fiyati: '', noter_satis: '', masraflar: motor.masraflar || '',
       alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '',
-      yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0]
+      yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0],
+      yatirimci_kar: motor.yatirimci_kar || ''
     });
     setHizliSatis({ open: true, motor });
   };
@@ -134,6 +139,7 @@ const MotorStok = () => {
     if (activeFilter === 'stokta' && (m.durum !== 'stokta' || m.stok_tipi === 'konsinye')) return false;
     if (activeFilter === 'kapora' && m.durum !== 'kapora') return false;
     if (activeFilter === 'konsinye' && (m.durum !== 'stokta' || m.stok_tipi !== 'konsinye')) return false;
+    if (activeFilter === 'depo_serviste' && m.durum !== 'depo_serviste') return false;
     if (activeFilter === 'devir_bekliyor' && m.durum !== 'devir_bekliyor') return false;
     if (activeFilter === 'tamamlandi' && m.durum !== 'tamamlandi') return false;
     if (activeFilter === 'perte' && m.durum !== 'perte') return false;
@@ -153,14 +159,15 @@ const MotorStok = () => {
       (m.alici_adi || '').toLowerCase().includes(search.toLowerCase());
   }).sort((a, b) => {
     const order = { stokta: 0, kapora: 1 };
-    const aOrder = a.durum === 'tamamlandi' ? 5 : a.durum === 'perte' ? 4 : a.durum === 'devir_bekliyor' ? 3 : a.stok_tipi === 'konsinye' ? 2 : (order[a.durum] ?? 0);
-    const bOrder = b.durum === 'tamamlandi' ? 5 : b.durum === 'perte' ? 4 : b.durum === 'devir_bekliyor' ? 3 : b.stok_tipi === 'konsinye' ? 2 : (order[b.durum] ?? 0);
+    const aOrder = a.durum === 'tamamlandi' ? 6 : a.durum === 'perte' ? 5 : a.durum === 'devir_bekliyor' ? 4 : a.durum === 'depo_serviste' ? 3 : a.stok_tipi === 'konsinye' ? 2 : (order[a.durum] ?? 0);
+    const bOrder = b.durum === 'tamamlandi' ? 6 : b.durum === 'perte' ? 5 : b.durum === 'devir_bekliyor' ? 4 : b.durum === 'depo_serviste' ? 3 : b.stok_tipi === 'konsinye' ? 2 : (order[b.durum] ?? 0);
     return aOrder - bOrder;
   });
 
   const stoktaSahip = motorlar.filter(m => m.durum === 'stokta' && m.stok_tipi !== 'konsinye');
   const stoktaKonsinye = motorlar.filter(m => m.durum === 'stokta' && m.stok_tipi === 'konsinye');
   const kaporalar = motorlar.filter(m => m.durum === 'kapora');
+  const depoServiste = motorlar.filter(m => m.durum === 'depo_serviste');
   const devirBekleyen = motorlar.filter(m => m.durum === 'devir_bekliyor');
   const tamamlananlar = motorlar.filter(m => m.durum === 'tamamlandi');
   const perteler = motorlar.filter(m => m.durum === 'perte');
@@ -170,6 +177,7 @@ const MotorStok = () => {
     { label: `Stokta: ${stoktaSahip.length}`, color: '#2e7d32', bg: '#e8f5e9', filter: 'stokta' },
     { label: `Konsinye: ${stoktaKonsinye.length}`, color: '#1565C0', bg: '#e3f2fd', filter: 'konsinye' },
     { label: `Kapora: ${kaporalar.length}`, color: '#F9A825', bg: '#FFFDE7', filter: 'kapora' },
+    { label: `Depo/Serviste: ${depoServiste.length}`, color: '#EF6C00', bg: '#FFF3E0', filter: 'depo_serviste' },
     { label: `Devir Bekliyor: ${devirBekleyen.length}`, color: '#7B1FA2', bg: '#F3E5F5', filter: 'devir_bekliyor' },
     { label: `Perte: ${perteler.length}`, color: '#d32f2f', bg: '#ffcdd2', filter: 'perte' },
     { label: `Satılan: ${tamamlananlar.length}`, color: '#00695C', bg: '#E0F2F1', filter: 'tamamlandi' },
@@ -228,7 +236,7 @@ const MotorStok = () => {
           {filteredMotorlar.length === 0 && <Alert severity="info">Kayıt yok</Alert>}
           {filteredMotorlar.map(m => {
             const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
-            const bgColor = m.durum === 'tamamlandi' ? '#E0F2F1' : m.durum === 'perte' ? '#ffcdd2' : m.durum === 'devir_bekliyor' ? '#F3E5F5' : m.stok_tipi === 'konsinye' ? '#E3F2FD' : m.durum === 'kapora' ? '#FFFDE7' : '#fff';
+            const bgColor = m.durum === 'tamamlandi' ? '#E0F2F1' : m.durum === 'perte' ? '#ffcdd2' : m.durum === 'devir_bekliyor' ? '#F3E5F5' : m.durum === 'depo_serviste' ? '#FFF3E0' : m.stok_tipi === 'konsinye' ? '#E3F2FD' : m.durum === 'kapora' ? '#FFFDE7' : '#fff';
             return (
               <Paper key={m.id} sx={{ p: 1.5, bgcolor: bgColor }} onClick={async () => { try { const res = await ikinciElMotorService.getById(m.id); setDetayModal({ open: true, data: res.data }); } catch {} }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
@@ -241,7 +249,7 @@ const MotorStok = () => {
                   {canAlis && <Typography variant="body2">Alım: <strong>₺{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>}
                   {canAlis && <Typography variant="body2">Noter: <strong>₺{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</strong></Typography>}
                   {canListe && <Typography variant="body2" sx={{ color: '#1565C0' }}>Liste: <strong>₺{parseFloat(m.liste_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>}
-                  {isYatirimci && m.durum === 'tamamlandi' && <Typography variant="body2" sx={{ color: '#2e7d32' }}>Kârım: <strong>₺{parseFloat(m.yatirimci_kar || 0).toLocaleString('tr-TR')}</strong></Typography>}
+                  {isYatirimciSahip && m.durum === 'tamamlandi' && <Typography variant="body2" sx={{ color: '#2e7d32' }}>Kârım: <strong>₺{parseFloat(m.yatirimci_kar || 0).toLocaleString('tr-TR')}</strong></Typography>}
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
                   {canEdit && m.durum !== 'tamamlandi' && m.durum !== 'perte' && (
@@ -266,7 +274,7 @@ const MotorStok = () => {
                 ...(canAlis ? ['Alış Bedeli'] : []),
                 ...(canMusteri ? ['İsim Soyisim'] : []),
                 'Alım Tarihi',
-                ...(isYatirimci ? ['Kârım'] : []),
+                ...(isYatirimciSahip ? ['Kârım'] : []),
                 'İşlemler'
               ].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', px: 1, py: 0.7, fontSize: '0.78rem' }}>{h}</TableCell>
@@ -277,7 +285,7 @@ const MotorStok = () => {
             {filteredMotorlar.map(m => {
               const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
               return (
-                <TableRow key={m.id} hover sx={m.durum === 'tamamlandi' ? { bgcolor: '#E0F2F1' } : m.durum === 'perte' ? { bgcolor: '#ffcdd2' } : m.durum === 'devir_bekliyor' ? { bgcolor: '#F3E5F5' } : m.stok_tipi === 'konsinye' ? { bgcolor: '#E3F2FD' } : m.durum === 'kapora' ? { bgcolor: '#FFFDE7' } : {}}>
+                <TableRow key={m.id} hover sx={m.durum === 'tamamlandi' ? { bgcolor: '#E0F2F1' } : m.durum === 'perte' ? { bgcolor: '#ffcdd2' } : m.durum === 'devir_bekliyor' ? { bgcolor: '#F3E5F5' } : m.durum === 'depo_serviste' ? { bgcolor: '#FFF3E0' } : m.stok_tipi === 'konsinye' ? { bgcolor: '#E3F2FD' } : m.durum === 'kapora' ? { bgcolor: '#FFFDE7' } : {}}>
                   <TableCell><strong>{m.plaka}</strong></TableCell>
                   <TableCell>{m.marka || '-'}</TableCell>
                   <TableCell>{m.model || '-'}</TableCell>
@@ -294,7 +302,7 @@ const MotorStok = () => {
                     </TableCell>
                   )}
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(m.tarih)}</TableCell>
-                  {isYatirimci && <TableCell sx={{ color: '#2e7d32', fontWeight: 'bold' }}>{m.durum === 'tamamlandi' ? parseFloat(m.yatirimci_kar || 0).toLocaleString('tr-TR') : '-'}</TableCell>}
+                  {isYatirimciSahip && <TableCell sx={{ color: '#2e7d32', fontWeight: 'bold' }}>{m.durum === 'tamamlandi' ? parseFloat(m.yatirimci_kar || 0).toLocaleString('tr-TR') : '-'}</TableCell>}
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>
                     {canEdit && m.durum !== 'tamamlandi' && m.durum !== 'perte' && (
                       <Tooltip title="Hızlı Satış"><IconButton size="small" sx={{ color: '#2e7d32', p: 0.3 }} onClick={() => openHizliSatis(m)}><SellIcon fontSize="small" /></IconButton></Tooltip>
@@ -326,9 +334,10 @@ const MotorStok = () => {
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="KM" type="number" value={f.km} onChange={e => setFormData({ ...f, km: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField select fullWidth label="Durum" value={f.durum} onChange={e => setFormData({ ...f, durum: e.target.value })}
-                sx={{ '& .MuiInputBase-root': { bgcolor: f.durum === 'kapora' ? '#FFFDE7' : f.durum === 'devir_bekliyor' ? '#F3E5F5' : f.durum === 'tamamlandi' ? '#E0F2F1' : 'inherit' } }}>
+                sx={{ '& .MuiInputBase-root': { bgcolor: f.durum === 'kapora' ? '#FFFDE7' : f.durum === 'devir_bekliyor' ? '#F3E5F5' : f.durum === 'depo_serviste' ? '#FFF3E0' : f.durum === 'tamamlandi' ? '#E0F2F1' : 'inherit' } }}>
                 <MenuItem value="stokta">Stokta</MenuItem>
                 <MenuItem value="kapora">Kapora</MenuItem>
+                <MenuItem value="depo_serviste">Depo/Serviste</MenuItem>
                 <MenuItem value="devir_bekliyor">Devir Bekliyor</MenuItem>
                 <MenuItem value="tamamlandi">Satıldı</MenuItem>
                 <MenuItem value="perte">Perte</MenuItem>
@@ -367,22 +376,17 @@ const MotorStok = () => {
             <>
               <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Yatırımcı</Typography>
               <FormControlLabel
-                control={<Checkbox checked={f.yatirimci} onChange={e => setFormData({ ...f, yatirimci: e.target.checked, yatirimci_id: e.target.checked ? f.yatirimci_id : '', yatirimci_kar_orani: e.target.checked ? f.yatirimci_kar_orani : '' })} />}
+                control={<Checkbox checked={f.yatirimci} onChange={e => setFormData({ ...f, yatirimci: e.target.checked, yatirimci_id: e.target.checked ? f.yatirimci_id : '' })} />}
                 label="Bu motor bir yatırımcıya ait"
               />
               {f.yatirimci && (
                 <Grid container spacing={2} sx={{ mt: 0.5 }}>
                   <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField select fullWidth label="Yatırımcı Seç" value={f.yatirimci_id} onChange={e => setFormData({ ...f, yatirimci_id: e.target.value })} required>
+                    <TextField select fullWidth label="Yatırımcı Seç" value={f.yatirimci_id} onChange={e => setFormData({ ...f, yatirimci_id: e.target.value })} required
+                      helperText="Yatırımcı kârı satış esnasında tutar olarak girilir.">
                       <MenuItem value=""><em>Seçiniz</em></MenuItem>
                       {yatirimcilar.map(y => <MenuItem key={y.id} value={y.id}>{y.ad_soyad}</MenuItem>)}
                     </TextField>
-                  </Grid>
-                  <Grid size={{ xs: 12, md: 6 }}>
-                    <TextField fullWidth label="Yatırımcı Kâr Oranı (%)" type="number" value={f.yatirimci_kar_orani}
-                      onChange={e => setFormData({ ...f, yatirimci_kar_orani: e.target.value })}
-                      helperText="Toplam kârın yatırımcıya düşen yüzdesi. Kalanı işletme kârıdır."
-                      InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }} />
                   </Grid>
                 </Grid>
               )}
@@ -424,7 +428,7 @@ const MotorStok = () => {
         <DialogContent>
           {hizliSatis.motor?.yatirimci_id && (
             <Alert severity="info" sx={{ mt: 1 }}>
-              Bu motor bir yatırımcıya ait{hizliSatis.motor.yatirimci_kar_orani ? ` (Kâr oranı %${hizliSatis.motor.yatirimci_kar_orani})` : ''}.
+              Bu motor bir yatırımcıya ait. Aşağıdan yatırımcı kârını tutar olarak girin; kalan işletme kârıdır.
             </Alert>
           )}
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 2, mb: 1 }}>Satış Bilgileri</Typography>
@@ -450,14 +454,28 @@ const MotorStok = () => {
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Adres" value={hizliForm.alici_adres} onChange={e => setHizliForm({ ...hizliForm, alici_adres: e.target.value })} /></Grid>
           </Grid>
 
+          {hizliSatis.motor?.yatirimci_id && (
+            <>
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Yatırımcı</Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField fullWidth label="Yatırımcı Kârı (₺)" type="number" value={hizliForm.yatirimci_kar}
+                    onChange={e => setHizliForm({ ...hizliForm, yatirimci_kar: e.target.value })}
+                    helperText="Yatırımcıya verilecek tutar. Kalanı işletme (sizin) kârınızdır."
+                    sx={{ '& .MuiInputBase-root': { bgcolor: '#e3f2fd' } }}
+                    InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }} />
+                </Grid>
+              </Grid>
+            </>
+          )}
+
           {canKar && hizliSatis.motor && (() => {
             const alis = parseFloat(hizliSatis.motor.alis_fiyati || 0);
             const masraf = parseFloat(hizliForm.masraflar || 0);
             const komisyon = parseFloat(hizliSatis.motor.komisyoncu_tutari || 0);
             const satis = parseFloat(hizliForm.satis_fiyati || 0);
             const kar = satis - alis - masraf - komisyon;
-            const oran = parseFloat(hizliSatis.motor.yatirimci_kar_orani || 0);
-            const yatirimciKar = hizliSatis.motor.yatirimci_id ? Math.round(kar * oran) / 100 : 0;
+            const yatirimciKar = hizliSatis.motor.yatirimci_id ? parseFloat(hizliForm.yatirimci_kar || 0) : 0;
             const benimKar = kar - yatirimciKar;
             const fmt = (v) => `₺${v.toLocaleString('tr-TR')}`;
             return (
@@ -466,7 +484,7 @@ const MotorStok = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}><Typography variant="body2">Toplam Kâr:</Typography><Typography variant="body2" fontWeight="bold">{fmt(kar)}</Typography></Box>
                 {hizliSatis.motor.yatirimci_id ? (
                   <>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}><Typography variant="body2">Yatırımcı Kârı (%{oran}):</Typography><Typography variant="body2" fontWeight="bold" sx={{ color: '#1565C0' }}>{fmt(yatirimciKar)}</Typography></Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}><Typography variant="body2">Yatırımcı Kârı:</Typography><Typography variant="body2" fontWeight="bold" sx={{ color: '#1565C0' }}>{fmt(yatirimciKar)}</Typography></Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}><Typography variant="body2">İşletme Kârı (Sizin):</Typography><Typography variant="body2" fontWeight="bold" sx={{ color: '#2e7d32' }}>{fmt(benimKar)}</Typography></Box>
                   </>
                 ) : null}
@@ -481,7 +499,7 @@ const MotorStok = () => {
       </Dialog>
 
       {/* Motor Detay Modal */}
-      <StokDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} isMobile={isMobile} perms={{ canAlis, canListe, canMusteri, canKar, isYatirimci }} />
+      <StokDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} isMobile={isMobile} perms={{ canAlis, canListe, canMusteri, canKar, isYatirimci: isYatirimciSahip }} />
     </Box>
   );
 };
@@ -568,7 +586,7 @@ const StokDetayModal = ({ open, data, onClose, printRef, isMobile, perms = {} })
             <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid size={{ xs: 6, md: 6 }}>
                 <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#e3f2fd', borderLeft: '4px solid #1565C0' }}>
-                  <Typography variant="caption" color="text.secondary">Yatırımcı Kârı (%{data.yatirimci_kar_orani || 0})</Typography>
+                  <Typography variant="caption" color="text.secondary">Yatırımcı Kârı</Typography>
                   <Typography fontWeight="bold" sx={{ color: '#1565C0' }}>₺{formatTL(data.yatirimci_kar)}</Typography>
                 </Paper>
               </Grid>

@@ -507,7 +507,7 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
               <InfoRow label="KM" value={data.km ? Number(data.km).toLocaleString('tr-TR') : null} />
               <InfoRow label="Alım Tarihi" value={formatDate(data.tarih)} />
               <InfoRow label="Satış Tarihi" value={formatDate(data.satis_tarihi)} />
-              <InfoRow label="Durum" value={data.durum === 'stokta' ? 'Stokta' : data.durum === 'kapora' ? 'Kapora' : data.durum === 'devir_bekliyor' ? 'Devir Bekliyor' : data.durum === 'tamamlandi' ? 'Tamamlandı' : data.durum === 'perte' ? 'Perte' : data.durum} />
+              <InfoRow label="Durum" value={data.durum === 'stokta' ? 'Stokta' : data.durum === 'kapora' ? 'Kapora' : data.durum === 'depo_serviste' ? 'Depo/Serviste' : data.durum === 'devir_bekliyor' ? 'Devir Bekliyor' : data.durum === 'tamamlandi' ? 'Tamamlandı' : data.durum === 'perte' ? 'Perte' : data.durum} />
               <InfoRow label="Stok Tipi" value={data.stok_tipi === 'konsinye' ? 'Konsinye' : 'Sahip'} />
               <InfoRow label="Ödeme Şekli" value={data.odeme_sekli || 'Nakit'} />
               <InfoRow label="Fatura" value={data.fatura_kesildi ? 'Kesildi ✓' : 'Kesilmedi'} />
