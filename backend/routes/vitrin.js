@@ -77,12 +77,14 @@ module.exports = (authenticateToken, isAdmin) => {
   // GET /gorsel/:id - görseli binary olarak servis et (tarayıcı önbelleğe alır)
   router.get('/gorsel/:id', async (req, res) => {
     try {
+      const etag = `"vitrin-gorsel-${req.params.id}"`;
+      res.set({ 'Cache-Control': 'public, max-age=31536000, immutable', ETag: etag });
+      if (req.headers['if-none-match'] === etag) return res.status(304).end();
       const result = await pool.query('SELECT data FROM vitrin_gorseller WHERE id = $1', [req.params.id]);
       if (result.rows.length === 0) return res.status(404).send('Görsel bulunamadı');
       const parsed = parseDataUrl(result.rows[0].data);
       if (!parsed) return res.status(404).send('Geçersiz görsel');
       res.set('Content-Type', parsed.mime);
-      res.set('Cache-Control', 'public, max-age=31536000, immutable');
       res.send(parsed.buffer);
     } catch (e) {
       console.error('Vitrin görsel hatası:', e.message);
@@ -93,6 +95,9 @@ module.exports = (authenticateToken, isAdmin) => {
   // GET /video/:id - yüklenen videoyu HTTP Range destekli (akıcı) servis et
   router.get('/video/:id', async (req, res) => {
     try {
+      const etag = `"vitrin-video-${req.params.id}"`;
+      res.set({ 'Cache-Control': 'public, max-age=31536000, immutable', ETag: etag });
+      if (!req.headers.range && req.headers['if-none-match'] === etag) return res.status(304).end();
       const result = await pool.query('SELECT data FROM vitrin_videolar WHERE id = $1', [req.params.id]);
       if (result.rows.length === 0) return res.status(404).send('Video bulunamadı');
       const parsed = parseDataUrl(result.rows[0].data);

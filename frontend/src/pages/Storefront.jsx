@@ -361,7 +361,10 @@ const Storefront = () => {
                           <CardMedia component="img" height={isMobile ? 180 : 250}
                             className="urun-gorsel"
                             image={u.kapak_gorsel_id ? vitrinService.gorselUrl(u.kapak_gorsel_id) : '/KaynarMotor.png'}
-                            alt={u.baslik} sx={{ objectFit: 'cover', transition: 'transform 0.4s ease' }} />
+                            alt={u.baslik}
+                            loading="lazy"
+                            decoding="async"
+                            sx={{ objectFit: 'cover', transition: 'transform 0.4s ease' }} />
                           {/* alt gradient */}
                           <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 45%)' }} />
                           {/* etiketler sol üst */}
@@ -425,6 +428,7 @@ const Storefront = () => {
               {detay.gorsel_idler && detay.gorsel_idler.length > 0 ? (
                 <Box sx={{ position: 'relative' }}>
                   <img src={vitrinService.gorselUrl(detay.gorsel_idler[gorselIdx])} alt={detay.baslik}
+                    decoding="async"
                     style={{ width: '100%', maxHeight: 420, objectFit: 'contain', display: 'block' }} />
                   {detay.gorsel_idler.length > 1 && (
                     <>
@@ -470,7 +474,7 @@ const Storefront = () => {
 
               {detay.video_dosya_id ? (
                 <Box sx={{ mb: 2, borderRadius: 2, overflow: 'hidden', bgcolor: '#000' }}>
-                  <video controls preload="metadata" playsInline
+                  <video controls preload="none" playsInline
                     poster={detay.kapak_gorsel_id ? vitrinService.gorselUrl(detay.kapak_gorsel_id) : undefined}
                     style={{ width: '100%', maxHeight: 420, display: 'block' }}>
                     <source src={vitrinService.videoUrl(detay.video_dosya_id)} />
@@ -478,7 +482,7 @@ const Storefront = () => {
                 </Box>
               ) : embedUrl ? (
                 <Box sx={{ position: 'relative', pt: '56.25%', mb: 2, borderRadius: 2, overflow: 'hidden' }}>
-                  <iframe src={embedUrl} title="video" allowFullScreen
+                  <iframe src={embedUrl} title="video" loading="lazy" allowFullScreen
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} />
                 </Box>
               ) : null}

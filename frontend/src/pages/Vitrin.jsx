@@ -290,6 +290,8 @@ const Vitrin = () => {
                   height="170"
                   image={u.kapak_gorsel_id ? vitrinService.gorselUrl(u.kapak_gorsel_id) : '/KaynarMotor.png'}
                   alt={u.baslik}
+                  loading="lazy"
+                  decoding="async"
                   sx={{ objectFit: 'cover', bgcolor: '#f0f0f0' }}
                 />
                 <CardContent sx={{ flex: 1, pb: 1 }}>
