@@ -47,7 +47,7 @@ const resizeImage = (file, maxSize = 1280, quality = 0.7) =>
 const bosUrun = {
   baslik: '', aciklama: '', fiyat: '', video_url: '',
   marka: '', model: '', yil: '', segment: '', motor_cc: '', km: '',
-  yayinda: true, siralama: 0, one_cikan: false, stok_motor_id: null,
+  yayinda: true, siralama: 0, one_cikan: false, stok_motor_id: null, rubik_link: '',
 };
 
 const Vitrin = () => {
@@ -146,7 +146,7 @@ const Vitrin = () => {
         video_url: d.video_url || '', marka: d.marka || '', model: d.model || '',
         yil: d.yil || '', segment: d.segment || '', motor_cc: d.motor_cc || '',
         km: d.km || '', yayinda: d.yayinda, siralama: d.siralama || 0,
-        one_cikan: !!d.one_cikan, stok_motor_id: d.stok_motor_id || null,
+        one_cikan: !!d.one_cikan, stok_motor_id: d.stok_motor_id || null, rubik_link: d.rubik_link || '',
       });
       // mevcut görselleri data URL olarak getir (endpoint'ten)
       const gorsellerData = await Promise.all(
@@ -203,6 +203,11 @@ const Vitrin = () => {
   const handleSave = async () => {
     if (!form.baslik.trim()) { showSnack('Başlık zorunlu', 'warning'); return; }
     if (isMotor && !(form.segment || '').trim()) { showSnack('Motor ilanı için segment seçin', 'warning'); return; }
+    // Rubik linki girildiyse basit URL kontrolü (opsiyonel alan)
+    const rubik = (form.rubik_link || '').trim();
+    if (rubik && !/^https?:\/\/.+\..+/i.test(rubik)) {
+      showSnack('Geçerli bir Rubik ödeme linki girin (https:// ile başlamalı)', 'warning'); return;
+    }
     setSaving(true);
     const payload = { ...form, kategori, gorseller };
     if (videoFile) payload.video = videoFile;      // yeni video yüklendi
@@ -394,6 +399,9 @@ const Vitrin = () => {
             </Box>
 
             <TextField label="veya YouTube / dış video linki (opsiyonel)" value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} fullWidth placeholder="https://..." />
+
+            <TextField label="Rubik Ödeme Linki (opsiyonel)" value={form.rubik_link} onChange={e => setForm({ ...form, rubik_link: e.target.value })} fullWidth placeholder="https://..."
+              helperText='Rubik panelinden oluşturduğun ödeme linkini yapıştır. Girilirse ilan detayında müşteriye "Taksitli Ödeme Yap" butonu çıkar.' />
 
             {/* Görseller */}
             <Box>

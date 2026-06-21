@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, AppBar, Toolbar, Button, Typography, Grid, Card, CardMedia,
-  CardContent, CardActionArea, Chip, TextField, Dialog, DialogContent,
+  CardContent, CardActionArea, Chip, TextField, Stack, Dialog, DialogContent,
   IconButton, Divider, CircularProgress, useMediaQuery, useTheme, InputAdornment,
   List, ListItem, ListItemButton, ListItemText, ListItemIcon, Paper, Fade, Drawer
 } from '@mui/material';
@@ -11,7 +11,8 @@ import {
   ArrowBackIosNew as PrevIcon, ArrowForwardIos as NextIcon, Menu as MenuIcon,
   TwoWheeler as TwoWheelerIcon, Checkroom as CheckroomIcon, Build as BuildIcon,
   Handyman as HandymanIcon, LocalShipping as LocalShippingIcon, VerifiedUser as VerifiedUserIcon,
-  ArrowForward as ArrowForwardIcon, Home as HomeIcon
+  ArrowForward as ArrowForwardIcon, Home as HomeIcon,
+  Calculate as CalculateIcon, CreditCard as CreditCardIcon
 } from '@mui/icons-material';
 import { vitrinService } from '../services/api';
 import { KATEGORILER, SEGMENTLER } from './Vitrin';
@@ -348,7 +349,7 @@ const Storefront = () => {
                 {urunler.map(u => (
                   <Grid item xs={6} sm={4} md={3} lg={3} key={u.id}>
                     <Card sx={{
-                      height: '100%', borderRadius: 3, overflow: 'hidden',
+                      height: '100%', borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column',
                       boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
                       transition: 'transform 0.25s ease, box-shadow 0.25s ease',
                       '&:hover': { transform: 'translateY(-6px)', boxShadow: '0 14px 30px rgba(0,0,0,0.18)' },
@@ -389,6 +390,21 @@ const Storefront = () => {
                           </Box>
                         </CardContent>
                       </CardActionArea>
+                      {Number(u.fiyat) > 0 && (
+                        <Box sx={{ px: 1.5, pb: 1.5 }}>
+                          <Button
+                            fullWidth
+                            size="small"
+                            variant="outlined"
+                            color="inherit"
+                            startIcon={<CalculateIcon />}
+                            onClick={() => window.open(`/taksit/${Math.round(Number(u.fiyat))}`, '_blank')}
+                            sx={{ borderColor: '#bbb', fontWeight: 700 }}
+                          >
+                            Nakit / Taksit Hesapla
+                          </Button>
+                        </Box>
+                      )}
                     </Card>
                   </Grid>
                 ))}
@@ -466,6 +482,24 @@ const Storefront = () => {
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} />
                 </Box>
               ) : null}
+
+              {/* Taksit hesaplama + (varsa) Rubik taksitli ödeme aksiyonları */}
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 1 }}>
+                {Number(detay.fiyat) > 0 && (
+                  <Button fullWidth variant="outlined" color="inherit" startIcon={<CalculateIcon />}
+                    onClick={() => window.open(`/taksit/${Math.round(Number(detay.fiyat))}`, '_blank')}
+                    sx={{ borderColor: '#bbb' }}>
+                    Nakit / Taksit Hesapla
+                  </Button>
+                )}
+                {detay.rubik_link && (
+                  <Button fullWidth variant="contained" startIcon={<CreditCardIcon />}
+                    onClick={() => window.open(detay.rubik_link, '_blank', 'noopener,noreferrer')}
+                    sx={{ bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}>
+                    Taksitli Ödeme Yap
+                  </Button>
+                )}
+              </Stack>
 
               <Divider sx={{ my: 2 }} />
               {detayIletisim && (detayIletisim.personel_adi || detayIletisim.telefon) ? (

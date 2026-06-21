@@ -444,9 +444,10 @@ const initializeDatabase = async () => {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_vitrin_video_urun ON vitrin_videolar(urun_id);`);
     await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS video_dosya_id INTEGER;`);
 
-    // Migration: vitrin ilanını stok motoruna bağla + öne çıkarma
+    // Migration: vitrin ilanını stok motoruna bağla + öne çıkarma + manuel Rubik ödeme linki
     await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS stok_motor_id INTEGER;`);
     await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS one_cikan BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS rubik_link TEXT;`);
 
     // Migration: ikinci_el_motorlar tablosuna parçalı ödeme dağılımı (JSON) ekle
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS odeme_detaylari TEXT;`);

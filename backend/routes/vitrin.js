@@ -138,7 +138,7 @@ module.exports = (authenticateToken, isAdmin) => {
       const { kategori, segment, cc_min, cc_max, km_max, marka, q, hepsi } = req.query;
       let query = `
         SELECT id, ilan_no, kategori, baslik, aciklama, fiyat, video_url, video_dosya_id, kapak_gorsel_id,
-               marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, created_at
+               marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, created_at
         FROM vitrin_urunleri WHERE 1=1`;
       const params = [];
 
@@ -167,7 +167,7 @@ module.exports = (authenticateToken, isAdmin) => {
     try {
       const result = await pool.query(
         `SELECT id, ilan_no, kategori, baslik, aciklama, fiyat, video_url, video_dosya_id, kapak_gorsel_id,
-                marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, created_at
+                marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, created_at
          FROM vitrin_urunleri WHERE id = $1`, [req.params.id]);
       if (result.rows.length === 0) return res.status(404).json({ message: 'Kayıt bulunamadı' });
       const gorseller = await pool.query(
@@ -188,7 +188,7 @@ module.exports = (authenticateToken, isAdmin) => {
       const {
         kategori, baslik, aciklama, fiyat, video_url,
         marka, model, yil, segment, motor_cc, km, yayinda, siralama, gorseller, video,
-        one_cikan, stok_motor_id
+        one_cikan, stok_motor_id, rubik_link
       } = req.body;
 
       if (!KATEGORILER.includes(kategori)) return res.status(400).json({ message: 'Geçersiz kategori' });
@@ -199,12 +199,12 @@ module.exports = (authenticateToken, isAdmin) => {
       await client.query('BEGIN');
       const ins = await client.query(
         `INSERT INTO vitrin_urunleri
-          (kategori, baslik, aciklama, fiyat, video_url, marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id, ilan_no`,
+          (kategori, baslik, aciklama, fiyat, video_url, marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, rubik_link)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id, ilan_no`,
         [kategori, baslik, emptyToNull(aciklama), numOrNull(fiyat) || 0, emptyToNull(video_url),
          emptyToNull(marka), emptyToNull(model), numOrNull(yil), emptyToNull(segment),
          numOrNull(motor_cc), numOrNull(km), yayinda !== false, numOrNull(siralama) || 0,
-         one_cikan === true, numOrNull(stok_motor_id)]
+         one_cikan === true, numOrNull(stok_motor_id), emptyToNull(rubik_link)]
       );
       const urunId = ins.rows[0].id;
       const ilanNo = ins.rows[0].ilan_no;
@@ -242,7 +242,7 @@ module.exports = (authenticateToken, isAdmin) => {
       const {
         kategori, baslik, aciklama, fiyat, video_url,
         marka, model, yil, segment, motor_cc, km, yayinda, siralama, gorseller, video, video_sil,
-        one_cikan, stok_motor_id
+        one_cikan, stok_motor_id, rubik_link
       } = req.body;
 
       const mevcut = await client.query('SELECT id FROM vitrin_urunleri WHERE id = $1', [req.params.id]);
@@ -255,12 +255,12 @@ module.exports = (authenticateToken, isAdmin) => {
         `UPDATE vitrin_urunleri SET
           kategori=$1, baslik=$2, aciklama=$3, fiyat=$4, video_url=$5,
           marka=$6, model=$7, yil=$8, segment=$9, motor_cc=$10, km=$11,
-          yayinda=$12, siralama=$13, one_cikan=$14, stok_motor_id=$15, updated_at=CURRENT_TIMESTAMP
-         WHERE id=$16`,
+          yayinda=$12, siralama=$13, one_cikan=$14, stok_motor_id=$15, rubik_link=$16, updated_at=CURRENT_TIMESTAMP
+         WHERE id=$17`,
         [kategori, baslik, emptyToNull(aciklama), numOrNull(fiyat) || 0, emptyToNull(video_url),
          emptyToNull(marka), emptyToNull(model), numOrNull(yil), emptyToNull(segment),
          numOrNull(motor_cc), numOrNull(km), yayinda !== false, numOrNull(siralama) || 0,
-         one_cikan === true, numOrNull(stok_motor_id), req.params.id]
+         one_cikan === true, numOrNull(stok_motor_id), emptyToNull(rubik_link), req.params.id]
       );
 
       // gorseller alanı gönderildiyse görselleri tamamen yenile
