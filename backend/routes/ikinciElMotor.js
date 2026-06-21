@@ -5,6 +5,12 @@ const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
 const { upsertMusteri } = require('../config/musteriHelper');
 
 const emptyToZero = (v) => { if (v === '' || v === undefined || v === null) return 0; const n = Number(v); return isNaN(n) ? 0 : n; };
+// Parçalı ödeme dağılımını JSON string olarak normalize eder
+const normalizeOdeme = (v) => {
+  if (v === undefined || v === null || v === '') return null;
+  if (typeof v === 'string') return v;
+  try { return JSON.stringify(v); } catch { return null; }
+};
 
 // Bir motor kaydını kullanıcının yetkisine göre temizler (hassas alanları gizler)
 const sanitizeMotor = (row, user) => {
@@ -122,7 +128,7 @@ router.post('/', async (req, res) => {
       odeme_sekli, aciklama, durum, stok_tipi,
       yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi,
       komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
-      yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati
+      yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati, odeme_detaylari
     } = req.body;
 
     const alis = emptyToZero(alis_fiyati);
@@ -132,6 +138,7 @@ router.post('/', async (req, res) => {
     const masraf = emptyToZero(masraflar);
     const komisyonTutar = emptyToZero(komisyoncu_tutari);
     const kar = satis - alis - masraf - komisyonTutar;
+    const odemeDetay = normalizeOdeme(odeme_detaylari);
     const yatirimciId = yatirimci_id ? parseInt(yatirimci_id) : null;
     const yatirimciOran = yatirimciId ? emptyToZero(yatirimci_kar_orani) : 0;
     // Yatırımcı kârı artık satış esnasında elle (tutar olarak) girilir; komisyoncu gibi işletme kârından düşer
@@ -144,13 +151,13 @@ router.post('/', async (req, res) => {
         alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli, aciklama, durum, tamamlama_tarihi, stok_tipi,
         yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi,
         komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
-        yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34) RETURNING *`,
+        yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati, odeme_detaylari)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35) RETURNING *`,
       [tarih || new Date(), plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli || 'nakit', aciklama, durum || 'stokta', tamamlamaTarihi, stok_tipi || 'sahip',
        emptyToZero(yil) || null, satici_adi || null, satici_tc || null, emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, satis_tarihi || null,
        komisyoncu_adi || null, komisyoncu_telefon || null, komisyonTutar,
-       yatirimciId, yatirimciOran, yatirimciKar, listeFiyati]
+       yatirimciId, yatirimciOran, yatirimciKar, listeFiyati, odemeDetay]
     );
 
     // Müşteri auto-collect
@@ -196,8 +203,10 @@ router.put('/:id', async (req, res) => {
       odeme_sekli, aciklama, durum, stok_tipi,
       yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, eski_kayit, satis_tarihi,
       komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
-      yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati
+      yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati, odeme_detaylari
     } = req.body;
+    // Ödeme dağılımı body'de yoksa mevcut değeri koru (kısmi güncellemeyi bozma)
+    const odemeDetay = odeme_detaylari !== undefined ? normalizeOdeme(odeme_detaylari) : (mevcut.odeme_detaylari || null);
 
     // Hassas alanlar: yetkisi olmayan kullanıcının gönderdiği (boş/null) değerle veriyi bozmamak için DB değerini koru
     const alis = canAlis ? emptyToZero(alis_fiyati) : parseFloat(mevcut.alis_fiyati || 0);
@@ -228,6 +237,7 @@ router.put('/:id', async (req, res) => {
         satis_tarihi=COALESCE($29, satis_tarihi),
         komisyoncu_adi=$30, komisyoncu_telefon=$31, komisyoncu_tutari=$32,
         yatirimci_id=$33, yatirimci_kar_orani=$34, yatirimci_kar=$35, liste_fiyati=$36,
+        odeme_detaylari=$37,
         updated_at=CURRENT_TIMESTAMP WHERE id=$27 RETURNING *`,
       [tarih, plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli, aciklama, durum,
@@ -235,7 +245,7 @@ router.put('/:id', async (req, res) => {
        emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, req.params.id,
        eski_kayit !== undefined ? eski_kayit : null, satis_tarihi || null,
        komisyoncu_adi || null, komisyoncu_telefon || null, komisyonTutar,
-       yatirimciId, yatirimciOran, yatirimciKar, listeFiyati]
+       yatirimciId, yatirimciOran, yatirimciKar, listeFiyati, odemeDetay]
     );
 
     // Müşteri auto-collect

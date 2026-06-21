@@ -17,7 +17,7 @@ const IsEmriDetay = () => {
 
   useEffect(() => {
     const load = async () => {
-      try { const res = await isEmriService.getById(id); setData(res.data); } catch { navigate('/'); }
+      try { const res = await isEmriService.getById(id); setData(res.data); } catch { navigate('/servis'); }
     };
     load();
   }, [id]);
@@ -53,7 +53,7 @@ const IsEmriDetay = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-        <IconButton onClick={() => navigate('/')}><BackIcon /></IconButton>
+        <IconButton onClick={() => navigate('/servis')}><BackIcon /></IconButton>
         <Typography variant="h5" fontWeight="bold" sx={{ flexGrow: 1 }}>İş Emri #{data.fis_no}</Typography>
         <Button startIcon={<EditIcon />} variant="outlined" size={isMobile ? 'small' : 'medium'} onClick={() => navigate(`/is-emri/${id}/duzenle`)}>Düzenle</Button>
         <Button startIcon={<PrintIcon />} variant="contained" size={isMobile ? 'small' : 'medium'} onClick={handlePrint}>Yazdır</Button>

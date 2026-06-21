@@ -352,6 +352,105 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS musteri_gor BOOLEAN DEFAULT FALSE;`);
     await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS satis_gecmisi_gor BOOLEAN DEFAULT FALSE;`);
 
+    // 13. Vitrin Ürünleri (genel kullanıma açık mağaza ilanları)
+    //  - Görseller AYRI tabloda tutulur (vitrin_gorseller); bu tablo hafif kalır,
+    //    liste sorguları base64 yüklemez. (DB yükünü önleme stratejisi)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vitrin_urunleri (
+        id SERIAL PRIMARY KEY,
+        kategori VARCHAR(30) NOT NULL,
+        baslik VARCHAR(255) NOT NULL,
+        aciklama TEXT,
+        fiyat DECIMAL(12,2) DEFAULT 0,
+        video_url TEXT,
+        kapak_gorsel_id INTEGER,
+        marka VARCHAR(100),
+        model VARCHAR(100),
+        yil INTEGER,
+        segment VARCHAR(30),
+        motor_cc INTEGER,
+        km INTEGER,
+        yayinda BOOLEAN DEFAULT TRUE,
+        siralama INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 14. Vitrin Görselleri (base64; ürün başına çoklu)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vitrin_gorseller (
+        id SERIAL PRIMARY KEY,
+        urun_id INTEGER REFERENCES vitrin_urunleri(id) ON DELETE CASCADE,
+        data TEXT NOT NULL,
+        sira INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 15. Vitrin Kategori İletişim (kategoriye özel personel + telefon)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vitrin_kategori_iletisim (
+        kategori VARCHAR(30) PRIMARY KEY,
+        personel_adi VARCHAR(100),
+        telefon VARCHAR(50),
+        aciklama TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Vitrin liste sorguları için index
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_vitrin_kategori_yayinda ON vitrin_urunleri(kategori, yayinda);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_vitrin_gorsel_urun ON vitrin_gorseller(urun_id);`);
+
+    // 16. Vitrin Segmentleri (dinamik segment yapısı)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vitrin_segmentler (
+        id SERIAL PRIMARY KEY,
+        ad VARCHAR(50) UNIQUE NOT NULL,
+        sira INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    const segCheck = await client.query('SELECT id FROM vitrin_segmentler LIMIT 1');
+    if (segCheck.rows.length === 0) {
+      await client.query(`
+        INSERT INTO vitrin_segmentler (ad, sira) VALUES
+        ('Chopper',1),('Scooter',2),('Racing',3),('Naked',4),
+        ('Touring',5),('Cross/Enduro',6),('Cub',7),('Maxi Scooter',8)
+        ON CONFLICT (ad) DO NOTHING
+      `);
+      console.log('Varsayılan vitrin segmentleri oluşturuldu');
+    }
+
+    // Migration: vitrin_urunleri tablosuna benzersiz ilan_no (sıra no) ekle
+    await client.query(`CREATE SEQUENCE IF NOT EXISTS vitrin_ilan_no_seq START 1;`);
+    await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS ilan_no INTEGER;`);
+    await client.query(`UPDATE vitrin_urunleri SET ilan_no = nextval('vitrin_ilan_no_seq') WHERE ilan_no IS NULL;`);
+    await client.query(`ALTER TABLE vitrin_urunleri ALTER COLUMN ilan_no SET DEFAULT nextval('vitrin_ilan_no_seq');`);
+
+    // Migration: vitrin ürünleri için yüklenebilir video desteği (YouTube yerine kendi videon)
+    //  - Video ayrı tabloda (vitrin_videolar) base64 olarak tutulur; ürün/list sorguları videoyu yüklemez.
+    //  - Oynatma sırasında HTTP Range (kısmi içerik) ile parça parça gönderilir → kasmaz, ileri/geri sarılabilir.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vitrin_videolar (
+        id SERIAL PRIMARY KEY,
+        urun_id INTEGER REFERENCES vitrin_urunleri(id) ON DELETE CASCADE,
+        data TEXT NOT NULL,
+        mime VARCHAR(60),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_vitrin_video_urun ON vitrin_videolar(urun_id);`);
+    await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS video_dosya_id INTEGER;`);
+
+    // Migration: vitrin ilanını stok motoruna bağla + öne çıkarma
+    await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS stok_motor_id INTEGER;`);
+    await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS one_cikan BOOLEAN DEFAULT FALSE;`);
+
+    // Migration: ikinci_el_motorlar tablosuna parçalı ödeme dağılımı (JSON) ekle
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS odeme_detaylari TEXT;`);
+
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
     console.error('Veritabanı başlatma hatası:', error.message);

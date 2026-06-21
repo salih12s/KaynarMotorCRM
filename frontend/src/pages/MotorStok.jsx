@@ -8,6 +8,13 @@ import { useReactToPrint } from 'react-to-print';
 import { ikinciElMotorService, musteriService, authService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+// Ödeme dağılımı JSON'unu güvenle diziye çevirir
+const parseOdeme = (v) => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  try { const a = JSON.parse(v); return Array.isArray(a) ? a : []; } catch { return []; }
+};
+
 const MotorStok = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const { user } = useAuth();
@@ -22,7 +29,8 @@ const MotorStok = () => {
   const canMusteri = full || !!user?.musteri_gor;
   const canListe = full || !!user?.liste_fiyati_gor;
   const canKar = full || !!user?.kar_gor;
-  const canEdit = isAdmin || !!user?.motor_satis_yetkisi; // Yatırımcı salt-okunur
+  // Yatırımcı hiçbir operasyonel işlem yapamaz (yalnızca detay görür)
+  const canEdit = (isAdmin || !!user?.motor_satis_yetkisi) && !isYatirimci;
   const [motorlar, setMotorlar] = useState([]);
   const [yatirimcilar, setYatirimcilar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
@@ -47,6 +55,10 @@ const MotorStok = () => {
     yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0], yatirimci_kar: ''
   });
   const [musteriOptions, setMusteriOptions] = useState([]);
+  // Parçalı ödeme dağılımı (hızlı satış için)
+  const [odemeKalemleri, setOdemeKalemleri] = useState([]);
+  const ODEME_TIPLERI = ['Nakit', 'Kart', 'Havale/EFT', 'Diğer'];
+  const odemeToplam = odemeKalemleri.reduce((s, o) => s + parseFloat(o.tutar || 0), 0);
 
   const searchMusteri = async (query) => {
     if (!query || query.length < 2) { setMusteriOptions([]); return; }
@@ -116,16 +128,26 @@ const MotorStok = () => {
       yevmiye_no: '', satis_tarihi: new Date().toISOString().split('T')[0],
       yatirimci_kar: motor.yatirimci_kar || ''
     });
+    setOdemeKalemleri(parseOdeme(motor.odeme_detaylari));
     setHizliSatis({ open: true, motor });
   };
 
+  const addOdemeKalemi = () => setOdemeKalemleri([...odemeKalemleri, { tip: 'Nakit', tutar: '' }]);
+  const updateOdemeKalemi = (i, key, val) => setOdemeKalemleri(odemeKalemleri.map((o, idx) => idx === i ? { ...o, [key]: val } : o));
+  const removeOdemeKalemi = (i) => setOdemeKalemleri(odemeKalemleri.filter((_, idx) => idx !== i));
+
   const handleHizliSatis = async () => {
+    const dolular = odemeKalemleri.filter(o => parseFloat(o.tutar || 0) > 0);
+    const satis = parseFloat(hizliForm.satis_fiyati || 0);
+    // Ödeme kalemi girildiyse kalanı otomatik hesapla; girilmediyse eski davranış (0)
+    const kalan = dolular.length > 0 ? Math.max(0, satis - dolular.reduce((s, o) => s + parseFloat(o.tutar || 0), 0)) : 0;
     try {
       await ikinciElMotorService.update(hizliSatis.motor.id, {
         ...hizliSatis.motor,
         ...hizliForm,
         durum: 'tamamlandi',
-        kalan_odeme: 0
+        kalan_odeme: kalan,
+        odeme_detaylari: JSON.stringify(dolular)
       });
       setHizliSatis({ open: false, motor: null });
       loadData();
@@ -135,6 +157,8 @@ const MotorStok = () => {
   const f = formData;
 
   const filteredMotorlar = motorlar.filter(m => {
+    // Yatırımcı: varsayılanda stoktakileri görür; satılanları yalnızca "Satılan" filtresinde görür (kârıyla birlikte)
+    if (isYatirimci && m.durum === 'tamamlandi' && activeFilter !== 'tamamlandi') return false;
     // Apply active filter
     if (activeFilter === 'stokta' && (m.durum !== 'stokta' || m.stok_tipi === 'konsinye')) return false;
     if (activeFilter === 'kapora' && m.durum !== 'kapora') return false;
@@ -173,13 +197,14 @@ const MotorStok = () => {
   const perteler = motorlar.filter(m => m.durum === 'perte');
 
   const statChips = [
-    { label: `Toplam: ${motorlar.length}`, color: '#C62828', bg: '#ffebee', filter: null },
+    { label: `Toplam: ${isYatirimci ? motorlar.length - tamamlananlar.length : motorlar.length}`, color: '#C62828', bg: '#ffebee', filter: null },
     { label: `Stokta: ${stoktaSahip.length}`, color: '#2e7d32', bg: '#e8f5e9', filter: 'stokta' },
     { label: `Konsinye: ${stoktaKonsinye.length}`, color: '#1565C0', bg: '#e3f2fd', filter: 'konsinye' },
     { label: `Kapora: ${kaporalar.length}`, color: '#F9A825', bg: '#FFFDE7', filter: 'kapora' },
     { label: `Depo/Serviste: ${depoServiste.length}`, color: '#EF6C00', bg: '#FFF3E0', filter: 'depo_serviste' },
     { label: `Devir Bekliyor: ${devirBekleyen.length}`, color: '#7B1FA2', bg: '#F3E5F5', filter: 'devir_bekliyor' },
     { label: `Perte: ${perteler.length}`, color: '#d32f2f', bg: '#ffcdd2', filter: 'perte' },
+    // Satılan kutusu herkese gösterilir; yatırımcı tıklayınca satılanları (kârıyla) görür
     { label: `Satılan: ${tamamlananlar.length}`, color: '#00695C', bg: '#E0F2F1', filter: 'tamamlandi' },
   ];
 
@@ -211,6 +236,8 @@ const MotorStok = () => {
         {canEdit && <Button variant="contained" size="large" startIcon={<AddIcon />} onClick={() => openDialog()} sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' } }}>Motor Ekle</Button>}
       </Box>
 
+      {/* Operasyonel sayaçlar (fatura/devir/ödeme) yatırımcıya gösterilmez */}
+      {!isYatirimci && (
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
         {secondaryChips.map((c, i) => (
           <Chip key={i} label={c.label} size="small"
@@ -224,6 +251,7 @@ const MotorStok = () => {
             }} />
         ))}
       </Box>
+      )}
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <TextField size="small" fullWidth placeholder="Plaka, marka, model veya satıcı adı ile ara..." value={search}
@@ -275,7 +303,7 @@ const MotorStok = () => {
                 ...(canMusteri ? ['İsim Soyisim'] : []),
                 'Alım Tarihi',
                 ...(isYatirimciSahip ? ['Kârım'] : []),
-                'İşlemler'
+                isYatirimci ? 'Detay' : 'İşlemler'
               ].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', px: 1, py: 0.7, fontSize: '0.78rem' }}>{h}</TableCell>
               ))}
@@ -454,6 +482,40 @@ const MotorStok = () => {
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Adres" value={hizliForm.alici_adres} onChange={e => setHizliForm({ ...hizliForm, alici_adres: e.target.value })} /></Grid>
           </Grid>
 
+          <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Ödeme Dağılımı</Typography>
+          {odemeKalemleri.map((o, i) => (
+            <Grid container spacing={1} key={i} sx={{ mb: 1 }} alignItems="center">
+              <Grid size={{ xs: 5 }}>
+                <TextField select fullWidth size="small" label="Ödeme Türü" value={o.tip} onChange={e => updateOdemeKalemi(i, 'tip', e.target.value)}>
+                  {ODEME_TIPLERI.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 5 }}>
+                <TextField fullWidth size="small" label="Tutar (₺)" type="number" value={o.tutar} onChange={e => updateOdemeKalemi(i, 'tutar', e.target.value)} />
+              </Grid>
+              <Grid size={{ xs: 2 }}>
+                <IconButton color="error" onClick={() => removeOdemeKalemi(i)}><CloseIcon fontSize="small" /></IconButton>
+              </Grid>
+            </Grid>
+          ))}
+          <Button size="small" startIcon={<AddIcon />} onClick={addOdemeKalemi}>Ödeme Ekle</Button>
+          {odemeKalemleri.length > 0 && (() => {
+            const satis = parseFloat(hizliForm.satis_fiyati || 0);
+            const kalan = satis - odemeToplam;
+            const fmt = (v) => `₺${v.toLocaleString('tr-TR')}`;
+            return (
+              <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 1, bgcolor: '#f5f5f5', border: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}><Typography variant="body2">Toplam Satış:</Typography><Typography variant="body2" fontWeight="bold">{fmt(satis)}</Typography></Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}><Typography variant="body2">Girilen Ödeme:</Typography><Typography variant="body2" fontWeight="bold">{fmt(odemeToplam)}</Typography></Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">{kalan < 0 ? 'Fazla Ödeme:' : 'Kalan:'}</Typography>
+                  <Typography variant="body2" fontWeight="bold" sx={{ color: kalan === 0 ? '#2e7d32' : kalan < 0 ? '#d32f2f' : '#ef6c00' }}>{fmt(Math.abs(kalan))}</Typography>
+                </Box>
+                {kalan < 0 && <Alert severity="warning" sx={{ mt: 1 }}>Girilen ödeme toplamı satış tutarını aşıyor.</Alert>}
+              </Box>
+            );
+          })()}
+
           {hizliSatis.motor?.yatirimci_id && (
             <>
               <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Yatırımcı</Typography>
@@ -610,6 +672,31 @@ const StokDetayModal = ({ open, data, onClose, printRef, isMobile, perms = {} })
           )}
           </>
           )}
+
+          {(() => {
+            const odemeler = parseOdeme(data.odeme_detaylari);
+            if (odemeler.length === 0) return null;
+            const toplam = odemeler.reduce((s, o) => s + parseFloat(o.tutar || 0), 0);
+            return (
+              <>
+                <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>💳 Ödeme Dağılımı</Typography>
+                <Divider sx={{ mb: 1 }} />
+                {data.satis_fiyati ? <InfoRow label="Toplam Satış" value={`₺${formatTL(data.satis_fiyati)}`} /> : null}
+                {odemeler.map((o, i) => <InfoRow key={i} label={o.tip} value={`₺${parseFloat(o.tutar || 0).toLocaleString('tr-TR')}`} />)}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', pt: 0.5, mt: 0.5, borderTop: '1px solid #eee' }}>
+                  <Typography variant="body2" fontWeight="bold">Toplam Ödeme</Typography>
+                  <Typography variant="body2" fontWeight="bold">₺{toplam.toLocaleString('tr-TR')}</Typography>
+                </Box>
+                {parseFloat(data.kalan_odeme || 0) > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" sx={{ color: '#ef6c00' }}>Kalan</Typography>
+                    <Typography variant="body2" fontWeight="bold" sx={{ color: '#ef6c00' }}>₺{formatTL(data.kalan_odeme)}</Typography>
+                  </Box>
+                )}
+                <Box sx={{ mb: 2 }} />
+              </>
+            );
+          })()}
 
           {data.aciklama && (
             <>

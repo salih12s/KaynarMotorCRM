@@ -102,7 +102,7 @@ const IsEmriForm = () => {
       } else {
         await isEmriService.create(payload);
       }
-      navigate('/');
+      navigate('/servis');
     } catch (err) {
       setError(err.response?.data?.message || 'Kaydetme hatası');
     }

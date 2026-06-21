@@ -83,25 +83,50 @@ const YatirimciRapor = ({ isMobile }) => {
   const formatTL = (v) => parseFloat(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
 
+  const [baslangic, setBaslangic] = useState('');
+  const [bitis, setBitis] = useState('');
+
+  // Yerel tarihi YYYY-AA-GG formatına çevir (UTC kayması olmadan)
+  const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const buHafta = () => { const n = new Date(); const g = (n.getDay() + 6) % 7; const pzt = new Date(n); pzt.setDate(n.getDate() - g); setBaslangic(isoLocal(pzt)); setBitis(isoLocal(n)); };
+  const buAy = () => { const n = new Date(); setBaslangic(isoLocal(new Date(n.getFullYear(), n.getMonth(), 1))); setBitis(isoLocal(n)); };
+
   useEffect(() => {
-    raporService.getYatirimciRapor()
+    setLoading(true);
+    const params = {};
+    if (baslangic) params.baslangic = baslangic;
+    if (bitis) params.bitis = bitis;
+    raporService.getYatirimciRapor(params)
       .then(r => setData(r.data))
       .catch(() => setError('Rapor yüklenirken hata oluştu'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [baslangic, bitis]);
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress sx={{ color: '#C62828' }} /></Box>;
-  if (error) return <Alert severity="error">{error}</Alert>;
-  if (!data) return null;
-
-  const o = data.ozet || {};
-  const stoktakiler = data.stoktakiler || [];
-  const satilanlar = data.satilanlar || [];
+  const o = data?.ozet || {};
+  const stoktakiler = data?.stoktakiler || [];
+  const satilanlar = data?.satilanlar || [];
   const headerSx = { color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' };
 
   return (
     <Box>
       <Typography variant="h5" fontWeight="bold" mb={2}>Yatırım Raporum</Typography>
+
+      {/* Tarih süzgeci — yalnızca satılan motorların kârına uygulanır (Haziran/Temmuz ayrı hesaplanır) */}
+      <Paper sx={{ p: 1.5, mb: 2, display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Button size="small" variant="outlined" onClick={buHafta}>Bu Hafta</Button>
+        <Button size="small" variant="outlined" onClick={buAy}>Bu Ay</Button>
+        <TextField size="small" type="date" label="Başlangıç" value={baslangic} onChange={e => setBaslangic(e.target.value)} InputLabelProps={{ shrink: true }} />
+        <TextField size="small" type="date" label="Bitiş" value={bitis} onChange={e => setBitis(e.target.value)} InputLabelProps={{ shrink: true }} />
+        {(baslangic || bitis) && <Button size="small" onClick={() => { setBaslangic(''); setBitis(''); }}>Tümünü Göster</Button>}
+        <Typography variant="caption" color="text.secondary">Tarih filtresi satılan motorların kârına uygulanır; stok her zaman güncel gösterilir.</Typography>
+      </Paper>
+
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress sx={{ color: '#C62828' }} /></Box>
+      ) : error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : !data ? null : (
+      <>
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[
           { label: 'Stoktaki Motor', value: o.stok_adet || 0, color: '#C62828' },
@@ -194,6 +219,8 @@ const YatirimciRapor = ({ isMobile }) => {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+      </>
       )}
     </Box>
   );

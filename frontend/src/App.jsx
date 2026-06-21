@@ -22,6 +22,10 @@ import Yetkilendirme from './pages/Yetkilendirme';
 import Musteriler from './pages/Musteriler';
 import MotorDetay from './pages/MotorDetay';
 import Veresiye from './pages/Veresiye';
+import Vitrin from './pages/Vitrin';
+import Storefront from './pages/Storefront';
+import TaksitHesaplama from './pages/TaksitHesaplama';
+import TaksitGoruntule from './pages/TaksitGoruntule';
 
 // Route Guards
 const ProtectedRoute = ({ children }) => {
@@ -137,6 +141,27 @@ const NormalRoute = ({ children }) => {
   return children;
 };
 
+// Giriş yapmış kullanıcıyı rolüne göre uygun panele yönlendiren hedef
+const panelHedefi = (user) => {
+  if (user.rol === 'admin') return '/servis';
+  if (user.rol === 'yatirimci') return '/motor-stok';
+  if (user.servis_yetkisi) return '/servis';
+  if (user.aksesuar_yetkisi) return '/aksesuarlar';
+  if (user.motor_satis_yetkisi) return '/ikinci-el-motor';
+  if (user.eticaret_yetkisi) return '/eticaret';
+  if (user.aksesuar_stok_yetkisi) return '/aksesuar-stok';
+  if (user.yedek_parca_yetkisi) return '/yedek-parcalar';
+  return '/servis';
+};
+
+// Kök adres (/): ziyaretçi vitrini görür, giriş yapan kullanıcı panele yönlenir
+const RootRoute = () => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Storefront />;
+  return <Navigate to={panelHedefi(user)} />;
+};
+
 const ThemedApp = () => {
   const { theme } = useCustomTheme();
 
@@ -147,8 +172,14 @@ const ThemedApp = () => {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/" element={<RootRoute />} />
+            {/* Giriş yapmış kullanıcıların da panelden dönebilmesi için herkese açık vitrin */}
+            <Route path="/site" element={<Storefront />} />
+            {/* Müşteriye gönderilen taksit linki — herkese açık */}
+            <Route path="/taksit/:fiyat" element={<TaksitGoruntule />} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="/" element={<ServisRoute><IsEmirleri /></ServisRoute>} />
+              <Route path="/servis" element={<ServisRoute><IsEmirleri /></ServisRoute>} />
+              <Route path="/vitrin" element={<AdminRoute><Vitrin /></AdminRoute>} />
               <Route path="/is-emri/yeni" element={<ServisRoute><IsEmriForm /></ServisRoute>} />
               <Route path="/is-emri/:id" element={<ServisRoute><IsEmriDetay /></ServisRoute>} />
               <Route path="/is-emri/:id/duzenle" element={<ServisRoute><IsEmriForm /></ServisRoute>} />
@@ -159,6 +190,7 @@ const ThemedApp = () => {
               <Route path="/motor/:id" element={<MotorSatisRoute><MotorDetay /></MotorSatisRoute>} />
               <Route path="/eticaret" element={<EticaretRoute><ETicaret /></EticaretRoute>} />
               <Route path="/yedek-parcalar" element={<YedekParcaRoute><YedekParcalar /></YedekParcaRoute>} />
+              <Route path="/taksit-hesaplama" element={<TaksitHesaplama />} />
               <Route path="/veresiye" element={<AdminRoute><Veresiye /></AdminRoute>} />
               <Route path="/raporlar" element={<RaporRoute><Raporlar /></RaporRoute>} />
               <Route path="/kullanicilar" element={<AdminRoute><Kullanicilar /></AdminRoute>} />

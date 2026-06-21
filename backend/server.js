@@ -39,7 +39,7 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '120mb' })); // vitrin video yüklemeleri için yüksek limit
 
 // JWT Auth Middleware
 const authenticateToken = (req, res, next) => {
@@ -72,6 +72,7 @@ const eticaretRoutes = require('./routes/eticaret');
 const yedekParcaRoutes = require('./routes/yedekParcalar');
 const raporRoutes = require('./routes/raporlar');
 const veresiyeRoutes = require('./routes/veresiye');
+const vitrinRoutes = require('./routes/vitrin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/musteriler', authenticateToken, musteriRoutes);
@@ -83,6 +84,8 @@ app.use('/api/eticaret', authenticateToken, eticaretRoutes);
 app.use('/api/yedek-parcalar', authenticateToken, yedekParcaRoutes);
 app.use('/api/raporlar', authenticateToken, raporRoutes);
 app.use('/api/veresiye', authenticateToken, veresiyeRoutes);
+// Vitrin: public + admin uçları karışık; auth route içinde uygulanır
+app.use('/api/vitrin', vitrinRoutes(authenticateToken, isAdmin));
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

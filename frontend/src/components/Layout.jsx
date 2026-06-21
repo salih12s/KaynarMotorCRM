@@ -8,7 +8,8 @@ import {
   Menu as MenuIcon, Build as BuildIcon, People as PeopleIcon, TwoWheeler as MotorIcon,
   ShoppingCart as ShopIcon, Inventory as StokIcon, Store as StoreIcon, Sell as SellIcon,
   Assessment as ReportIcon, SupervisorAccount as AdminIcon, ExpandLess, ExpandMore,
-  Logout as LogoutIcon, Settings as SettingsIcon, AccountBalanceWallet as VeresiyeIcon
+  Logout as LogoutIcon, Settings as SettingsIcon, AccountBalanceWallet as VeresiyeIcon,
+  Home as HomeIcon, Calculate as CalculateIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useCustomTheme } from '../context/ThemeContext';
@@ -65,13 +66,15 @@ const Layout = () => {
   const isNormalPersonel = !isAdmin && !hasAksesuar && !hasMotor && !hasEticaret && !hasServis && !hasAksesuarStok && !hasYedekParca;
 
   const getPageTitle = () => {
-    if (pathname === '/') return 'Servis';
+    if (pathname === '/servis') return 'Servis';
+    if (pathname === '/vitrin') return 'Vitrin / Site';
     if (pathname === '/ikinci-el-motor') return 'Motor Satış';
     if (pathname === '/motor-stok') return 'Motor Stok';
     if (pathname === '/aksesuarlar') return 'Aksesuarlar';
     if (pathname === '/aksesuar-stok') return 'Aksesuar Stok';
     if (pathname === '/eticaret') return 'E-Ticaret';
     if (pathname === '/yedek-parcalar') return 'Yedek Parça';
+    if (pathname === '/taksit-hesaplama') return 'Taksit Hesaplama';
     if (pathname === '/veresiye') return 'Veresiye';
     if (pathname === '/raporlar') return 'Raporlar';
     if (pathname === '/musteriler') return 'Müşteriler';
@@ -94,7 +97,7 @@ const Layout = () => {
         { title: isYatirimci ? 'Motorlarım' : 'Motor Stok', path: '/motor-stok', icon: <StokIcon /> },
       ]
     },
-    { title: 'Servis', path: '/', icon: <BuildIcon />, show: isAdmin || hasServis, color: '#C62828' },
+    { title: 'Servis', path: '/servis', icon: <BuildIcon />, show: isAdmin || hasServis, color: '#C62828' },
     {
       title: 'Aksesuarlar', icon: <ShopIcon />, color: '#C62828', show: isAdmin || hasAksesuar || hasAksesuarStok,
       subItems: [
@@ -103,12 +106,16 @@ const Layout = () => {
       ]
     },
     { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: isAdmin || hasEticaret, color: '#C62828' },
+    { title: 'Taksit Hesaplama', path: '/taksit-hesaplama', icon: <CalculateIcon />, show: !isYatirimci, color: '#C62828' },
     { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: isAdmin || hasYedekParca, color: '#C62828' },
+    { title: 'Vitrin / Site', path: '/vitrin', icon: <StoreIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Veresiye', path: '/veresiye', icon: <VeresiyeIcon />, show: isAdmin, color: '#C62828' },
     { title: isYatirimci ? 'Raporum' : 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin || isYatirimci, color: '#C62828' },
     { title: 'Müşteriler', path: '/musteriler', icon: <PeopleIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Yetkilendirme', path: '/yetkilendirme', icon: <SettingsIcon />, show: isAdmin, color: '#C62828' },
+        { title: 'Ana Sayfaya Git', path: '/site', icon: <HomeIcon />, show: true, color: '#C62828' },
+
   ];
 
   const isActive = (path) => pathname === path;
@@ -116,13 +123,17 @@ const Layout = () => {
 
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#1a1a1a', color: 'white', overflow: 'hidden' }}>
-      <Box sx={{ p: 2, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
-        <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 56, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+      <Box sx={{ p: 1.5, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, flexShrink: 0 }}>
+        <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 44, width: 'auto', filter: 'brightness(0) invert(1)' }} />
         <Typography variant="h7" fontWeight="bold" sx={{ letterSpacing: 1 }}>
           <span>KAYNAR </span><span style={{ color: '#C62828' }}>MOTOR</span>
         </Typography>
       </Box>
-      <List sx={{ flex: 1, pt: 0, pb: 0 }}>
+      <List sx={{
+        flex: 1, pt: 0, pb: 0, overflowY: 'auto', overflowX: 'hidden',
+        '&::-webkit-scrollbar': { width: 6 },
+        '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 3 },
+      }}>
         {menuItems.filter(item => item.show).map((item, index) => (
           <React.Fragment key={index}>
             {item.subItems ? (
@@ -131,13 +142,13 @@ const Layout = () => {
                   <ListItemButton
                     onClick={() => item.key === 'motor' ? setMotorOpen(!motorOpen) : setAksesuarOpen(!aksesuarOpen)}
                     sx={{
-                      color: 'white', py: 1.5,
+                      color: 'white', py: 1,
                       borderLeft: isSubActive(item) ? '4px solid white' : '4px solid transparent',
                       '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
                     }}
                   >
-                    <ListItemIcon sx={{ color: 'white', minWidth: 36 }}>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.title} primaryTypographyProps={{ fontWeight: isSubActive(item) ? 'bold' : 'normal' }} />
+                    <ListItemIcon sx={{ color: 'white', minWidth: 34, '& svg': { fontSize: 21 } }}>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.title} primaryTypographyProps={{ fontSize: '0.92rem', fontWeight: isSubActive(item) ? 'bold' : 'normal' }} />
                     {(item.key === 'motor' ? motorOpen : aksesuarOpen) ? <ExpandLess /> : <ExpandMore />}
                   </ListItemButton>
                 </ListItem>
@@ -148,13 +159,13 @@ const Layout = () => {
                         key={si}
                         onClick={() => handleNavigate(sub.path)}
                         sx={{
-                          pl: 4, py: 1, color: 'white',
+                          pl: 4, py: 0.6, color: 'white',
                           borderLeft: isActive(sub.path) ? '4px solid white' : '4px solid transparent',
                           bgcolor: isActive(sub.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
                           '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
                         }}
                       >
-                        <ListItemIcon sx={{ color: 'rgba(255,255,255,0.7)', minWidth: 30 }}>{sub.icon}</ListItemIcon>
+                        <ListItemIcon sx={{ color: 'rgba(255,255,255,0.7)', minWidth: 30, '& svg': { fontSize: 19 } }}>{sub.icon}</ListItemIcon>
                         <ListItemText primary={sub.title} primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: isActive(sub.path) ? 'bold' : 'normal' }} />
                       </ListItemButton>
                     ))}
@@ -166,14 +177,14 @@ const Layout = () => {
                 <ListItemButton
                   onClick={() => handleNavigate(item.path)}
                   sx={{
-                    color: 'white', py: 1.5,
+                    color: 'white', py: 1,
                     borderLeft: isActive(item.path) ? '4px solid white' : '4px solid transparent',
                     bgcolor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
                     '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'white', minWidth: 36 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.title} primaryTypographyProps={{ fontWeight: isActive(item.path) ? 'bold' : 'normal' }} />
+                  <ListItemIcon sx={{ color: 'white', minWidth: 34, '& svg': { fontSize: 21 } }}>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.title} primaryTypographyProps={{ fontSize: '0.92rem', fontWeight: isActive(item.path) ? 'bold' : 'normal' }} />
                 </ListItemButton>
               </ListItem>
             )}
