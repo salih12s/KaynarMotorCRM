@@ -49,7 +49,8 @@ const Login = () => {
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#1a1a1a' }}>
       <Paper elevation={6} sx={{ p: 4, width: 400, maxWidth: '95%' }}>
         <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ width: 200, maxWidth: '80%' }} />
+          <img src="/KaynarMotor.png" alt="Kaynar Motor" width="200" height="222"
+            style={{ width: 200, maxWidth: '80%', height: 'auto', display: 'block', margin: '0 auto' }} />
         </Box>
         <Typography variant="body2" textAlign="center" color="text.secondary" mb={3}>
           Servis Yönetim Sistemi

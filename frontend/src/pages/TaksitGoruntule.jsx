@@ -16,7 +16,10 @@ const TaksitGoruntule = () => {
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static" sx={{ bgcolor: '#1a1a1a' }} elevation={3}>
         <Toolbar sx={{ gap: 1 }}>
-          <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 34, filter: 'brightness(0) invert(1)' }} />
+          <span className="kmt-logo-wrap" style={{ width: 31, height: 34, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+            <img className="kmt-logo" src="/KaynarMotor.png" alt="Kaynar Motor" width="31" height="34"
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
+          </span>
           <Typography variant="h6" fontWeight="bold" sx={{ letterSpacing: 1, fontSize: { xs: 16, md: 20 } }}>
             KAYNAR <span style={{ color: RED }}>MOTOR</span>
           </Typography>

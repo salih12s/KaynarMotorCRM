@@ -10,6 +10,7 @@ import {
   Movie as MovieIcon, PlayCircle as PlayCircleIcon
 } from '@mui/icons-material';
 import { vitrinService, ikinciElMotorService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export const KATEGORILER = [
   { key: 'motor', label: 'Motor Satışı' },
@@ -51,8 +52,17 @@ const bosUrun = {
 };
 
 const Vitrin = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.rol === 'admin';
+  // Yetkiye göre görünen vitrin kategorileri: admin hepsini, personel yalnızca izinli olduğu vitrini yönetir
+  const gorunenKategoriler = isAdmin ? KATEGORILER : KATEGORILER.filter(k =>
+    (k.key === 'motor' && user?.motor_vitrin_yetkisi) ||
+    (k.key === 'aksesuar' && user?.aksesuar_vitrin_yetkisi)
+  );
+
   const [tab, setTab] = useState(0);
-  const kategori = KATEGORILER[tab].key;
+  const aktifKategori = gorunenKategoriler[tab] || gorunenKategoriler[0] || KATEGORILER[0];
+  const kategori = aktifKategori.key;
   const isMotor = kategori === 'motor';
 
   const [urunler, setUrunler] = useState([]);
@@ -252,7 +262,7 @@ const Vitrin = () => {
     <Box>
       <Paper sx={{ mb: 2 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
-          {KATEGORILER.map(k => <Tab key={k.key} label={k.label} />)}
+          {gorunenKategoriler.map(k => <Tab key={k.key} label={k.label} />)}
         </Tabs>
       </Paper>
 
@@ -327,7 +337,7 @@ const Vitrin = () => {
       {/* Ürün Dialog */}
       <Dialog open={dlgOpen} onClose={() => setDlgOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {editId ? 'İlanı Düzenle' : 'Yeni İlan'} — {KATEGORILER[tab].label}
+          {editId ? 'İlanı Düzenle' : 'Yeni İlan'} — {aktifKategori.label}
           <IconButton onClick={() => setDlgOpen(false)}><CloseIcon /></IconButton>
         </DialogTitle>
         <DialogContent dividers>
@@ -450,7 +460,7 @@ const Vitrin = () => {
 
       {/* İletişim Dialog */}
       <Dialog open={iletDlg} onClose={() => setIletDlg(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{KATEGORILER[tab].label} — İletişim</DialogTitle>
+        <DialogTitle>{aktifKategori.label} — İletişim</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 0.5 }}>
             <TextField label="Personel Adı" value={iletForm.personel_adi} onChange={e => setIletForm({ ...iletForm, personel_adi: e.target.value })} fullWidth />

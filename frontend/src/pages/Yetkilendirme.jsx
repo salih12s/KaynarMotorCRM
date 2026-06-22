@@ -23,6 +23,8 @@ const ISLEM_YETKILERI = [
   { key: 'yedek_parca_yetkisi', label: 'Yedek Parça' },
   { key: 'servis_yetkisi', label: 'Servis' },
   { key: 'eticaret_yetkisi', label: 'E-Ticaret' },
+  { key: 'motor_vitrin_yetkisi', label: 'Motor Vitrini (Site)' },
+  { key: 'aksesuar_vitrin_yetkisi', label: 'Aksesuar Vitrini (Site)' },
 ];
 
 const TUM_YETKILER = [...ALAN_YETKILERI, ...ISLEM_YETKILERI];

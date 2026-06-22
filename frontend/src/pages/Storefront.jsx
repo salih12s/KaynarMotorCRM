@@ -135,24 +135,24 @@ const Storefront = () => {
   if (intro) {
     return (
       <Box sx={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', bgcolor: '#000', display: 'flex', flexDirection: 'column' }}>
-        {/* Arka plan videosu */}
-        <Box
-          component="video"
-          autoPlay muted loop playsInline
-          poster="/KaynarMotor.jpeg"
-          sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }}
+        {/* Arka plan videosu — poster KALDIRILDI: poster (KaynarMotor.jpeg) logonun büyük hâliydi ve
+            video oynayana kadar tüm ekranı kaplıyordu. Artık video yüklenene kadar arkaplan siyah kalır. */}
+        <video
+          autoPlay muted loop playsInline preload="auto"
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0, background: '#000' }}
         >
           <source src="/KaynarMotor.mp4" type="video/mp4" />
-        </Box>
+        </video>
         {/* Karartma katmanı */}
         <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.1) 22%, rgba(0,0,0,0) 45%)' }} />
-        {/* Sağ alt köşedeki video filigranını gizleyen karartma */}
-        <Box sx={{ position: 'absolute', bottom: 0, right: 0, width: 230, height: 180, zIndex: 1, pointerEvents: 'none', background: 'radial-gradient(ellipse at bottom right, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.92) 55%, rgba(0,0,0,0.5) 75%, rgba(0,0,0,0) 92%)' }} />
 
         {/* Üst bar: logo + Servise Git */}
         <Box sx={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: { xs: 2, md: 5 }, py: { xs: 2, md: 3 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 40, filter: 'brightness(0) invert(1)' }} />
+            <span className="kmt-logo-wrap" style={{ width: 36, height: 40, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+              <img className="kmt-logo" src="/KaynarMotor.png" alt="Kaynar Motor" width="36" height="40"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
+            </span>
             <Typography variant="h6" fontWeight="bold" sx={{ color: '#fff', letterSpacing: 1, fontSize: { xs: 16, md: 22 } }}>
               KAYNAR <span style={{ color: RED }}>MOTOR</span>
             </Typography>
@@ -227,7 +227,10 @@ const Storefront = () => {
       <AppBar position="sticky" sx={{ bgcolor: '#1a1a1a', borderRadius: 0 }} elevation={3}>
         <Toolbar sx={{ gap: { xs: 1, md: 2 }, minHeight: { xs: 56, md: 64 }, px: { xs: 1.5, md: 3 } }}>
           <Box onClick={goHome} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, cursor: 'pointer' }}>
-            <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 36, filter: 'brightness(0) invert(1)' }} />
+            <span className="kmt-logo-wrap" style={{ width: 32, height: 36, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+              <img className="kmt-logo" src="/KaynarMotor.png" alt="Kaynar Motor" width="32" height="36"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
+            </span>
             <Typography variant="h6" fontWeight="bold" sx={{ letterSpacing: 1, fontSize: { xs: 15, md: 20 }, whiteSpace: 'nowrap' }}>
               KAYNAR <span style={{ color: RED }}>MOTOR</span>
             </Typography>
@@ -347,7 +350,7 @@ const Storefront = () => {
             <Fade in timeout={350} key={kategori}>
               <Grid container spacing={2}>
                 {urunler.map(u => (
-                  <Grid item xs={6} sm={4} md={3} lg={3} key={u.id}>
+                  <Grid item xs={12} sm={6} md={3} lg={3} key={u.id}>
                     <Card sx={{
                       height: '100%', borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column',
                       boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
@@ -358,7 +361,7 @@ const Storefront = () => {
                       <CardActionArea onClick={() => openDetay(u)} sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
                         {/* Görsel + üzerinde etiketler */}
                         <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: '#e8e8e8' }}>
-                          <CardMedia component="img" height={isMobile ? 180 : 250}
+                          <CardMedia component="img" height={isMobile ? 220 : 250}
                             className="urun-gorsel"
                             image={u.kapak_gorsel_id ? vitrinService.gorselUrl(u.kapak_gorsel_id) : '/KaynarMotor.png'}
                             alt={u.baslik}
@@ -446,7 +449,8 @@ const Storefront = () => {
                 </Box>
               ) : (
                 <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 80, filter: 'brightness(0) invert(1)', opacity: 0.5 }} />
+                  <img src="/KaynarMotor.png" alt="Kaynar Motor" width="72" height="80"
+                    style={{ width: 72, height: 80, objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)', opacity: 0.5 }} />
                 </Box>
               )}
             </Box>

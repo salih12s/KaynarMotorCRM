@@ -63,6 +63,8 @@ const Layout = () => {
   const hasServis = user?.servis_yetkisi;
   const hasAksesuarStok = user?.aksesuar_stok_yetkisi;
   const hasYedekParca = user?.yedek_parca_yetkisi;
+  const hasMotorVitrin = user?.motor_vitrin_yetkisi;
+  const hasAksesuarVitrin = user?.aksesuar_vitrin_yetkisi;
   const isNormalPersonel = !isAdmin && !hasAksesuar && !hasMotor && !hasEticaret && !hasServis && !hasAksesuarStok && !hasYedekParca;
 
   const getPageTitle = () => {
@@ -108,7 +110,7 @@ const Layout = () => {
     { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: isAdmin || hasEticaret, color: '#C62828' },
     { title: 'Taksit Hesaplama', path: '/taksit-hesaplama', icon: <CalculateIcon />, show: !isYatirimci, color: '#C62828' },
     { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: isAdmin || hasYedekParca, color: '#C62828' },
-    { title: 'Vitrin / Site', path: '/vitrin', icon: <StoreIcon />, show: isAdmin, color: '#C62828' },
+    { title: 'Vitrin / Site', path: '/vitrin', icon: <StoreIcon />, show: isAdmin || hasMotorVitrin || hasAksesuarVitrin, color: '#C62828' },
     { title: 'Veresiye', path: '/veresiye', icon: <VeresiyeIcon />, show: isAdmin, color: '#C62828' },
     { title: isYatirimci ? 'Raporum' : 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin || isYatirimci, color: '#C62828' },
     { title: 'Müşteriler', path: '/musteriler', icon: <PeopleIcon />, show: isAdmin, color: '#C62828' },
@@ -124,7 +126,10 @@ const Layout = () => {
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#1a1a1a', color: 'white', overflow: 'hidden' }}>
       <Box sx={{ p: 1.5, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, flexShrink: 0 }}>
-        <img src="/KaynarMotor.png" alt="Kaynar Motor" style={{ height: 44, width: 'auto', filter: 'brightness(0) invert(1)' }} />
+        <span className="kmt-logo-wrap" style={{ width: 40, height: 44, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+          <img className="kmt-logo" src="/KaynarMotor.png" alt="Kaynar Motor" width="40" height="44"
+            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
+        </span>
         <Typography variant="h7" fontWeight="bold" sx={{ letterSpacing: 1 }}>
           <span>KAYNAR </span><span style={{ color: '#C62828' }}>MOTOR</span>
         </Typography>

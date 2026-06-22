@@ -316,6 +316,9 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS servis_yetkisi BOOLEAN DEFAULT FALSE;`);
     await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS aksesuar_stok_yetkisi BOOLEAN DEFAULT FALSE;`);
     await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS yedek_parca_yetkisi BOOLEAN DEFAULT FALSE;`);
+    // Vitrin (site) yönetimi yetkileri — motor ve aksesuar vitrini ayrı ayrı verilebilir
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS motor_vitrin_yetkisi BOOLEAN DEFAULT FALSE;`);
+    await client.query(`ALTER TABLE kullanicilar ADD COLUMN IF NOT EXISTS aksesuar_vitrin_yetkisi BOOLEAN DEFAULT FALSE;`);
 
     // Migration: aksesuar_stok tablosuna beden, renk ve kategori alanları ekle
     await client.query(`ALTER TABLE aksesuar_stok ADD COLUMN IF NOT EXISTS beden VARCHAR(10);`);

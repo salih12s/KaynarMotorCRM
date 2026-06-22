@@ -101,6 +101,15 @@ const AksesuarStokRoute = ({ children }) => {
   return children;
 };
 
+// Vitrin: admin veya motor/aksesuar vitrin yetkisi olan personel
+const VitrinRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  if (user.rol !== 'admin' && !user.motor_vitrin_yetkisi && !user.aksesuar_vitrin_yetkisi) return <Navigate to="/" />;
+  return children;
+};
+
 const YedekParcaRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -121,6 +130,7 @@ const PublicRoute = ({ children }) => {
     if (user.eticaret_yetkisi) return <Navigate to="/eticaret" />;
     if (user.aksesuar_stok_yetkisi) return <Navigate to="/aksesuar-stok" />;
     if (user.yedek_parca_yetkisi) return <Navigate to="/yedek-parcalar" />;
+    if (user.motor_vitrin_yetkisi || user.aksesuar_vitrin_yetkisi) return <Navigate to="/vitrin" />;
     return <Navigate to="/" />;
   }
   return children;
@@ -137,6 +147,7 @@ const NormalRoute = ({ children }) => {
     if (user.eticaret_yetkisi) return <Navigate to="/eticaret" />;
     if (user.aksesuar_stok_yetkisi) return <Navigate to="/aksesuar-stok" />;
     if (user.yedek_parca_yetkisi) return <Navigate to="/yedek-parcalar" />;
+    if (user.motor_vitrin_yetkisi || user.aksesuar_vitrin_yetkisi) return <Navigate to="/vitrin" />;
   }
   return children;
 };
@@ -151,7 +162,21 @@ const panelHedefi = (user) => {
   if (user.eticaret_yetkisi) return '/eticaret';
   if (user.aksesuar_stok_yetkisi) return '/aksesuar-stok';
   if (user.yedek_parca_yetkisi) return '/yedek-parcalar';
-  return '/servis';
+  if (user.motor_vitrin_yetkisi || user.aksesuar_vitrin_yetkisi) return '/vitrin';
+  return null; // Hiçbir yetki yok — yönlendirme döngüsünü önlemek için null
+};
+
+// Hiçbir modül yetkisi olmayan kullanıcıya gösterilen ekran (sonsuz yönlendirme döngüsünü engeller)
+const YetkisizEkran = () => {
+  const { user, logout } = useAuth();
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, background: '#1a1a1a', color: '#fff', textAlign: 'center', padding: 24 }}>
+      <img src="/KaynarMotor.png" alt="Kaynar Motor" width="80" height="89" style={{ width: 80, height: 89, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+      <h2 style={{ margin: 0 }}>Merhaba {user?.ad_soyad || ''}</h2>
+      <p style={{ margin: 0, opacity: 0.8, maxWidth: 360 }}>Hesabınıza henüz bir yetki tanımlanmamış. Lütfen yönetici ile iletişime geçin.</p>
+      <button onClick={() => logout()} style={{ padding: '10px 26px', background: '#C62828', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16, fontWeight: 600 }}>Çıkış Yap</button>
+    </div>
+  );
 };
 
 // Kök adres (/): ziyaretçi vitrini görür, giriş yapan kullanıcı panele yönlenir
@@ -159,7 +184,9 @@ const RootRoute = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Storefront />;
-  return <Navigate to={panelHedefi(user)} />;
+  const hedef = panelHedefi(user);
+  if (!hedef) return <YetkisizEkran />; // yetkisiz kullanıcı: döngü yerine bilgi ekranı
+  return <Navigate to={hedef} />;
 };
 
 const ThemedApp = () => {
@@ -179,7 +206,7 @@ const ThemedApp = () => {
             <Route path="/taksit/:fiyat" element={<TaksitGoruntule />} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/servis" element={<ServisRoute><IsEmirleri /></ServisRoute>} />
-              <Route path="/vitrin" element={<AdminRoute><Vitrin /></AdminRoute>} />
+              <Route path="/vitrin" element={<VitrinRoute><Vitrin /></VitrinRoute>} />
               <Route path="/is-emri/yeni" element={<ServisRoute><IsEmriForm /></ServisRoute>} />
               <Route path="/is-emri/:id" element={<ServisRoute><IsEmriDetay /></ServisRoute>} />
               <Route path="/is-emri/:id/duzenle" element={<ServisRoute><IsEmriForm /></ServisRoute>} />

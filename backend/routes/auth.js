@@ -85,6 +85,7 @@ router.post('/login', async (req, res) => {
       aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi,
       eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi,
       aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi,
+      motor_vitrin_yetkisi: user.motor_vitrin_yetkisi, aksesuar_vitrin_yetkisi: user.aksesuar_vitrin_yetkisi,
       liste_fiyati_gor: user.liste_fiyati_gor, alis_fiyati_gor: user.alis_fiyati_gor,
       satis_fiyati_gor: user.satis_fiyati_gor, kar_gor: user.kar_gor,
       musteri_gor: user.musteri_gor, satis_gecmisi_gor: user.satis_gecmisi_gor
@@ -100,6 +101,7 @@ router.post('/login', async (req, res) => {
         aksesuar_yetkisi: user.aksesuar_yetkisi, motor_satis_yetkisi: user.motor_satis_yetkisi,
         eticaret_yetkisi: user.eticaret_yetkisi, servis_yetkisi: user.servis_yetkisi,
         aksesuar_stok_yetkisi: user.aksesuar_stok_yetkisi, yedek_parca_yetkisi: user.yedek_parca_yetkisi,
+        motor_vitrin_yetkisi: user.motor_vitrin_yetkisi, aksesuar_vitrin_yetkisi: user.aksesuar_vitrin_yetkisi,
         liste_fiyati_gor: user.liste_fiyati_gor, alis_fiyati_gor: user.alis_fiyati_gor,
         satis_fiyati_gor: user.satis_fiyati_gor, kar_gor: user.kar_gor,
         musteri_gor: user.musteri_gor, satis_gecmisi_gor: user.satis_gecmisi_gor
@@ -125,7 +127,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
 router.get('/verify', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, kullanici_adi, ad_soyad, rol, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, liste_fiyati_gor, alis_fiyati_gor, satis_fiyati_gor, kar_gor, musteri_gor, satis_gecmisi_gor FROM kullanicilar WHERE id = $1',
+      'SELECT id, kullanici_adi, ad_soyad, rol, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, motor_vitrin_yetkisi, aksesuar_vitrin_yetkisi, liste_fiyati_gor, alis_fiyati_gor, satis_fiyati_gor, kar_gor, musteri_gor, satis_gecmisi_gor FROM kullanicilar WHERE id = $1',
       [req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
@@ -151,7 +153,7 @@ router.get('/personel-listesi', authenticateToken, async (req, res) => {
 router.get('/users', authenticateToken, isAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, kullanici_adi, ad_soyad, rol, onay_durumu, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, liste_fiyati_gor, alis_fiyati_gor, satis_fiyati_gor, kar_gor, musteri_gor, satis_gecmisi_gor, plain_sifre, created_at FROM kullanicilar ORDER BY created_at DESC'
+      'SELECT id, kullanici_adi, ad_soyad, rol, onay_durumu, aksesuar_yetkisi, motor_satis_yetkisi, eticaret_yetkisi, servis_yetkisi, aksesuar_stok_yetkisi, yedek_parca_yetkisi, motor_vitrin_yetkisi, aksesuar_vitrin_yetkisi, liste_fiyati_gor, alis_fiyati_gor, satis_fiyati_gor, kar_gor, musteri_gor, satis_gecmisi_gor, plain_sifre, created_at FROM kullanicilar ORDER BY created_at DESC'
     );
     res.json(result.rows);
   } catch (error) {
@@ -316,7 +318,8 @@ router.patch('/users/:id/yetkiler', authenticateToken, isAdmin, async (req, res)
       'liste_fiyati_gor', 'alis_fiyati_gor', 'satis_fiyati_gor',
       'kar_gor', 'musteri_gor', 'satis_gecmisi_gor',
       'aksesuar_yetkisi', 'motor_satis_yetkisi', 'eticaret_yetkisi',
-      'servis_yetkisi', 'aksesuar_stok_yetkisi', 'yedek_parca_yetkisi'
+      'servis_yetkisi', 'aksesuar_stok_yetkisi', 'yedek_parca_yetkisi',
+      'motor_vitrin_yetkisi', 'aksesuar_vitrin_yetkisi'
     ];
     const setParts = [];
     const params = [];
