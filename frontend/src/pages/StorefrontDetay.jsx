@@ -40,6 +40,8 @@ const StorefrontDetay = () => {
   const [detay, setDetay] = useState(null);
   const [iletisim, setIletisim] = useState(null);
   const [gorselIdx, setGorselIdx] = useState(0);
+  const [gorselYukleniyor, setGorselYukleniyor] = useState(true);
+  const [gorselHatasi, setGorselHatasi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -65,7 +67,13 @@ const StorefrontDetay = () => {
     if (detay?.gorsel_idler?.length) return detay.gorsel_idler;
     return detay?.kapak_gorsel_id ? [detay.kapak_gorsel_id] : [];
   }, [detay]);
+  const aktifGorsel = gorseller[gorselIdx];
   const video = useMemo(() => videoKaynak(detay?.video_url), [detay]);
+
+  useEffect(() => {
+    setGorselYukleniyor(Boolean(aktifGorsel));
+    setGorselHatasi(false);
+  }, [aktifGorsel]);
 
   const geriDon = () => {
     if (location.state?.storefront) navigate('/site', { state: location.state });
@@ -104,18 +112,40 @@ const StorefrontDetay = () => {
             <Paper sx={{ p: { xs: 1.25, md: 2 }, borderRadius: 2.5 }}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.1fr) minmax(320px, .9fr)' }, gap: { xs: 2, md: 3 } }}>
                 <Box>
-                  <Box sx={{ position: 'relative', bgcolor: '#050505', borderRadius: 2, overflow: 'hidden', aspectRatio: { xs: '4 / 3', sm: '16 / 9' }, maxHeight: 390, display: 'grid', placeItems: 'center' }}>
-                    {gorseller.length ? (
-                      <Box component="img" src={vitrinService.gorselUrl(gorseller[gorselIdx])} alt={detay.baslik}
-                        sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <Box sx={{
+                    position: 'relative', bgcolor: '#111', borderRadius: 2, overflow: 'hidden',
+                    width: '100%', height: { xs: 300, sm: 380, md: 430 },
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {aktifGorsel && !gorselHatasi ? (
+                      <>
+                        {gorselYukleniyor && <CircularProgress size={34} sx={{ position: 'absolute', color: '#fff' }} />}
+                        <img
+                          key={aktifGorsel}
+                          src={vitrinService.gorselUrl(aktifGorsel)}
+                          alt={detay.baslik}
+                          onLoad={() => setGorselYukleniyor(false)}
+                          onError={() => { setGorselYukleniyor(false); setGorselHatasi(true); }}
+                          style={{
+                            display: gorselYukleniyor ? 'none' : 'block',
+                            maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto',
+                            objectFit: 'contain', objectPosition: 'center'
+                          }}
+                        />
+                      </>
                     ) : (
-                      <Box component="img" src="/KaynarMotor.png" alt="Kaynar Motor" sx={{ width: 90, opacity: .45, filter: 'brightness(0) invert(1)' }} />
+                      <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,.7)', px: 2 }}>
+                        <Box component="img" src="/KaynarMotor.png" alt="Kaynar Motor" sx={{ width: 90, opacity: .45, filter: 'brightness(0) invert(1)' }} />
+                        <Typography variant="body2" sx={{ mt: 1 }}>{gorselHatasi ? 'Görsel yüklenemedi' : 'Bu ilan için görsel bulunmuyor'}</Typography>
+                      </Box>
                     )}
                     {gorseller.length > 1 && <>
                       <IconButton aria-label="Önceki görsel" onClick={() => setGorselIdx((gorselIdx - 1 + gorseller.length) % gorseller.length)}
                         sx={{ position: 'absolute', left: 10, color: '#fff', bgcolor: 'rgba(0,0,0,.48)', '&:hover': { bgcolor: 'rgba(0,0,0,.72)' } }}><PrevIcon /></IconButton>
                       <IconButton aria-label="Sonraki görsel" onClick={() => setGorselIdx((gorselIdx + 1) % gorseller.length)}
                         sx={{ position: 'absolute', right: 10, color: '#fff', bgcolor: 'rgba(0,0,0,.48)', '&:hover': { bgcolor: 'rgba(0,0,0,.72)' } }}><NextIcon /></IconButton>
+                      <Chip size="small" label={`${gorselIdx + 1} / ${gorseller.length}`}
+                        sx={{ position: 'absolute', right: 10, bottom: 10, bgcolor: 'rgba(0,0,0,.65)', color: '#fff', fontWeight: 700 }} />
                     </>}
                   </Box>
                   {gorseller.length > 1 && (
@@ -123,7 +153,9 @@ const StorefrontDetay = () => {
                       {gorseller.map((g, i) => (
                         <Box key={g} component="button" onClick={() => setGorselIdx(i)} aria-label={`${i + 1}. görsel`}
                           sx={{ p: 0, border: i === gorselIdx ? `2px solid ${RED}` : '1px solid #ddd', borderRadius: 1, overflow: 'hidden', bgcolor: '#111', minWidth: 72, width: 72, height: 52, cursor: 'pointer' }}>
-                          <Box component="img" src={vitrinService.gorselUrl(g)} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          <Box component="img" src={vitrinService.gorselUrl(g)} alt={`${detay.baslik} - ${i + 1}. görsel`}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/KaynarMotor.png'; }}
+                            sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', bgcolor: '#111' }} />
                         </Box>
                       ))}
                     </Box>
