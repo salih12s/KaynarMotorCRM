@@ -452,8 +452,19 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS one_cikan BOOLEAN DEFAULT FALSE;`);
     await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS rubik_link TEXT;`);
 
+    // Migration: hizmet kategorileri (bakım/servis, nakliye, sigorta) için hizmet sayfası — resim + başlık
+    await client.query(`ALTER TABLE vitrin_kategori_iletisim ADD COLUMN IF NOT EXISTS gorsel TEXT;`);
+    await client.query(`ALTER TABLE vitrin_kategori_iletisim ADD COLUMN IF NOT EXISTS baslik VARCHAR(255);`);
+
     // Migration: ikinci_el_motorlar tablosuna parçalı ödeme dağılımı (JSON) ekle
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS odeme_detaylari TEXT;`);
+
+    // Migration: motor eklerken opsiyonel vitrin/site bilgileri (taslak) — vitrine alırken otomatik dolar
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_baslik TEXT;`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_aciklama TEXT;`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_segment VARCHAR(50);`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_cc INTEGER;`);
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_fiyat DECIMAL(12,2);`);
 
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {

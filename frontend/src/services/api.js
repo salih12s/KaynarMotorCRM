@@ -162,6 +162,7 @@ export const vitrinService = {
   updateIletisim: (kategori, data) => api.put(`/vitrin/iletisim/${kategori}`, data),
   gorselUrl: (id) => `${API_URL}/vitrin/gorsel/${id}`,
   videoUrl: (id) => `${API_URL}/vitrin/video/${id}`,
+  iletisimGorselUrl: (kategori) => `${API_URL}/vitrin/iletisim-gorsel/${kategori}`,
 };
 
 export default api;

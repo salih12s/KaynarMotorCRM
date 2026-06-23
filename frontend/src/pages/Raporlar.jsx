@@ -510,7 +510,7 @@ const Raporlar = () => {
         const shownMotorlar = motorSubTab === 1 ? komisyonluMotorlar : allMotorlar;
         const shownGelir = shownMotorlar.reduce((t, m) => t + parseFloat(m.satis_fiyati || 0), 0);
         const shownMaliyet = shownMotorlar.reduce((t, m) => t + parseFloat(m.alis_fiyati || 0) + parseFloat(m.masraflar || 0), 0);
-        const shownKar = shownMotorlar.reduce((t, m) => t + parseFloat(m.kar || 0), 0);
+        const shownKar = shownMotorlar.reduce((t, m) => t + (parseFloat(m.kar || 0) - parseFloat(m.yatirimci_kar || 0)), 0);
         const shownNoterSatis = shownMotorlar.reduce((t, m) => t + parseFloat(m.noter_satis || 0), 0);
         const shownStokDegeri = motorSubTab === 1 ? 0 : (rapor.motorStokToplam || 0);
         const komisyonToplamTutar = komisyonluMotorlar.reduce((t, m) => t + parseFloat(m.komisyoncu_tutari || 0), 0);
@@ -554,7 +554,9 @@ const Raporlar = () => {
               { label: 'Toplam Satış', value: allMotorlar.length, color: '#C62828' },
               { label: 'Motor Gelir', value: `₺${formatTL(rapor.motorGelir)}`, color: '#1565C0' },
               { label: 'Motor Maliyet', value: `₺${formatTL(rapor.motorMaliyet)}`, color: '#E65100' },
-              { label: 'Motor Kâr', value: `₺${formatTL(rapor.motorKar)}`, color: '#2e7d32' },
+              { label: 'Motor Kârı (Payınız)', value: `₺${formatTL(rapor.motorKar)}`, color: '#2e7d32' },
+              { label: 'Yatırımcı Payı', value: `₺${formatTL(rapor.motorYatirimciKar)}`, color: '#1565C0' },
+              { label: 'Komisyoncu Payı', value: `₺${formatTL(rapor.motorKomisyon)}`, color: '#f57f17' },
               { label: 'Noter Satış Cirosu', value: `₺${formatTL(rapor.motorNoterSatisCiro)}`, color: '#6A1B9A' },
               { label: 'Faturalı', value: allMotorlar.filter(m => m.fatura_kesildi).length, color: '#00695C' },
               { label: 'Motor Stok Değeri', value: `₺${formatTL(shownStokDegeri)}`, color: '#4A148C' },

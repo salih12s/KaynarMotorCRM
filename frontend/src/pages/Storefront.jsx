@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box, AppBar, Toolbar, Button, Typography, Grid, Card, CardMedia,
-  CardContent, CardActionArea, Chip, TextField, Stack, Dialog, DialogContent,
+  CardActionArea, Chip, TextField, Stack, Dialog, DialogContent,
   IconButton, Divider, CircularProgress, useMediaQuery, useTheme, InputAdornment,
   List, ListItem, ListItemButton, ListItemText, ListItemIcon, Paper, Fade, Drawer
 } from '@mui/material';
@@ -12,10 +12,11 @@ import {
   TwoWheeler as TwoWheelerIcon, Checkroom as CheckroomIcon, Build as BuildIcon,
   Handyman as HandymanIcon, LocalShipping as LocalShippingIcon, VerifiedUser as VerifiedUserIcon,
   ArrowForward as ArrowForwardIcon, Home as HomeIcon,
-  Calculate as CalculateIcon, CreditCard as CreditCardIcon
+  Calculate as CalculateIcon, CreditCard as CreditCardIcon,
+  WhatsApp as WhatsAppIcon, PlayCircleOutline as PlayCircleOutlineIcon
 } from '@mui/icons-material';
 import { vitrinService } from '../services/api';
-import { KATEGORILER, SEGMENTLER } from './Vitrin';
+import { KATEGORILER, SEGMENTLER, HIZMET_KATEGORILER } from './Vitrin';
 
 const RED = '#C62828';
 
@@ -29,25 +30,45 @@ const KATEGORI_ICON = {
   sigorta: <VerifiedUserIcon sx={{ fontSize: 30 }} />,
 };
 
-// YouTube/diğer video linkini embed URL'ine çevirir
-const toEmbedUrl = (url) => {
+// Video linkini nasıl göstereceğimizi belirler: { tip: 'embed'|'file'|'link', src }
+const videoKaynak = (url) => {
   if (!url) return null;
-  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
-  return null;
+  const u = url.trim();
+  // YouTube (normal + shorts)
+  const yt = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  if (yt) return { tip: 'embed', src: `https://www.youtube.com/embed/${yt[1]}` };
+  // Vimeo
+  const vm = u.match(/vimeo\.com\/(\d+)/);
+  if (vm) return { tip: 'embed', src: `https://player.vimeo.com/video/${vm[1]}` };
+  // Doğrudan video dosyası linki
+  if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)) return { tip: 'file', src: u };
+  // Instagram / TikTok / diğer — sayfada gömülemez, buton ile yeni sekmede aç
+  return { tip: 'link', src: u };
+};
+
+// WhatsApp linki üret (TR numarası, baştaki 0 -> 90)
+const waLink = (tel) => {
+  let d = String(tel || '').replace(/\D/g, '');
+  if (!d) return null;
+  if (d.startsWith('0')) d = '90' + d.slice(1);
+  else if (!d.startsWith('90') && d.length === 10) d = '90' + d;
+  return `https://wa.me/${d}`;
 };
 
 const Storefront = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const geriDonus = location.state?.storefront;
 
   // Giriş (video) ekranı mı yoksa kategori listesi mi gösteriliyor
-  const [intro, setIntro] = useState(true);
+  const [intro, setIntro] = useState(!geriDonus);
 
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(geriDonus?.tab ?? 0);
   const kategori = KATEGORILER[tab].key;
   const isMotor = kategori === 'motor';
+  const isHizmet = HIZMET_KATEGORILER.includes(kategori);
 
   const [urunler, setUrunler] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -55,10 +76,10 @@ const Storefront = () => {
   const [segmentler, setSegmentler] = useState(SEGMENTLER);
 
   // filtreler (motor)
-  const [segment, setSegment] = useState('');
-  const [ccMax, setCcMax] = useState('');
-  const [kmMax, setKmMax] = useState('');
-  const [q, setQ] = useState('');
+  const [segment, setSegment] = useState(geriDonus?.segment || '');
+  const [ccMax, setCcMax] = useState(geriDonus?.ccMax || '');
+  const [kmMax, setKmMax] = useState(geriDonus?.kmMax || '');
+  const [q, setQ] = useState(geriDonus?.q || '');
 
   // detay modalı
   const [detay, setDetay] = useState(null);
@@ -119,17 +140,13 @@ const Storefront = () => {
   const enterKategori = (i) => { handleTab(i); setIntro(false); window.scrollTo(0, 0); };
   const goHome = () => { setIntro(true); setUrunler([]); };
 
-  const openDetay = async (u) => {
-    setGorselIdx(0);
-    try {
-      const res = await vitrinService.getById(u.id);
-      setDetay(res.data);
-    } catch { setDetay({ ...u, gorsel_idler: u.kapak_gorsel_id ? [u.kapak_gorsel_id] : [] }); }
+  const openDetay = (u) => {
+    navigate(`/ilan/${u.id}`, { state: { storefront: { tab, segment, ccMax, kmMax, q } } });
   };
 
   const curIletisim = iletisim[kategori];
   const detayIletisim = detay ? iletisim[detay.kategori] : null;
-  const embedUrl = detay ? toEmbedUrl(detay.video_url) : null;
+  const videoBilgi = detay ? videoKaynak(detay.video_url) : null;
 
   // ---- GİRİŞ (VIDEO) EKRANI ----
   if (intro) {
@@ -304,6 +321,48 @@ const Storefront = () => {
 
       {/* Gövde: tek sütun — üstte yatay filtre, altında 4'lü kart ızgarası */}
       <Box sx={{ flex: 1, width: '100%', maxWidth: 1400, mx: 'auto', p: { xs: 1.5, md: 3 } }}>
+        {isHizmet ? (
+          /* ---- HİZMET SAYFASI: resim + telefon + WhatsApp (ilan yok) ---- */
+          <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+            <Paper sx={{ overflow: 'hidden', borderRadius: 3 }}>
+              {curIletisim?.gorsel_var ? (
+                <Box component="img" src={`${vitrinService.iletisimGorselUrl(kategori)}?t=${curIletisim.updated_at || ''}`}
+                  alt={KATEGORILER[tab].label} loading="lazy"
+                  sx={{ width: '100%', maxHeight: 440, objectFit: 'cover', display: 'block' }} />
+              ) : (
+                <Box sx={{ height: 220, bgcolor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                  <Typography variant="h6">{KATEGORILER[tab].label}</Typography>
+                </Box>
+              )}
+              <Box sx={{ p: { xs: 2.5, md: 4 }, textAlign: 'center' }}>
+                <Typography variant="h4" fontWeight="bold" gutterBottom>{curIletisim?.baslik || KATEGORILER[tab].label}</Typography>
+                {curIletisim?.aciklama && (
+                  <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap', maxWidth: 620, mx: 'auto', mb: 2 }}>{curIletisim.aciklama}</Typography>
+                )}
+                {curIletisim?.personel_adi && (
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{curIletisim.personel_adi}</Typography>
+                )}
+                {curIletisim?.telefon ? (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" sx={{ maxWidth: 460, mx: 'auto' }}>
+                    <Button fullWidth size="large" variant="contained" color="error" startIcon={<PhoneIcon />} href={`tel:${curIletisim.telefon}`}>
+                      {curIletisim.telefon}
+                    </Button>
+                    {waLink(curIletisim.telefon) && (
+                      <Button fullWidth size="large" variant="contained" startIcon={<WhatsAppIcon />}
+                        href={waLink(curIletisim.telefon)} target="_blank" rel="noopener noreferrer"
+                        sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#1da851' } }}>
+                        WhatsApp
+                      </Button>
+                    )}
+                  </Stack>
+                ) : (
+                  <Typography color="text.secondary">İletişim bilgisi yakında eklenecek.</Typography>
+                )}
+              </Box>
+            </Paper>
+          </Box>
+        ) : (
+        <>
         {/* Kategori iletişim şeridi */}
         {curIletisim && (curIletisim.personel_adi || curIletisim.telefon) && (
           <Box sx={{ mb: 2, p: 1.5, bgcolor: 'white', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
@@ -350,27 +409,22 @@ const Storefront = () => {
             <Fade in timeout={350} key={kategori}>
               <Grid container spacing={2}>
                 {urunler.map(u => (
-                  <Grid item xs={12} sm={6} md={3} lg={3} key={u.id}>
+                  <Grid item xs={12} sm={6} md={3} lg={3} key={u.id} sx={{ display: 'flex' }}>
                     <Card sx={{
-                      height: '100%', borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                      width: '100%', borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column',
                       boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
                       transition: 'transform 0.25s ease, box-shadow 0.25s ease',
                       '&:hover': { transform: 'translateY(-6px)', boxShadow: '0 14px 30px rgba(0,0,0,0.18)' },
                       '&:hover .urun-gorsel': { transform: 'scale(1.07)' },
                     }}>
-                      <CardActionArea onClick={() => openDetay(u)} sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
-                        {/* Görsel + üzerinde etiketler */}
-                        <Box sx={{ position: 'relative', overflow: 'hidden', bgcolor: '#e8e8e8' }}>
-                          <CardMedia component="img" height={isMobile ? 220 : 250}
-                            className="urun-gorsel"
+                      {/* Görsel — sabit 4/3 oran (tüm kartlarda aynı yükseklik) */}
+                      <CardActionArea onClick={() => openDetay(u)} sx={{ display: 'block' }}>
+                        <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', bgcolor: '#e8e8e8' }}>
+                          <CardMedia component="img" className="urun-gorsel"
                             image={u.kapak_gorsel_id ? vitrinService.gorselUrl(u.kapak_gorsel_id) : '/KaynarMotor.png'}
-                            alt={u.baslik}
-                            loading="lazy"
-                            decoding="async"
-                            sx={{ objectFit: 'cover', transition: 'transform 0.4s ease' }} />
-                          {/* alt gradient */}
+                            alt={u.baslik} loading="lazy" decoding="async"
+                            sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }} />
                           <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 45%)' }} />
-                          {/* etiketler sol üst */}
                           <Box sx={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                             {u.segment && <Chip size="small" label={u.segment} sx={{ bgcolor: RED, color: '#fff', fontWeight: 700, height: 22 }} />}
                             {u.motor_cc ? <Chip size="small" label={`${u.motor_cc}cc`} sx={{ bgcolor: 'rgba(0,0,0,0.65)', color: '#fff', height: 22 }} /> : null}
@@ -379,14 +433,21 @@ const Storefront = () => {
                             <Chip size="small" label="★ ÖNE ÇIKAN" sx={{ position: 'absolute', top: 8, right: 8, bgcolor: '#F9A825', color: '#1a1a1a', fontWeight: 800, height: 22, fontSize: 11 }} />
                           ) : null}
                         </Box>
-                        <CardContent sx={{ flex: 1, width: '100%', p: 1.5 }}>
-                          <Typography variant="subtitle2" fontWeight="bold" noWrap sx={{ fontSize: 15 }}>{u.baslik}</Typography>
-                          {(u.marka || u.km) ? (
-                            <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ mb: 0.5 }}>
-                              {[u.marka, u.model, u.yil].filter(Boolean).join(' ')}{u.km ? ` • ${Number(u.km).toLocaleString('tr-TR')} km` : ''}
-                            </Typography>
-                          ) : null}
-                          <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mt: 0.5 }}>
+                      </CardActionArea>
+
+                      {/* İçerik — dikey akış; fiyat + buton kartın dibinde sabit */}
+                      <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <Box onClick={() => openDetay(u)} sx={{ cursor: 'pointer' }}>
+                          <Typography fontWeight="bold" sx={{ fontSize: 15, lineHeight: 1.3, minHeight: '2.6em', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {u.baslik}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', minHeight: '1.3em' }}>
+                            {[u.marka, u.model, u.yil].filter(Boolean).join(' ')}{u.km ? ` • ${Number(u.km).toLocaleString('tr-TR')} km` : ''}
+                          </Typography>
+                        </Box>
+
+                        <Box sx={{ mt: 'auto', pt: 1 }}>
+                          <Box onClick={() => openDetay(u)} sx={{ cursor: 'pointer', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}>
                             <Typography variant="h6" color="error" fontWeight={800} sx={{ fontSize: 19 }}>
                               {Number(u.fiyat).toLocaleString('tr-TR')} ₺
                             </Typography>
@@ -394,29 +455,23 @@ const Storefront = () => {
                               <span>Detay</span><ArrowForwardIcon sx={{ fontSize: 14 }} />
                             </Box>
                           </Box>
-                        </CardContent>
-                      </CardActionArea>
-                      {Number(u.fiyat) > 0 && (
-                        <Box sx={{ px: 1.5, pb: 1.5 }}>
-                          <Button
-                            fullWidth
-                            size="small"
-                            variant="outlined"
-                            color="inherit"
-                            startIcon={<CalculateIcon />}
-                            onClick={() => window.open(`/taksit/${Math.round(Number(u.fiyat))}`, '_blank')}
-                            sx={{ borderColor: '#bbb', fontWeight: 700 }}
-                          >
-                            Nakit / Taksit Hesapla
-                          </Button>
+                          {Number(u.fiyat) > 0 && (
+                            <Button fullWidth size="small" variant="outlined" color="inherit" startIcon={<CalculateIcon />}
+                              onClick={() => window.open(`/taksit/${Math.round(Number(u.fiyat))}`, '_blank')}
+                              sx={{ borderColor: '#bbb', fontWeight: 700 }}>
+                              Nakit / Taksit Hesapla
+                            </Button>
+                          )}
                         </Box>
-                      )}
+                      </Box>
                     </Card>
                   </Grid>
                 ))}
               </Grid>
             </Fade>
           )}
+        </>
+        )}
       </Box>
 
       {/* Detay Modalı */}
@@ -484,11 +539,22 @@ const Storefront = () => {
                     <source src={vitrinService.videoUrl(detay.video_dosya_id)} />
                   </video>
                 </Box>
-              ) : embedUrl ? (
+              ) : videoBilgi?.tip === 'embed' ? (
                 <Box sx={{ position: 'relative', pt: '56.25%', mb: 2, borderRadius: 2, overflow: 'hidden' }}>
-                  <iframe src={embedUrl} title="video" loading="lazy" allowFullScreen
+                  <iframe src={videoBilgi.src} title="video" loading="lazy" allowFullScreen
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} />
                 </Box>
+              ) : videoBilgi?.tip === 'file' ? (
+                <Box sx={{ mb: 2, borderRadius: 2, overflow: 'hidden', bgcolor: '#000' }}>
+                  <video controls preload="none" playsInline style={{ width: '100%', maxHeight: 420, display: 'block' }}>
+                    <source src={videoBilgi.src} />
+                  </video>
+                </Box>
+              ) : videoBilgi?.tip === 'link' ? (
+                <Button variant="outlined" fullWidth startIcon={<PlayCircleOutlineIcon />}
+                  href={videoBilgi.src} target="_blank" rel="noopener noreferrer" sx={{ mb: 2, borderColor: '#bbb', color: '#333' }}>
+                  Videoyu / Gönderiyi Görüntüle
+                </Button>
               ) : null}
 
               {/* Taksit hesaplama + (varsa) Rubik taksitli ödeme aksiyonları */}

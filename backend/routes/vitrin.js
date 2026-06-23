@@ -23,6 +23,22 @@ module.exports = (authenticateToken, isAdmin) => {
   const router = express.Router();
   const admin = [authenticateToken, isAdmin];
 
+  // Vitrin yazma yetkisi: admin VEYA motor/aksesuar vitrin yetkisi olan personel
+  const vitrinYetkili = (req, res, next) => {
+    const u = req.user || {};
+    if (u.rol === 'admin' || u.motor_vitrin_yetkisi || u.aksesuar_vitrin_yetkisi) return next();
+    return res.status(403).json({ message: 'Vitrin yönetim yetkiniz yok' });
+  };
+  const vitrinWrite = [authenticateToken, vitrinYetkili];
+  // Personel yalnızca izinli olduğu kategoriyi yönetebilir (admin hepsini)
+  const kategoriYetkiliMi = (user, kategori) => {
+    if (!user) return false;
+    if (user.rol === 'admin') return true;
+    if (kategori === 'motor') return !!user.motor_vitrin_yetkisi;
+    if (kategori === 'aksesuar') return !!user.aksesuar_vitrin_yetkisi;
+    return false; // diğer kategoriler yalnızca admin
+  };
+
   // ---------- PUBLIC ----------
 
   // GET /segmentler - dinamik segment listesi
@@ -63,14 +79,34 @@ module.exports = (authenticateToken, isAdmin) => {
     await client.query('UPDATE vitrin_urunleri SET video_dosya_id = NULL WHERE id = $1', [urunId]);
   };
 
-  // GET /iletisim - tüm kategori iletişim kayıtları
+  // GET /iletisim - tüm kategori iletişim kayıtları (gorsel base64 hariç; sadece var/yok)
   router.get('/iletisim', async (req, res) => {
     try {
-      const result = await pool.query('SELECT * FROM vitrin_kategori_iletisim');
+      const result = await pool.query(
+        `SELECT kategori, personel_adi, telefon, aciklama, baslik,
+                (gorsel IS NOT NULL) AS gorsel_var, updated_at
+         FROM vitrin_kategori_iletisim`
+      );
       res.json(result.rows);
     } catch (e) {
       console.error('Vitrin iletişim hatası:', e.message);
       res.status(500).json({ message: 'Sunucu hatası' });
+    }
+  });
+
+  // GET /iletisim-gorsel/:kategori - hizmet sayfası görselini binary servis et
+  router.get('/iletisim-gorsel/:kategori', async (req, res) => {
+    try {
+      const r = await pool.query('SELECT gorsel FROM vitrin_kategori_iletisim WHERE kategori = $1', [req.params.kategori]);
+      if (!r.rows.length || !r.rows[0].gorsel) return res.status(404).send('Görsel bulunamadı');
+      const parsed = parseDataUrl(r.rows[0].gorsel);
+      if (!parsed) return res.status(404).send('Geçersiz görsel');
+      res.set('Content-Type', parsed.mime);
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(parsed.buffer);
+    } catch (e) {
+      console.error('Vitrin iletişim görsel hatası:', e.message);
+      res.status(500).send('Sunucu hatası');
     }
   });
 
@@ -187,7 +223,7 @@ module.exports = (authenticateToken, isAdmin) => {
   // ---------- ADMIN ----------
 
   // POST / - ürün oluştur (gorseller: base64 data URL dizisi; ilki kapak)
-  router.post('/', ...admin, async (req, res) => {
+  router.post('/', ...vitrinWrite, async (req, res) => {
     const client = await pool.connect();
     try {
       const {
@@ -197,6 +233,7 @@ module.exports = (authenticateToken, isAdmin) => {
       } = req.body;
 
       if (!KATEGORILER.includes(kategori)) return res.status(400).json({ message: 'Geçersiz kategori' });
+      if (!kategoriYetkiliMi(req.user, kategori)) return res.status(403).json({ message: 'Bu kategori için vitrin yetkiniz yok' });
       if (!baslik) return res.status(400).json({ message: 'Başlık zorunlu' });
       if (kategori === 'motor' && !segment) return res.status(400).json({ message: 'Motor ilanı için segment zorunlu' });
 
@@ -241,7 +278,7 @@ module.exports = (authenticateToken, isAdmin) => {
   });
 
   // PUT /:id - güncelle (gorseller verilirse görseller tamamen yenilenir)
-  router.put('/:id', ...admin, async (req, res) => {
+  router.put('/:id', ...vitrinWrite, async (req, res) => {
     const client = await pool.connect();
     try {
       const {
@@ -250,8 +287,12 @@ module.exports = (authenticateToken, isAdmin) => {
         one_cikan, stok_motor_id, rubik_link
       } = req.body;
 
-      const mevcut = await client.query('SELECT id FROM vitrin_urunleri WHERE id = $1', [req.params.id]);
+      const mevcut = await client.query('SELECT id, kategori FROM vitrin_urunleri WHERE id = $1', [req.params.id]);
       if (mevcut.rows.length === 0) return res.status(404).json({ message: 'Kayıt bulunamadı' });
+      // Hem mevcut kaydın hem hedef kategorinin yetkisi olmalı (personel kapsam dışına çıkamaz)
+      if (!kategoriYetkiliMi(req.user, mevcut.rows[0].kategori) || !kategoriYetkiliMi(req.user, kategori)) {
+        return res.status(403).json({ message: 'Bu kategori için vitrin yetkiniz yok' });
+      }
       if (kategori === 'motor' && !segment) return res.status(400).json({ message: 'Motor ilanı için segment zorunlu' });
 
       if (segment) await ensureSegment(segment);
@@ -299,8 +340,12 @@ module.exports = (authenticateToken, isAdmin) => {
   });
 
   // DELETE /:id - sil (görseller cascade)
-  router.delete('/:id', ...admin, async (req, res) => {
+  router.delete('/:id', ...vitrinWrite, async (req, res) => {
     try {
+      const rec = await pool.query('SELECT kategori FROM vitrin_urunleri WHERE id = $1', [req.params.id]);
+      if (rec.rows.length && !kategoriYetkiliMi(req.user, rec.rows[0].kategori)) {
+        return res.status(403).json({ message: 'Bu kategori için vitrin yetkiniz yok' });
+      }
       await pool.query('DELETE FROM vitrin_urunleri WHERE id = $1', [req.params.id]);
       res.json({ message: 'Silindi' });
     } catch (e) {
@@ -309,8 +354,8 @@ module.exports = (authenticateToken, isAdmin) => {
     }
   });
 
-  // POST /segmentler - yeni segment ekle (admin)
-  router.post('/segmentler', ...admin, async (req, res) => {
+  // POST /segmentler - yeni segment ekle (admin veya vitrin yetkili)
+  router.post('/segmentler', ...vitrinWrite, async (req, res) => {
     try {
       const ad = (req.body.ad || '').trim();
       if (!ad) return res.status(400).json({ message: 'Segment adı zorunlu' });
@@ -324,19 +369,26 @@ module.exports = (authenticateToken, isAdmin) => {
   });
 
   // PUT /iletisim/:kategori - kategori iletişimi upsert
-  router.put('/iletisim/:kategori', ...admin, async (req, res) => {
+  router.put('/iletisim/:kategori', ...vitrinWrite, async (req, res) => {
     try {
       const { kategori } = req.params;
       if (!KATEGORILER.includes(kategori)) return res.status(400).json({ message: 'Geçersiz kategori' });
-      const { personel_adi, telefon, aciklama } = req.body;
+      if (!kategoriYetkiliMi(req.user, kategori)) return res.status(403).json({ message: 'Bu kategori için vitrin yetkiniz yok' });
+      const { personel_adi, telefon, aciklama, baslik, gorsel, gorsel_sil } = req.body;
       await pool.query(
-        `INSERT INTO vitrin_kategori_iletisim (kategori, personel_adi, telefon, aciklama, updated_at)
-         VALUES ($1,$2,$3,$4,CURRENT_TIMESTAMP)
+        `INSERT INTO vitrin_kategori_iletisim (kategori, personel_adi, telefon, aciklama, baslik, updated_at)
+         VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)
          ON CONFLICT (kategori) DO UPDATE SET
            personel_adi=EXCLUDED.personel_adi, telefon=EXCLUDED.telefon,
-           aciklama=EXCLUDED.aciklama, updated_at=CURRENT_TIMESTAMP`,
-        [kategori, emptyToNull(personel_adi), emptyToNull(telefon), emptyToNull(aciklama)]
+           aciklama=EXCLUDED.aciklama, baslik=EXCLUDED.baslik, updated_at=CURRENT_TIMESTAMP`,
+        [kategori, emptyToNull(personel_adi), emptyToNull(telefon), emptyToNull(aciklama), emptyToNull(baslik)]
       );
+      // Görsel: yeni geldiyse değiştir, gorsel_sil işaretliyse kaldır, yoksa dokunma
+      if (typeof gorsel === 'string' && gorsel) {
+        await pool.query('UPDATE vitrin_kategori_iletisim SET gorsel=$1 WHERE kategori=$2', [gorsel, kategori]);
+      } else if (gorsel_sil) {
+        await pool.query('UPDATE vitrin_kategori_iletisim SET gorsel=NULL WHERE kategori=$1', [kategori]);
+      }
       res.json({ message: 'Kaydedildi' });
     } catch (e) {
       console.error('Vitrin iletişim güncelleme hatası:', e.message);

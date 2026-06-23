@@ -9,7 +9,7 @@ import {
   Save as SaveIcon, PhotoCamera as PhotoIcon, Phone as PhoneIcon,
   Movie as MovieIcon, PlayCircle as PlayCircleIcon
 } from '@mui/icons-material';
-import { vitrinService, ikinciElMotorService } from '../services/api';
+import { vitrinService, ikinciElMotorService, aksesuarStokService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export const KATEGORILER = [
@@ -22,6 +22,9 @@ export const KATEGORILER = [
 ];
 
 export const SEGMENTLER = ['Chopper', 'Scooter', 'Racing', 'Naked', 'Touring', 'Cross/Enduro', 'Cub', 'Maxi Scooter'];
+
+// İlan girilmeyen, sadece hizmet sayfası (resim + telefon + WhatsApp) gösterilen kategoriler
+export const HIZMET_KATEGORILER = ['bakim_servis', 'nakliye', 'sigorta'];
 
 // Görseli istemcide küçültüp JPEG base64 döndürür (DB yükünü azaltmak için)
 const resizeImage = (file, maxSize = 1280, quality = 0.7) =>
@@ -64,6 +67,8 @@ const Vitrin = () => {
   const aktifKategori = gorunenKategoriler[tab] || gorunenKategoriler[0] || KATEGORILER[0];
   const kategori = aktifKategori.key;
   const isMotor = kategori === 'motor';
+  const isAksesuar = kategori === 'aksesuar';
+  const isHizmet = HIZMET_KATEGORILER.includes(kategori);
 
   const [urunler, setUrunler] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -78,6 +83,7 @@ const Vitrin = () => {
   const [gorseller, setGorseller] = useState([]); // base64 data URL dizisi
   const [saving, setSaving] = useState(false);
   const [stokMotorlar, setStokMotorlar] = useState([]); // stoktaki motorlar (vitrine aktarma için)
+  const [stokAksesuarlar, setStokAksesuarlar] = useState([]); // aksesuar stok (vitrine aktarma için)
 
   // video: videoFile = yeni seçilen base64; videoVar = üründe zaten video var mı; videoSil = mevcudu kaldır
   const [videoFile, setVideoFile] = useState(null);
@@ -88,7 +94,10 @@ const Vitrin = () => {
 
   // iletişim dialog
   const [iletDlg, setIletDlg] = useState(false);
-  const [iletForm, setIletForm] = useState({ personel_adi: '', telefon: '', aciklama: '' });
+  const [iletForm, setIletForm] = useState({ personel_adi: '', telefon: '', aciklama: '', baslik: '' });
+  const [iletGorsel, setIletGorsel] = useState(null); // yeni seçilen hizmet görseli (base64)
+  const [iletGorselVar, setIletGorselVar] = useState(false);
+  const [iletGorselSil, setIletGorselSil] = useState(false);
 
   const showSnack = (msg, sev = 'success') => setSnack({ open: true, msg, sev });
 
@@ -128,6 +137,32 @@ const Vitrin = () => {
       .catch(() => { /* yetki yoksa boş kalır */ });
   }, []);
 
+  // Aksesuar stoğunu yükle — aksesuar ilanını otomatik doldurmak için
+  useEffect(() => {
+    aksesuarStokService.getAll()
+      .then(res => setStokAksesuarlar(res.data || []))
+      .catch(() => { /* yetki yoksa boş kalır */ });
+  }, []);
+
+  // Stoktan aksesuar seçilince TÜM bilgileri otomatik doldur
+  const secStokAksesuar = (urun) => {
+    if (!urun) return;
+    // Müşteriye gösterilecek detayları açıklamaya derle (kategori, beden, renk, marka)
+    const detaylar = [
+      urun.marka ? `Marka: ${urun.marka}` : null,
+      urun.kategori ? `Kategori: ${urun.kategori}` : null,
+      urun.beden ? `Beden: ${urun.beden}` : null,
+      urun.renk ? `Renk: ${urun.renk}` : null,
+    ].filter(Boolean).join('\n');
+    setForm(f => ({
+      ...f,
+      baslik: urun.stok_adi || f.baslik,
+      marka: urun.marka || f.marka,
+      fiyat: urun.satis_fiyati || f.fiyat,
+      aciklama: f.aciklama || detaylar,
+    }));
+  };
+
   // Stoktan motor seçilince temel bilgileri forma doldur (tekrar elle girilmesin)
   const secStokMotor = (motor) => {
     if (!motor) { setForm(f => ({ ...f, stok_motor_id: null })); return; }
@@ -138,8 +173,12 @@ const Vitrin = () => {
       model: motor.model || f.model,
       yil: motor.yil || f.yil,
       km: motor.km || f.km,
-      fiyat: motor.liste_fiyati || motor.satis_fiyati || f.fiyat,
-      baslik: f.baslik || [motor.marka, motor.model, motor.yil].filter(Boolean).join(' '),
+      // Stokta girilen vitrin taslağı varsa onu kullan; yoksa liste/satış fiyatı
+      fiyat: motor.vitrin_fiyat || motor.liste_fiyati || motor.satis_fiyati || f.fiyat,
+      baslik: motor.vitrin_baslik || f.baslik || [motor.marka, motor.model, motor.yil].filter(Boolean).join(' '),
+      aciklama: motor.vitrin_aciklama || f.aciklama,
+      segment: motor.vitrin_segment || f.segment,
+      motor_cc: motor.vitrin_cc || f.motor_cc,
     }));
   };
 
@@ -243,15 +282,29 @@ const Vitrin = () => {
 
   const openIletisim = () => {
     const cur = iletisim[kategori] || {};
-    setIletForm({ personel_adi: cur.personel_adi || '', telefon: cur.telefon || '', aciklama: cur.aciklama || '' });
+    setIletForm({ personel_adi: cur.personel_adi || '', telefon: cur.telefon || '', aciklama: cur.aciklama || '', baslik: cur.baslik || '' });
+    setIletGorsel(null); setIletGorselSil(false); setIletGorselVar(!!cur.gorsel_var);
     setIletDlg(true);
   };
 
+  const handleIletGorsel = async (e) => {
+    const file = (e.target.files || [])[0];
+    e.target.value = '';
+    if (!file) return;
+    try { const data = await resizeImage(file, 1280, 0.75); setIletGorsel(data); setIletGorselSil(false); }
+    catch { showSnack('Görsel işlenemedi', 'error'); }
+  };
+
+  const removeIletGorsel = () => { setIletGorsel(null); if (iletGorselVar) setIletGorselSil(true); };
+
   const handleSaveIletisim = async () => {
     try {
-      await vitrinService.updateIletisim(kategori, iletForm);
+      const payload = { ...iletForm };
+      if (iletGorsel) payload.gorsel = iletGorsel;
+      else if (iletGorselSil) payload.gorsel_sil = true;
+      await vitrinService.updateIletisim(kategori, payload);
       setIletDlg(false);
-      showSnack('İletişim bilgileri kaydedildi');
+      showSnack('Kaydedildi');
       loadIletisim();
     } catch { showSnack('Kaydedilemedi', 'error'); }
   };
@@ -266,6 +319,36 @@ const Vitrin = () => {
         </Tabs>
       </Paper>
 
+      {isHizmet ? (
+        /* ---- HİZMET SAYFASI AYAR PANELİ (bu kategoride ilan yok) ---- */
+        <Paper sx={{ mb: 2, overflow: 'hidden' }}>
+          <Box sx={{ bgcolor: '#f0f0f0' }}>
+            {curIletisim?.gorsel_var ? (
+              <Box component="img" src={`${vitrinService.iletisimGorselUrl(kategori)}?t=${curIletisim.updated_at || ''}`} alt={aktifKategori.label}
+                sx={{ width: '100%', maxHeight: 320, objectFit: 'cover', display: 'block' }} />
+            ) : (
+              <Box sx={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary' }}>
+                <Typography variant="body2">Henüz görsel eklenmedi</Typography>
+              </Box>
+            )}
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Typography variant="h6" fontWeight="bold">{curIletisim?.baslik || aktifKategori.label}</Typography>
+            {curIletisim?.aciklama && <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{curIletisim.aciklama}</Typography>}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+              <PhoneIcon color="error" fontSize="small" />
+              <Typography variant="body1" fontWeight="500">
+                {curIletisim?.personel_adi || '—'}{curIletisim?.telefon ? ` • ${curIletisim.telefon}` : ''}
+              </Typography>
+            </Box>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+              Bu sayfada ilan yoktur. Müşteriye yukarıdaki görsel, telefon ve WhatsApp butonu gösterilir.
+            </Typography>
+            <Button variant="contained" startIcon={<PhoneIcon />} onClick={openIletisim} sx={{ mt: 1.5 }}>Hizmet Sayfasını Düzenle</Button>
+          </Box>
+        </Paper>
+      ) : (
+      <>
       {/* Kategori iletişim kartı */}
       <Paper sx={{ p: 2, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
         <Box>
@@ -333,6 +416,8 @@ const Vitrin = () => {
           ))}
         </Grid>
       )}
+      </>
+      )}
 
       {/* Ürün Dialog */}
       <Dialog open={dlgOpen} onClose={() => setDlgOpen(false)} maxWidth="sm" fullWidth>
@@ -342,9 +427,26 @@ const Vitrin = () => {
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 0.5 }}>
+            {/* Aksesuar: stoktan seçip bilgileri otomatik doldur */}
+            {isAksesuar && (
+              <Autocomplete
+                options={stokAksesuarlar}
+                getOptionLabel={(a) => `${a.stok_adi || ''}${a.marka ? ' • ' + a.marka : ''}${a.satis_fiyati ? ' — ₺' + Number(a.satis_fiyati).toLocaleString('tr-TR') : ''}`.trim()}
+                isOptionEqualToValue={(o, v) => o.id === v.id}
+                onChange={(e, val) => secStokAksesuar(val)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Stoktan Aksesuar Seç (opsiyonel)"
+                    helperText="Aksesuar stoğundan seçersen başlık ve fiyat otomatik gelir." />
+                )}
+              />
+            )}
             <TextField label="Başlık" value={form.baslik} onChange={e => setForm({ ...form, baslik: e.target.value })} fullWidth required />
             <TextField label="Açıklama" value={form.aciklama} onChange={e => setForm({ ...form, aciklama: e.target.value })} fullWidth multiline minRows={2} />
             <TextField label="Fiyat (₺)" type="number" value={form.fiyat} onChange={e => setForm({ ...form, fiyat: e.target.value })} fullWidth />
+
+            {isAksesuar && (
+              <TextField label="Marka" value={form.marka} onChange={e => setForm({ ...form, marka: e.target.value })} fullWidth />
+            )}
 
             {isMotor && (
               <>
@@ -458,14 +560,40 @@ const Vitrin = () => {
         </DialogActions>
       </Dialog>
 
-      {/* İletişim Dialog */}
+      {/* İletişim / Hizmet Sayfası Dialog */}
       <Dialog open={iletDlg} onClose={() => setIletDlg(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{aktifKategori.label} — İletişim</DialogTitle>
+        <DialogTitle>{aktifKategori.label} — {isHizmet ? 'Hizmet Sayfası' : 'İletişim'}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 0.5 }}>
+            {isHizmet && (
+              <>
+                <TextField label="Başlık" value={iletForm.baslik} onChange={e => setIletForm({ ...iletForm, baslik: e.target.value })} fullWidth placeholder={aktifKategori.label} />
+                {/* Hizmet görseli */}
+                <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, p: 1.5 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Sayfa Görseli</Typography>
+                  {(iletGorsel || (iletGorselVar && !iletGorselSil)) ? (
+                    <Box>
+                      <Box component="img"
+                        src={iletGorsel || `${vitrinService.iletisimGorselUrl(kategori)}?t=${(iletisim[kategori]?.updated_at) || ''}`}
+                        alt="görsel" sx={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 1, display: 'block', mb: 1 }} />
+                      <Stack direction="row" spacing={1}>
+                        <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={removeIletGorsel}>Kaldır</Button>
+                        <Button size="small" variant="outlined" component="label" startIcon={<PhotoIcon />}>Değiştir
+                          <input type="file" hidden accept="image/*" onChange={handleIletGorsel} />
+                        </Button>
+                      </Stack>
+                    </Box>
+                  ) : (
+                    <Button variant="outlined" component="label" startIcon={<PhotoIcon />}>Görsel Yükle
+                      <input type="file" hidden accept="image/*" onChange={handleIletGorsel} />
+                    </Button>
+                  )}
+                </Box>
+              </>
+            )}
             <TextField label="Personel Adı" value={iletForm.personel_adi} onChange={e => setIletForm({ ...iletForm, personel_adi: e.target.value })} fullWidth />
-            <TextField label="Telefon" value={iletForm.telefon} onChange={e => setIletForm({ ...iletForm, telefon: e.target.value })} fullWidth placeholder="05XX XXX XX XX" />
-            <TextField label="Not (opsiyonel)" value={iletForm.aciklama} onChange={e => setIletForm({ ...iletForm, aciklama: e.target.value })} fullWidth multiline minRows={2} />
+            <TextField label="Telefon" value={iletForm.telefon} onChange={e => setIletForm({ ...iletForm, telefon: e.target.value })} fullWidth placeholder="05XX XXX XX XX" helperText={isHizmet ? 'WhatsApp butonu bu numarayı kullanır' : ''} />
+            <TextField label={isHizmet ? 'Açıklama (opsiyonel)' : 'Not (opsiyonel)'} value={iletForm.aciklama} onChange={e => setIletForm({ ...iletForm, aciklama: e.target.value })} fullWidth multiline minRows={2} />
           </Stack>
         </DialogContent>
         <DialogActions>

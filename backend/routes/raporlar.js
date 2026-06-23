@@ -53,7 +53,10 @@ router.get('/gunluk', engelleYatirimci, async (req, res) => {
 
     const motorGelir = motorlar.rows.reduce((t, r) => t + parseFloat(r.satis_fiyati || 0), 0);
     const motorMaliyet = motorlar.rows.reduce((t, r) => t + parseFloat(r.alis_fiyati || 0) + parseFloat(r.masraflar || 0), 0);
-    const motorKar = motorlar.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
+    const motorKarToplam = motorlar.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
+    const motorYatirimciKar = motorlar.rows.reduce((t, r) => t + parseFloat(r.yatirimci_kar || 0), 0);
+    const motorKomisyon = motorlar.rows.reduce((t, r) => t + parseFloat(r.komisyoncu_tutari || 0), 0);
+    const motorKar = motorKarToplam - motorYatirimciKar; // Admin (işletme) payı = toplam kâr - yatırımcı kârı
 
     const eticaretGelir = eticaret.rows.reduce((t, r) => t + parseFloat(r.satis_fiyati || 0) * parseInt(r.adet || 1), 0);
     const eticaretKar = eticaret.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
@@ -62,7 +65,7 @@ router.get('/gunluk', engelleYatirimci, async (req, res) => {
       tarih: hedefTarih,
       is_emirleri: { kayitlar: isEmirleri.rows, gelir: isEmriGelir, maliyet: isEmriMaliyet, kar: isEmriKar },
       aksesuarlar: { kayitlar: aksesuarlar.rows, gelir: aksesuarGelir, maliyet: aksesuarMaliyet, kar: aksesuarKar },
-      motorlar: { kayitlar: motorlar.rows, gelir: motorGelir, maliyet: motorMaliyet, kar: motorKar },
+      motorlar: { kayitlar: motorlar.rows, gelir: motorGelir, maliyet: motorMaliyet, kar: motorKar, kar_toplam: motorKarToplam, yatirimci_kar: motorYatirimciKar, komisyon: motorKomisyon },
       eticaret: { kayitlar: eticaret.rows, gelir: eticaretGelir, kar: eticaretKar },
       toplam: {
         gelir: isEmriGelir + aksesuarGelir + motorGelir + eticaretGelir,
@@ -116,7 +119,10 @@ router.get('/aralik', engelleYatirimci, async (req, res) => {
 
     const isEmriKar = isEmirleri.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
     const aksesuarKar = aksesuarlar.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
-    const motorKar = motorlar.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
+    const motorKarToplam = motorlar.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
+    const motorYatirimciKar = motorlar.rows.reduce((t, r) => t + parseFloat(r.yatirimci_kar || 0), 0);
+    const motorKomisyon = motorlar.rows.reduce((t, r) => t + parseFloat(r.komisyoncu_tutari || 0), 0);
+    const motorKar = motorKarToplam - motorYatirimciKar; // Admin (işletme) payı
     const eticaretKar = eticaret.rows.reduce((t, r) => t + parseFloat(r.kar || 0), 0);
 
     const isEmriGelir = isEmirleri.rows.reduce((t, r) => t + parseFloat(r.gercek_toplam_ucret || 0), 0);
@@ -141,7 +147,7 @@ router.get('/aralik', engelleYatirimci, async (req, res) => {
     res.json({
       baslangic, bitis,
       motorlar: motorlar.rows,
-      motorGelir, motorMaliyet, motorKar, motorNoterSatisCiro,
+      motorGelir, motorMaliyet, motorKar, motorKarToplam, motorYatirimciKar, motorKomisyon, motorNoterSatisCiro,
       isEmirleri: isEmirleri.rows,
       isEmriGelir, isEmriMaliyet, isEmriKar,
       aksesuarlar: aksesuarlar.rows,
@@ -177,7 +183,12 @@ router.get('/genel', engelleYatirimci, async (req, res) => {
     `);
 
     const motorlar = await pool.query(`
-      SELECT COUNT(*) as toplam, COALESCE(SUM(satis_fiyati), 0) as gelir, COALESCE(SUM(kar), 0) as kar FROM ikinci_el_motorlar WHERE durum='tamamlandi' AND tamamlama_tarihi IS NOT NULL AND (eski_kayit IS NOT TRUE OR DATE(tamamlama_tarihi) >= '2026-01-01')
+      SELECT COUNT(*) as toplam, COALESCE(SUM(satis_fiyati), 0) as gelir,
+             COALESCE(SUM(kar - COALESCE(yatirimci_kar,0)), 0) as kar,
+             COALESCE(SUM(kar), 0) as kar_toplam,
+             COALESCE(SUM(COALESCE(yatirimci_kar,0)), 0) as yatirimci_kar,
+             COALESCE(SUM(COALESCE(komisyoncu_tutari,0)), 0) as komisyon
+      FROM ikinci_el_motorlar WHERE durum='tamamlandi' AND tamamlama_tarihi IS NOT NULL AND (eski_kayit IS NOT TRUE OR DATE(tamamlama_tarihi) >= '2026-01-01')
     `);
 
     const eticaret = await pool.query(`

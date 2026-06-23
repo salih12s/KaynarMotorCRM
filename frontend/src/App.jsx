@@ -24,6 +24,7 @@ import MotorDetay from './pages/MotorDetay';
 import Veresiye from './pages/Veresiye';
 import Vitrin from './pages/Vitrin';
 import Storefront from './pages/Storefront';
+import StorefrontDetay from './pages/StorefrontDetay';
 import TaksitHesaplama from './pages/TaksitHesaplama';
 import TaksitGoruntule from './pages/TaksitGoruntule';
 
@@ -202,6 +203,7 @@ const ThemedApp = () => {
             <Route path="/" element={<RootRoute />} />
             {/* Giriş yapmış kullanıcıların da panelden dönebilmesi için herkese açık vitrin */}
             <Route path="/site" element={<Storefront />} />
+            <Route path="/ilan/:id" element={<StorefrontDetay />} />
             {/* Müşteriye gönderilen taksit linki — herkese açık */}
             <Route path="/taksit/:fiyat" element={<TaksitGoruntule />} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
