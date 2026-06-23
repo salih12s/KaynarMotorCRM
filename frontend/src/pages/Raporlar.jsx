@@ -314,6 +314,8 @@ const Raporlar = () => {
 
   const headerSx = { color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' };
   const karColor = (v) => parseFloat(v || 0) >= 0 ? '#2e7d32' : '#C62828';
+  // Motorun toplam kârından yatırımcıya ayrılan pay düşüldükten sonra işletmede kalan tutar.
+  const motorIsletmeKari = (motor) => parseFloat(motor?.kar || 0) - parseFloat(motor?.yatirimci_kar || 0);
   const durumChip = (durum) => {
     const map = {
       'stokta': { label: 'Stokta', color: '#666', bg: '#f5f5f5' },
@@ -580,7 +582,7 @@ const Raporlar = () => {
                   <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
                     <Typography variant="body2">Alış: <strong>{formatTL(m.alis_fiyati)} ₺</strong></Typography>
                     <Typography variant="body2">Satış: <strong>{formatTL(m.satis_fiyati)} ₺</strong></Typography>
-                    <Typography variant="body2" sx={{ color: karColor(m.kar) }}>Kâr: <strong>{formatTL(m.kar)} ₺</strong></Typography>
+                    <Typography variant="body2" sx={{ color: karColor(motorIsletmeKari(m)) }}>Payınız: <strong>{formatTL(motorIsletmeKari(m))} ₺</strong></Typography>
                   </Box>
                   {m.komisyoncu_adi && (
                     <Typography variant="body2" sx={{ color: '#f57f17', mt: 0.5 }}>
@@ -596,8 +598,8 @@ const Raporlar = () => {
               <Table size="small" sx={{ '& .MuiTableCell-root': { px: 1, py: 0.5, fontSize: '0.78rem' } }}>
                 <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
                   {motorSubTab === 1
-                    ? ['', 'Tarih', 'Plaka', 'Marka/Model', 'Satış', 'Komisyoncu', 'Kom. Tel', 'Kom. Tutar', 'Kâr', 'Fatura'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)
-                    : ['', 'Tarih', 'Plaka', 'Marka/Model', 'Alış', 'Satış', 'Masraf', 'Kâr', 'Ödeme', 'Fatura'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
+                    ? ['', 'Tarih', 'Plaka', 'Marka/Model', 'Satış', 'Komisyoncu', 'Kom. Tel', 'Kom. Tutar', 'Payınız', 'Fatura'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)
+                    : ['', 'Tarih', 'Plaka', 'Marka/Model', 'Alış', 'Satış', 'Masraf', 'Payınız', 'Ödeme', 'Fatura'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
                 </TableRow></TableHead>
                 <TableBody>
                   {shownMotorlar.map((m, i) => (
@@ -616,7 +618,7 @@ const Raporlar = () => {
                           <TableCell sx={{ fontWeight: 'bold', color: '#f57f17' }}>{m.komisyoncu_adi || '-'}</TableCell>
                           <TableCell>{m.komisyoncu_telefon || '-'}</TableCell>
                           <TableCell sx={{ fontWeight: 'bold' }}>{formatTL(m.komisyoncu_tutari)} ₺</TableCell>
-                          <TableCell sx={{ color: karColor(m.kar), fontWeight: 'bold' }}>{formatTL(m.kar)} ₺</TableCell>
+                          <TableCell sx={{ color: karColor(motorIsletmeKari(m)), fontWeight: 'bold' }}>{formatTL(motorIsletmeKari(m))} ₺</TableCell>
                           <TableCell>
                             <Chip size="small" label={m.fatura_kesildi ? '✓ Kesildi' : '✗ Kesilmedi'}
                               sx={{ bgcolor: m.fatura_kesildi ? '#e8f5e9' : '#ffebee', color: m.fatura_kesildi ? '#2e7d32' : '#d32f2f', fontWeight: 'bold', fontSize: '0.7rem' }} />
@@ -627,7 +629,7 @@ const Raporlar = () => {
                           <TableCell>{formatTL(m.alis_fiyati)} ₺</TableCell>
                           <TableCell>{formatTL(m.satis_fiyati)} ₺</TableCell>
                           <TableCell>{formatTL(m.masraflar)} ₺</TableCell>
-                          <TableCell sx={{ color: karColor(m.kar), fontWeight: 'bold' }}>{formatTL(m.kar)} ₺</TableCell>
+                          <TableCell sx={{ color: karColor(motorIsletmeKari(m)), fontWeight: 'bold' }}>{formatTL(motorIsletmeKari(m))} ₺</TableCell>
                           <TableCell>{m.odeme_sekli || 'nakit'}</TableCell>
                           <TableCell>
                             <Chip size="small" label={m.fatura_kesildi ? '✓ Kesildi' : '✗ Kesilmedi'}
@@ -1220,7 +1222,9 @@ const Raporlar = () => {
           const noterAlis = parseFloat(m.noter_alis || 0);
           const noterSatis = parseFloat(m.noter_satis || 0);
           const masraf = parseFloat(m.masraflar || 0);
-          const kar = parseFloat(m.kar || 0);
+          const toplamKar = parseFloat(m.kar || 0);
+          const yatirimciPayi = parseFloat(m.yatirimci_kar || 0);
+          const kar = toplamKar - yatirimciPayi;
           return (
             <>
               <DialogTitle sx={{ bgcolor: '#C62828', color: 'white', py: 1.5 }}>
@@ -1272,8 +1276,18 @@ const Raporlar = () => {
                         <Typography variant="body2" color="text.secondary">Masraflar:</Typography>
                         <Typography variant="body2" fontWeight="bold">{formatTL(masraf)} ₺</Typography>
                       </Box>
+                      {yatirimciPayi > 0 && <>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, borderBottom: '1px dotted #eee' }}>
+                          <Typography variant="body2" color="text.secondary">Toplam Kâr:</Typography>
+                          <Typography variant="body2" fontWeight="bold">{formatTL(toplamKar)} ₺</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, borderBottom: '1px dotted #eee' }}>
+                          <Typography variant="body2" color="text.secondary">Yatırımcı Payı:</Typography>
+                          <Typography variant="body2" fontWeight="bold" sx={{ color: '#1565C0' }}>- {formatTL(yatirimciPayi)} ₺</Typography>
+                        </Box>
+                      </>}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.3, mt: 0.5, bgcolor: kar >= 0 ? '#e8f5e9' : '#ffebee', px: 1, borderRadius: 1 }}>
-                        <Typography variant="body2" fontWeight="bold">Net Kâr:</Typography>
+                        <Typography variant="body2" fontWeight="bold">Net Kâr (Payınız):</Typography>
                         <Typography variant="body2" fontWeight="bold" sx={{ color: karColor(kar) }}>{formatTL(kar)} ₺</Typography>
                       </Box>
                     </Paper>

@@ -409,7 +409,7 @@ const Storefront = () => {
             <Fade in timeout={350} key={kategori}>
               <Grid container spacing={2}>
                 {urunler.map(u => (
-                  <Grid item xs={12} sm={6} md={3} lg={3} key={u.id} sx={{ display: 'flex' }}>
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={u.id} sx={{ display: 'flex' }}>
                     <Card sx={{
                       width: '100%', borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column',
                       boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
