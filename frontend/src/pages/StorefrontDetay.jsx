@@ -40,8 +40,8 @@ const StorefrontDetay = () => {
   const [detay, setDetay] = useState(null);
   const [iletisim, setIletisim] = useState(null);
   const [gorselIdx, setGorselIdx] = useState(0);
-  const [gorselYukleniyor, setGorselYukleniyor] = useState(true);
-  const [gorselHatasi, setGorselHatasi] = useState(false);
+  const [yuklenenGorsel, setYuklenenGorsel] = useState(null);
+  const [hataliGorsel, setHataliGorsel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -69,11 +69,8 @@ const StorefrontDetay = () => {
   }, [detay]);
   const aktifGorsel = gorseller[gorselIdx];
   const video = useMemo(() => videoKaynak(detay?.video_url), [detay]);
-
-  useEffect(() => {
-    setGorselYukleniyor(Boolean(aktifGorsel));
-    setGorselHatasi(false);
-  }, [aktifGorsel]);
+  const aktifGorselYuklendi = yuklenenGorsel === aktifGorsel;
+  const aktifGorselHatali = hataliGorsel === aktifGorsel;
 
   const geriDon = () => {
     if (location.state?.storefront) navigate('/site', { state: location.state });
@@ -117,26 +114,26 @@ const StorefrontDetay = () => {
                     width: '100%', height: { xs: 300, sm: 380, md: 430 },
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
-                    {aktifGorsel && !gorselHatasi ? (
+                    {aktifGorsel && !aktifGorselHatali ? (
                       <>
-                        {gorselYukleniyor && <CircularProgress size={34} sx={{ position: 'absolute', color: '#fff' }} />}
+                        {!aktifGorselYuklendi && <CircularProgress size={34} sx={{ position: 'absolute', color: '#fff' }} />}
                         <img
                           key={aktifGorsel}
                           src={vitrinService.gorselUrl(aktifGorsel)}
                           alt={detay.baslik}
-                          onLoad={() => setGorselYukleniyor(false)}
-                          onError={() => { setGorselYukleniyor(false); setGorselHatasi(true); }}
+                          onLoad={() => { setYuklenenGorsel(aktifGorsel); setHataliGorsel(null); }}
+                          onError={() => setHataliGorsel(aktifGorsel)}
                           style={{
-                            display: gorselYukleniyor ? 'none' : 'block',
+                            display: 'block', opacity: aktifGorselYuklendi ? 1 : 0,
                             maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto',
-                            objectFit: 'contain', objectPosition: 'center'
+                            objectFit: 'contain', objectPosition: 'center', transition: 'opacity .15s ease'
                           }}
                         />
                       </>
                     ) : (
                       <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,.7)', px: 2 }}>
                         <Box component="img" src="/KaynarMotor.png" alt="Kaynar Motor" sx={{ width: 90, opacity: .45, filter: 'brightness(0) invert(1)' }} />
-                        <Typography variant="body2" sx={{ mt: 1 }}>{gorselHatasi ? 'Görsel yüklenemedi' : 'Bu ilan için görsel bulunmuyor'}</Typography>
+                        <Typography variant="body2" sx={{ mt: 1 }}>{aktifGorselHatali ? 'Görsel yüklenemedi' : 'Bu ilan için görsel bulunmuyor'}</Typography>
                       </Box>
                     )}
                     {gorseller.length > 1 && <>
