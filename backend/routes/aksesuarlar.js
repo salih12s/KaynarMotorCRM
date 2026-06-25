@@ -58,23 +58,26 @@ router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, kalan_odeme, satis_tarihi, parcalar } = req.body;
+    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, kalan_odeme, satis_tarihi, parcalar, indirim } = req.body;
     const olusturan_kisi = req.user?.ad_soyad || req.user?.kullanici_adi || null;
 
-    let toplamMaliyet = 0, toplamSatis = 0;
+    let toplamMaliyet = 0, brutSatis = 0;
     if (parcalar && parcalar.length > 0) {
       for (const p of parcalar) {
         toplamMaliyet += emptyToZero(p.adet) * emptyToZero(p.maliyet);
-        toplamSatis += emptyToZero(p.adet) * emptyToZero(p.satis_fiyati);
+        brutSatis += emptyToZero(p.adet) * emptyToZero(p.satis_fiyati);
       }
     }
+    // İndirim: ürün toplamından (ve dolayısıyla kârdan) düşülür. toplam_satis NET (indirim sonrası) saklanır.
+    const indirimTutar = Math.min(emptyToZero(indirim), brutSatis);
+    const toplamSatis = brutSatis - indirimTutar;
     const kar = toplamSatis - toplamMaliyet;
     const tamamlamaTarihi = durum === 'tamamlandi' ? new Date() : null;
 
     const result = await client.query(
-      `INSERT INTO aksesuarlar (ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplam_maliyet, toplam_satis, kar, tamamlama_tarihi, olusturan_kisi, kalan_odeme)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [ad_soyad, telefon, odeme_sekli, aciklama, durum || 'beklemede', odeme_detaylari, satis_tarihi || new Date(), toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, olusturan_kisi, emptyToZero(kalan_odeme)]
+      `INSERT INTO aksesuarlar (ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplam_maliyet, toplam_satis, kar, tamamlama_tarihi, olusturan_kisi, kalan_odeme, indirim)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [ad_soyad, telefon, odeme_sekli, aciklama, durum || 'beklemede', odeme_detaylari, satis_tarihi || new Date(), toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, olusturan_kisi, emptyToZero(kalan_odeme), indirimTutar]
     );
     const aksesuarId = result.rows[0].id;
 
@@ -125,7 +128,7 @@ router.put('/:id', async (req, res) => {
     if (existing.rows.length === 0) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Bulunamadı' }); }
     const eskiDurum = existing.rows[0].durum;
 
-    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, kalan_odeme, satis_tarihi, parcalar } = req.body;
+    const { ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, kalan_odeme, satis_tarihi, parcalar, indirim } = req.body;
 
     // Eski durum tamamlandi ise stokları geri ekle
     if (eskiDurum === 'tamamlandi') {
@@ -144,12 +147,12 @@ router.put('/:id', async (req, res) => {
     // Parçaları yeniden oluştur
     await client.query('DELETE FROM aksesuar_parcalar WHERE aksesuar_id = $1', [req.params.id]);
 
-    let toplamMaliyet = 0, toplamSatis = 0;
+    let toplamMaliyet = 0, brutSatis = 0;
     if (parcalar && parcalar.length > 0) {
       for (const p of parcalar) {
         const adet = emptyToZero(p.adet) || 1;
         toplamMaliyet += adet * emptyToZero(p.maliyet);
-        toplamSatis += adet * emptyToZero(p.satis_fiyati);
+        brutSatis += adet * emptyToZero(p.satis_fiyati);
         await client.query(
           'INSERT INTO aksesuar_parcalar (aksesuar_id, urun_adi, adet, maliyet, satis_fiyati) VALUES ($1,$2,$3,$4,$5)',
           [req.params.id, p.urun_adi, adet, emptyToZero(p.maliyet), emptyToZero(p.satis_fiyati)]
@@ -165,14 +168,17 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // İndirim: ürün toplamından (ve kârdan) düşülür. toplam_satis NET saklanır.
+    const indirimTutar = Math.min(emptyToZero(indirim), brutSatis);
+    const toplamSatis = brutSatis - indirimTutar;
     const kar = toplamSatis - toplamMaliyet;
     const tamamlamaTarihi = (durum === 'tamamlandi' && eskiDurum !== 'tamamlandi') ? new Date() : null;
 
     await client.query(
       `UPDATE aksesuarlar SET ad_soyad=$1, telefon=$2, odeme_sekli=$3, aciklama=$4, durum=$5,
        odeme_detaylari=$6, satis_tarihi=$7, toplam_maliyet=$8, toplam_satis=$9, kar=$10,
-       tamamlama_tarihi=COALESCE($11, tamamlama_tarihi), kalan_odeme=$13, updated_at=CURRENT_TIMESTAMP WHERE id=$12`,
-      [ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, req.params.id, emptyToZero(kalan_odeme)]
+       tamamlama_tarihi=COALESCE($11, tamamlama_tarihi), kalan_odeme=$13, indirim=$14, updated_at=CURRENT_TIMESTAMP WHERE id=$12`,
+      [ad_soyad, telefon, odeme_sekli, aciklama, durum, odeme_detaylari, satis_tarihi, toplamMaliyet, toplamSatis, kar, tamamlamaTarihi, req.params.id, emptyToZero(kalan_odeme), indirimTutar]
     );
 
     await client.query('COMMIT');

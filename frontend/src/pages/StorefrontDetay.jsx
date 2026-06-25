@@ -69,6 +69,17 @@ const StorefrontDetay = () => {
   }, [detay]);
   const aktifGorsel = gorseller[gorselIdx];
   const video = useMemo(() => videoKaynak(detay?.video_url), [detay]);
+
+  // İlan özellikleri (sahibinden tarzı liste) — görselin yanında gösterilir
+  const ozellikler = useMemo(() => (detay ? [
+    detay.ilan_no != null && { label: 'İlan No', value: `ILN-${String(detay.ilan_no).padStart(4, '0')}` },
+    detay.segment && { label: 'Tip', value: detay.segment },
+    detay.marka && { label: 'Marka', value: detay.marka },
+    detay.model && { label: 'Model', value: detay.model },
+    detay.yil && { label: 'Yıl', value: String(detay.yil) },
+    detay.motor_cc && { label: 'Motor Hacmi', value: `${detay.motor_cc} cc` },
+    (detay.km !== null && detay.km !== undefined && detay.km !== '') && { label: 'KM', value: `${Number(detay.km).toLocaleString('tr-TR')} km` },
+  ].filter(Boolean) : []), [detay]);
   const aktifGorselYuklendi = yuklenenGorsel === aktifGorsel;
   const aktifGorselHatali = hataliGorsel === aktifGorsel;
 
@@ -79,7 +90,7 @@ const StorefrontDetay = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f3f4f6' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f3f4f6', overflowX: 'hidden' }}>
       <AppBar position="sticky" sx={{ bgcolor: '#111', borderRadius: 0 }} elevation={2}>
         <Toolbar variant="dense" sx={{ px: { xs: 1.5, md: 3 }, gap: 1.5, minHeight: 54 }}>
           <Box onClick={() => navigate('/site')} sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}>
@@ -107,8 +118,12 @@ const StorefrontDetay = () => {
         ) : detay && (
           <Stack spacing={2}>
             <Paper sx={{ p: { xs: 1.25, md: 2 }, borderRadius: 2.5 }}>
+              <Box sx={{ textAlign: 'center', mb: { xs: 1.5, md: 2 } }}>
+                <Typography variant="h4" fontWeight={800} sx={{ fontSize: { xs: 22, md: 28 }, lineHeight: 1.25 }}>{detay.baslik}</Typography>
+                {(detay.marka || detay.model) && <Typography variant="body1" color="text.secondary" sx={{ mt: .5 }}>{[detay.marka, detay.model].filter(Boolean).join(' ')}</Typography>}
+              </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.1fr) minmax(320px, .9fr)' }, gap: { xs: 2, md: 3 } }}>
-                <Box>
+                <Box sx={{ minWidth: 0 }}>
                   <Box sx={{
                     position: 'relative', bgcolor: '#111', borderRadius: 2, overflow: 'hidden',
                     width: '100%', height: { xs: 300, sm: 380, md: 430 },
@@ -146,7 +161,7 @@ const StorefrontDetay = () => {
                     </>}
                   </Box>
                   {gorseller.length > 1 && (
-                    <Box sx={{ display: 'flex', gap: .75, mt: 1, overflowX: 'auto', pb: .25 }}>
+                    <Box sx={{ display: 'flex', gap: .75, mt: 1, overflowX: 'auto', pb: .25, minWidth: 0, maxWidth: '100%' }}>
                       {gorseller.map((g, i) => (
                         <Box key={g} component="button" onClick={() => setGorselIdx(i)} aria-label={`${i + 1}. görsel`}
                           sx={{ p: 0, border: i === gorselIdx ? `2px solid ${RED}` : '1px solid #ddd', borderRadius: 1, overflow: 'hidden', bgcolor: '#111', minWidth: 72, width: 72, height: 52, cursor: 'pointer' }}>
@@ -159,17 +174,29 @@ const StorefrontDetay = () => {
                   )}
                 </Box>
 
-                <Box sx={{ py: { md: 1 } }}>
-                  <Stack direction="row" spacing={.5} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
-                    {detay.segment && <Chip size="small" label={detay.segment} color="error" />}
-                    {detay.motor_cc && <Chip size="small" label={`${detay.motor_cc} cc`} variant="outlined" />}
-                    {detay.km && <Chip size="small" label={`${Number(detay.km).toLocaleString('tr-TR')} km`} variant="outlined" />}
-                    {detay.yil && <Chip size="small" label={detay.yil} variant="outlined" />}
-                  </Stack>
-                  {detay.ilan_no != null && <Typography variant="caption" color="text.secondary" fontWeight={600}>İlan No: ILN-{String(detay.ilan_no).padStart(4, '0')}</Typography>}
-                  <Typography variant="h4" fontWeight={800} sx={{ mt: .5, fontSize: { xs: 23, md: 28 }, lineHeight: 1.2 }}>{detay.baslik}</Typography>
-                  {(detay.marka || detay.model) && <Typography variant="body1" color="text.secondary" sx={{ mt: .5 }}>{[detay.marka, detay.model].filter(Boolean).join(' ')}</Typography>}
-                  <Typography color="error" fontWeight={900} sx={{ fontSize: { xs: 28, md: 34 }, my: 1.25 }}>{Number(detay.fiyat).toLocaleString('tr-TR')} ₺</Typography>
+                <Box sx={{ py: { md: 1 }, minWidth: 0 }}>
+                  {ozellikler.length > 0 && (
+                    <Box sx={{ mb: 1.5, border: '1px solid #ececec', borderRadius: 2, overflow: 'hidden' }}>
+                      <Typography sx={{ px: 1.5, py: 1, bgcolor: '#C62828', color: '#fff', fontWeight: 800, fontSize: 13, letterSpacing: .4 }}>
+                        ÖZELLİKLER
+                      </Typography>
+                      {ozellikler.map((o, i) => (
+                        <Box key={o.label} sx={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5,
+                          px: 1.5, py: 1.1, borderTop: i ? '1px solid #f3f3f3' : 'none',
+                          bgcolor: i % 2 ? '#fafafa' : '#fff',
+                        }}>
+                          <Typography sx={{ color: 'text.secondary', fontSize: 13.5, fontWeight: 600 }}>{o.label}</Typography>
+                          <Typography sx={{ fontSize: 14, fontWeight: 700, textAlign: 'right' }}>{o.value}</Typography>
+                        </Box>
+                      ))}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 1.5, py: 1.25, borderTop: '2px solid #f0f0f0', bgcolor: '#fff' }}>
+                        <Typography sx={{ color: 'text.secondary', fontSize: 13.5, fontWeight: 700 }}>Fiyat</Typography>
+                        <Typography sx={{ color: '#C62828', fontWeight: 900, fontSize: { xs: 22, md: 24 } }}>{Number(detay.fiyat).toLocaleString('tr-TR')} ₺</Typography>
+                      </Box>
+                    </Box>
+                  )}
+
                   <Divider sx={{ mb: 1.25 }} />
                   <Typography variant="overline" color="text.secondary" fontWeight={800}>Açıklama</Typography>
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>{detay.aciklama || 'Bu ilan için henüz açıklama eklenmemiş.'}</Typography>

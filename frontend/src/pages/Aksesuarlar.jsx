@@ -14,7 +14,7 @@ const Aksesuarlar = () => {
   const navigate = useNavigate();
   const [satislar, setSatislar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
-  const [formData, setFormData] = useState({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: '', kalan_odeme: '', odeme_tamamlandi: true });
+  const [formData, setFormData] = useState({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: '', kalan_odeme: '', odeme_tamamlandi: true, indirim: '' });
   const [parcalar, setParcalar] = useState([]);
   const [stokOptions, setStokOptions] = useState([]);
   const [error, setError] = useState('');
@@ -60,11 +60,11 @@ const Aksesuarlar = () => {
       try {
         const res = await aksesuarService.getById(satis.id);
         const d = res.data;
-        setFormData({ ad_soyad: d.ad_soyad || '', telefon: d.telefon || '', odeme_sekli: d.odeme_sekli || '', aciklama: d.aciklama || '', durum: d.durum || 'beklemede', odeme_detaylari: d.odeme_detaylari || '', satis_tarihi: d.satis_tarihi ? d.satis_tarihi.split('T')[0] : '', kalan_odeme: d.kalan_odeme || '', odeme_tamamlandi: !parseFloat(d.kalan_odeme || 0) });
+        setFormData({ ad_soyad: d.ad_soyad || '', telefon: d.telefon || '', odeme_sekli: d.odeme_sekli || '', aciklama: d.aciklama || '', durum: d.durum || 'beklemede', odeme_detaylari: d.odeme_detaylari || '', satis_tarihi: d.satis_tarihi ? d.satis_tarihi.split('T')[0] : '', kalan_odeme: d.kalan_odeme || '', odeme_tamamlandi: !parseFloat(d.kalan_odeme || 0), indirim: parseFloat(d.indirim || 0) || '' });
         setParcalar(d.parcalar || []);
       } catch { setError('Yükleme hatası'); }
     } else {
-      setFormData({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: new Date().toISOString().split('T')[0], kalan_odeme: '', odeme_tamamlandi: true });
+      setFormData({ ad_soyad: '', telefon: '', odeme_sekli: '', aciklama: '', durum: 'beklemede', odeme_detaylari: '', satis_tarihi: new Date().toISOString().split('T')[0], kalan_odeme: '', odeme_tamamlandi: true, indirim: '' });
       setParcalar([]);
     }
     setDialog({ open: true, data: satis });
@@ -128,7 +128,9 @@ const Aksesuarlar = () => {
 
   const toplamSatis = parcalar.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0), 0);
   const toplamMaliyet = parcalar.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.maliyet) || 0), 0);
-  const kar = toplamSatis - toplamMaliyet;
+  const indirim = Math.min(Number(formData.indirim) || 0, toplamSatis); // ürün toplamını aşamaz
+  const netToplam = toplamSatis - indirim;
+  const kar = netToplam - toplamMaliyet;
 
   const handleSave = async () => {
     setError('');
@@ -389,9 +391,21 @@ const Aksesuarlar = () => {
             </TableContainer>
             )
           )}
-          <Box sx={{ mt: 2, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
-            <Typography>Toplam: <strong>{toplamSatis.toLocaleString('tr-TR')} ₺</strong></Typography>
-            <Typography sx={{ color: kar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{kar.toLocaleString('tr-TR')} ₺</strong></Typography>
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography variant="body2" color="text.secondary">Ara Toplam: {toplamSatis.toLocaleString('tr-TR')} ₺</Typography>
+              <TextField
+                size="small" label="İndirim (₺)" type="number" value={formData.indirim}
+                onChange={e => setFormData({ ...formData, indirim: e.target.value })}
+                sx={{ width: 150 }}
+                InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }}
+              />
+            </Box>
+            {indirim > 0 && <Typography variant="body2" sx={{ color: '#c62828' }}>İndirim: −{indirim.toLocaleString('tr-TR')} ₺</Typography>}
+            <Box sx={{ display: 'flex', gap: 3 }}>
+              <Typography>Toplam: <strong>{netToplam.toLocaleString('tr-TR')} ₺</strong></Typography>
+              <Typography sx={{ color: kar >= 0 ? 'green' : 'red' }}>Kâr: <strong>{kar.toLocaleString('tr-TR')} ₺</strong></Typography>
+            </Box>
           </Box>
 
           <Box sx={{ mt: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
@@ -427,9 +441,11 @@ const Aksesuarlar = () => {
             const stok = stokOptions.find(s => s.stok_adi === p.urun_adi);
             return { ...p, marka: stok?.marka, platform: stok?.platform, beden: stok?.beden, renk: stok?.renk };
           });
-          const dToplamSatis = dp.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0), 0);
+          const dBrutSatis = dp.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.satis_fiyati) || 0), 0);
           const dToplamMaliyet = dp.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.maliyet) || 0), 0);
-          const dKar = dToplamSatis - dToplamMaliyet;
+          const dIndirim = Math.min(Number(d.indirim) || 0, dBrutSatis);
+          const dNetSatis = dBrutSatis - dIndirim;
+          const dKar = dNetSatis - dToplamMaliyet;
           const formatDate = (v) => v ? new Date(v).toLocaleDateString('tr-TR') : '-';
           return (
             <>
@@ -540,8 +556,18 @@ const Aksesuarlar = () => {
                 )}
 
                 <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {dIndirim > 0 && (
+                    <Paper sx={{ px: 2, py: 1, bgcolor: '#f5f5f5' }}>
+                      <Typography variant="body2">Ara Toplam: <strong>₺{dBrutSatis.toLocaleString('tr-TR')}</strong></Typography>
+                    </Paper>
+                  )}
+                  {dIndirim > 0 && (
+                    <Paper sx={{ px: 2, py: 1, bgcolor: '#fce4ec' }}>
+                      <Typography variant="body2" sx={{ color: '#c62828' }}>İndirim: <strong>−₺{dIndirim.toLocaleString('tr-TR')}</strong></Typography>
+                    </Paper>
+                  )}
                   <Paper sx={{ px: 2, py: 1, bgcolor: '#ffebee' }}>
-                    <Typography variant="body2">Toplam Satış: <strong>₺{dToplamSatis.toLocaleString('tr-TR')}</strong></Typography>
+                    <Typography variant="body2">Toplam Satış: <strong>₺{dNetSatis.toLocaleString('tr-TR')}</strong></Typography>
                   </Paper>
                   <Paper sx={{ px: 2, py: 1, bgcolor: '#fff3e0' }}>
                     <Typography variant="body2">Maliyet: <strong>₺{dToplamMaliyet.toLocaleString('tr-TR')}</strong></Typography>

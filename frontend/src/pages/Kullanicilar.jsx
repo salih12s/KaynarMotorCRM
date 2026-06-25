@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, Chip, IconButton, Switch, FormControlLabel, Alert, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid, useTheme, useMediaQuery
+  Button, Chip, IconButton, Alert, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid, useTheme, useMediaQuery
 } from '@mui/material';
 import { Delete as DeleteIcon, Check as CheckIcon, Close as CloseIcon, PersonAdd as PersonAddIcon } from '@mui/icons-material';
 import { authService } from '../services/api';
@@ -52,35 +52,6 @@ const Kullanicilar = () => {
     } catch (err) { setError(err.response?.data?.message || 'Silme hatası'); }
   };
 
-  const handleAksesuarYetkisi = async (id, value) => {
-    try { await authService.setAksesuarYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
-  };
-
-  const handleMotorYetkisi = async (id, value) => {
-    try { await authService.setMotorSatisYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
-  };
-
-  const handleEticaretYetkisi = async (id, value) => {
-    try { await authService.setEticaretYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
-  };
-
-  const handleServisYetkisi = async (id, value) => {
-    try { await authService.setServisYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
-  };
-
-  const handleAksesuarStokYetkisi = async (id, value) => {
-    try { await authService.setAksesuarStokYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
-  };
-
-  const handleYedekParcaYetkisi = async (id, value) => {
-    try { await authService.setYedekParcaYetkisi(id, value); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
-  };
-
-  // Yatırımcı için: açıkken yatırımcı tüm satılık motorları SADECE liste fiyatıyla görür (salt okunur vitrin)
-  const handleListeFiyatiYetkisi = async (id, value) => {
-    try { await authService.setYetkiler(id, { liste_fiyati_gor: value }); loadUsers(); } catch { setError('Yetki güncelleme hatası'); }
-  };
-
   const durumRenk = (durum) => {
     if (durum === 'onaylandi') return 'success';
     if (durum === 'reddedildi') return 'error';
@@ -96,6 +67,7 @@ const Kullanicilar = () => {
         </Button>
       </Box>
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+      <Alert severity="info" sx={{ mb: 2 }}>Personel yetkilerini (Motor Satış, Servis, Aksesuar, vb.) <strong>Yetkilendirme</strong> sayfasından ayarlayabilirsiniz.</Alert>
 
       {isMobile ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -109,17 +81,6 @@ const Kullanicilar = () => {
                 </Box>
               </Box>
               <Typography variant="body2" color="text.secondary">{user.kullanici_adi} • {user.plain_sifre || '***'}</Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5, alignItems: 'center' }}>
-                <Typography variant="body2">Servis: <Switch checked={user.servis_yetkisi || false} onChange={(e) => handleServisYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
-                <Typography variant="body2">Motor: <Switch checked={user.motor_satis_yetkisi || false} onChange={(e) => handleMotorYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
-                <Typography variant="body2">Aksesuar: <Switch checked={user.aksesuar_yetkisi || false} onChange={(e) => handleAksesuarYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
-                <Typography variant="body2">Aks.Stok: <Switch checked={user.aksesuar_stok_yetkisi || false} onChange={(e) => handleAksesuarStokYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
-                <Typography variant="body2">E-Ticaret: <Switch checked={user.eticaret_yetkisi || false} onChange={(e) => handleEticaretYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
-                <Typography variant="body2">Y.Parça: <Switch checked={user.yedek_parca_yetkisi || false} onChange={(e) => handleYedekParcaYetkisi(user.id, e.target.checked)} disabled={user.rol === 'admin'} size="small" /></Typography>
-                {user.rol === 'yatirimci' && (
-                  <Typography variant="body2">Liste Fiyatı: <Switch checked={user.liste_fiyati_gor || false} onChange={(e) => handleListeFiyatiYetkisi(user.id, e.target.checked)} size="small" color="info" /></Typography>
-                )}
-              </Box>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
                 {user.onay_durumu === 'beklemede' && (
                   <>
@@ -139,7 +100,7 @@ const Kullanicilar = () => {
         <Table>
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
-              {['Ad Soyad', 'Kullanıcı Adı', 'Şifre', 'Rol', 'Durum', 'Servis', 'Motor', 'Aksesuar', 'Aks.Stok', 'E-Ticaret', 'Y.Parça', 'Liste Fiyatı', 'İşlemler'].map(h => (
+              {['Ad Soyad', 'Kullanıcı Adı', 'Şifre', 'Rol', 'Durum', 'İşlemler'].map(h => (
                 <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap', px: 1 }}>{h}</TableCell>
               ))}
             </TableRow>
@@ -152,43 +113,6 @@ const Kullanicilar = () => {
                 <TableCell>{user.plain_sifre || '***'}</TableCell>
                 <TableCell><Chip label={user.rol} size="small" color={user.rol === 'admin' ? 'primary' : 'default'} /></TableCell>
                 <TableCell><Chip label={user.onay_durumu} size="small" color={durumRenk(user.onay_durumu)} /></TableCell>
-                <TableCell>
-                  <Switch checked={user.servis_yetkisi || false}
-                    onChange={(e) => handleServisYetkisi(user.id, e.target.checked)}
-                    disabled={user.rol === 'admin'} size="small" />
-                </TableCell>
-                <TableCell>
-                  <Switch checked={user.motor_satis_yetkisi || false}
-                    onChange={(e) => handleMotorYetkisi(user.id, e.target.checked)}
-                    disabled={user.rol === 'admin'} size="small" />
-                </TableCell>
-                <TableCell>
-                  <Switch checked={user.aksesuar_yetkisi || false}
-                    onChange={(e) => handleAksesuarYetkisi(user.id, e.target.checked)}
-                    disabled={user.rol === 'admin'} size="small" />
-                </TableCell>
-                <TableCell>
-                  <Switch checked={user.aksesuar_stok_yetkisi || false}
-                    onChange={(e) => handleAksesuarStokYetkisi(user.id, e.target.checked)}
-                    disabled={user.rol === 'admin'} size="small" />
-                </TableCell>
-                <TableCell>
-                  <Switch checked={user.eticaret_yetkisi || false}
-                    onChange={(e) => handleEticaretYetkisi(user.id, e.target.checked)}
-                    disabled={user.rol === 'admin'} size="small" />
-                </TableCell>
-                <TableCell>
-                  <Switch checked={user.yedek_parca_yetkisi || false}
-                    onChange={(e) => handleYedekParcaYetkisi(user.id, e.target.checked)}
-                    disabled={user.rol === 'admin'} size="small" />
-                </TableCell>
-                <TableCell align="center">
-                  {user.rol === 'yatirimci' ? (
-                    <Switch checked={user.liste_fiyati_gor || false}
-                      onChange={(e) => handleListeFiyatiYetkisi(user.id, e.target.checked)}
-                      size="small" color="info" />
-                  ) : '-'}
-                </TableCell>
                 <TableCell>
                   {user.onay_durumu === 'beklemede' && (
                     <>

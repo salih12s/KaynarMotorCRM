@@ -116,7 +116,7 @@ const Layout = () => {
     { title: 'Müşteriler', path: '/musteriler', icon: <PeopleIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Kullanıcılar', path: '/kullanicilar', icon: <AdminIcon />, show: isAdmin, color: '#C62828' },
     { title: 'Yetkilendirme', path: '/yetkilendirme', icon: <SettingsIcon />, show: isAdmin, color: '#C62828' },
-        { title: 'Ana Sayfaya Git', path: '/site', icon: <HomeIcon />, show: true, color: '#C62828' },
+        { title: 'Ana Sayfaya Git', path: '/site', icon: <HomeIcon />, show: true, color: '#C62828' },  
 
   ];
 

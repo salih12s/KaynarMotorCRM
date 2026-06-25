@@ -5,17 +5,11 @@ import {
 } from '@mui/material';
 import { authService } from '../services/api';
 
-// Görüntüleme (alan) yetkileri
-const ALAN_YETKILERI = [
-  { key: 'liste_fiyati_gor', label: 'Liste Fiyatı' },
-  { key: 'alis_fiyati_gor', label: 'Alış Fiyatı' },
-  { key: 'satis_fiyati_gor', label: 'Satış Fiyatı' },
-  { key: 'kar_gor', label: 'Kâr Bilgisi' },
-  { key: 'musteri_gor', label: 'Müşteri Bilgisi' },
-  { key: 'satis_gecmisi_gor', label: 'Satış Geçmişi' },
-];
+// Motor Satış yetkisi ile birlikte verilen görüntüleme yetkileri
+// (satış fiyatı, müşteri bilgisi ve satış geçmişi Motor Satış'ın içinde gelir — alış fiyatı ve kâr DAHİL DEĞİL)
+const MOTOR_SATIS_KAPSAMI = ['satis_fiyati_gor', 'musteri_gor', 'satis_gecmisi_gor'];
 
-// İşlem (modül) yetkileri
+// İşlem (modül) yetkileri — tüm yetkilendirme tek bir tabloda toplanır
 const ISLEM_YETKILERI = [
   { key: 'motor_satis_yetkisi', label: 'Motor Satış' },
   { key: 'aksesuar_yetkisi', label: 'Aksesuar Satış' },
@@ -27,7 +21,7 @@ const ISLEM_YETKILERI = [
   { key: 'aksesuar_vitrin_yetkisi', label: 'Aksesuar Vitrini (Site)' },
 ];
 
-const TUM_YETKILER = [...ALAN_YETKILERI, ...ISLEM_YETKILERI];
+const TUM_YETKILER = ISLEM_YETKILERI;
 
 const Yetkilendirme = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('md'));
@@ -47,16 +41,21 @@ const Yetkilendirme = () => {
 
   const handleToggle = async (user, key, value) => {
     setError(''); setSuccess('');
+    // Motor Satış yetkisi açılınca/kapanınca alış-satış fiyatı, kâr, müşteri ve satış geçmişi yetkileri de birlikte değişir
+    const payload = key === 'motor_satis_yetkisi'
+      ? { motor_satis_yetkisi: value, ...Object.fromEntries(MOTOR_SATIS_KAPSAMI.map(k => [k, value])) }
+      : { [key]: value };
+    const oncekiUser = user; // hata olursa geri almak için
     // Optimistik güncelleme
-    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, [key]: value } : u));
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, ...payload } : u));
     try {
-      await authService.setYetkiler(user.id, { [key]: value });
+      await authService.setYetkiler(user.id, payload);
       setSuccess(`${user.ad_soyad} yetkileri güncellendi`);
       setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Güncelleme hatası');
       // Geri al
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, [key]: !value } : u));
+      setUsers(prev => prev.map(u => u.id === user.id ? oncekiUser : u));
     }
   };
 
@@ -64,7 +63,7 @@ const Yetkilendirme = () => {
     <Box>
       <Typography variant="h5" fontWeight="bold" mb={1}>Yetkilendirme</Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Personelin hangi bilgileri görebileceğini ve hangi işlemleri yapabileceğini buradan ayarlayın.
+        Personelin hangi işlemleri yapabileceğini buradan ayarlayın. <strong>Motor Satış</strong> yetkisi; satış fiyatı, müşteri bilgisi ve satış geçmişi görüntüleme yetkilerini de kapsar (alış fiyatı ve kâr hariç).
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
@@ -83,13 +82,6 @@ const Yetkilendirme = () => {
                 <Chip size="small" label={user.kullanici_adi} variant="outlined" />
               </Box>
               <Divider sx={{ mb: 1 }} />
-              <Typography variant="subtitle2" color="primary" gutterBottom>Görüntüleme Yetkileri</Typography>
-              {ALAN_YETKILERI.map(y => (
-                <FormControlLabel key={y.key} sx={{ display: 'flex', justifyContent: 'space-between', ml: 0 }}
-                  labelPlacement="start" label={y.label}
-                  control={<Switch checked={!!user[y.key]} onChange={e => handleToggle(user, y.key, e.target.checked)} />} />
-              ))}
-              <Typography variant="subtitle2" color="primary" gutterBottom sx={{ mt: 1 }}>İşlem Yetkileri</Typography>
               {ISLEM_YETKILERI.map(y => (
                 <FormControlLabel key={y.key} sx={{ display: 'flex', justifyContent: 'space-between', ml: 0 }}
                   labelPlacement="start" label={y.label}

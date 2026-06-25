@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box, Paper, Typography, TextField, Button, Stack, InputAdornment, Snackbar, Alert,
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
@@ -16,11 +16,38 @@ export const ORANLAR = [
 
 export const fmtTL = (v) => `${Math.round(v).toLocaleString('tr-TR')} ₺`;
 
-// Nakit fiyattan taksit tablosunu hesaplar
-export const hesaplaTaksit = (nakit) => {
+// Para formatlı input yardımcıları: "50000" -> "50.000", girilen değerden sayı çıkarır
+export const formatParaInput = (val) => {
+  const digits = String(val ?? '').replace(/\D/g, '');
+  return digits ? parseInt(digits, 10).toLocaleString('tr-TR') : '';
+};
+export const paraToNumber = (val) => {
+  const digits = String(val ?? '').replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+};
+
+// Para formatlı (₺) giriş alanı — peşinat vb. için hem admin hem müşteri sayfasında kullanılır
+export const ParaInput = ({ value, onChange, label, helperText, ...props }) => (
+  <TextField
+    fullWidth
+    label={label}
+    value={formatParaInput(value)}
+    onChange={e => onChange(e.target.value)}
+    helperText={helperText}
+    inputMode="numeric"
+    InputProps={{ endAdornment: <InputAdornment position="end">₺</InputAdornment> }}
+    {...props}
+  />
+);
+
+// Nakit fiyattan (peşinat düşülerek) taksit tablosunu hesaplar
+export const hesaplaTaksit = (nakit, pesinat = 0) => {
   const n = parseFloat(nakit);
+  const p = parseFloat(pesinat) || 0;
   if (!n || n <= 0) return null;
-  return ORANLAR.map(o => { const toplam = n / o.oran; return { ay: o.ay, toplam, aylik: toplam / o.ay }; });
+  const kalan = n - p;
+  if (kalan <= 0) return null;
+  return ORANLAR.map(o => { const toplam = kalan / o.oran; return { ay: o.ay, toplam, aylik: toplam / o.ay }; });
 };
 
 // Sonuç tablosu (hem admin sayfasında hem paylaşım sayfasında kullanılır)
@@ -72,11 +99,19 @@ export const TaksitTablo = ({ sonuc, isMobile }) => {
 const TaksitHesaplama = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const [nakit, setNakit] = useState('');
-  const [sonuc, setSonuc] = useState(null);
+  const [pesinat, setPesinat] = useState('');
+  const [goster, setGoster] = useState(false);
   const [snack, setSnack] = useState(false);
 
-  const hesapla = () => setSonuc(hesaplaTaksit(nakit));
-  const temizle = () => { setNakit(''); setSonuc(null); };
+  // Hesapla'ya basıldıktan sonra nakit/peşinat değiştikçe tablo anlık güncellenir
+  const sonuc = useMemo(
+    () => (goster ? hesaplaTaksit(nakit, paraToNumber(pesinat)) : null),
+    [goster, nakit, pesinat]
+  );
+  const kalan = (parseFloat(nakit) || 0) - paraToNumber(pesinat);
+
+  const hesapla = () => setGoster(true);
+  const temizle = () => { setNakit(''); setPesinat(''); setGoster(false); };
 
   // Paylaşılabilir link: nakit fiyatı URL'e gömer; müşteri linki açınca aynı tabloyu görür
   const paylasimLinki = () => `${window.location.origin}/taksit/${Math.round(parseFloat(nakit) || 0)}`;
@@ -100,23 +135,44 @@ const TaksitHesaplama = () => {
       </Typography>
 
       <Paper sx={{ p: { xs: 2, md: 3 }, mb: 2, borderRadius: 3 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
-          <TextField fullWidth label="Nakit Fiyat" type="number" value={nakit}
-            onChange={e => setNakit(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') hesapla(); }}
-            InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }} />
-          <Button variant="contained" size="large" startIcon={<CalculateIcon />} onClick={hesapla}
-            sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' }, whiteSpace: 'nowrap', px: 3 }}>
-            Hesapla
-          </Button>
-          <Button variant="outlined" size="large" startIcon={<ClearIcon />} onClick={temizle} sx={{ whiteSpace: 'nowrap' }}>
-            Temizle
-          </Button>
+        <Stack spacing={1.5}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField fullWidth label="Nakit Fiyat" type="number" value={nakit}
+              onChange={e => setNakit(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') hesapla(); }}
+              InputProps={{ startAdornment: <InputAdornment position="start">₺</InputAdornment> }} />
+            <ParaInput label="Peşinat / Peşin Ödeme" value={pesinat}
+              onChange={setPesinat}
+              onKeyDown={e => { if (e.key === 'Enter') hesapla(); }}
+              helperText={paraToNumber(pesinat) > 0 ? `Kalan tutar: ${fmtTL(Math.max(kalan, 0))}` : 'İsteğe bağlı — boş bırakılırsa nakit fiyat üzerinden hesaplanır'} />
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Button variant="contained" size="large" startIcon={<CalculateIcon />} onClick={hesapla}
+              sx={{ bgcolor: '#C62828', '&:hover': { bgcolor: '#b71c1c' }, whiteSpace: 'nowrap', px: 3 }}>
+              Hesapla
+            </Button>
+            <Button variant="outlined" size="large" startIcon={<ClearIcon />} onClick={temizle} sx={{ whiteSpace: 'nowrap' }}>
+              Temizle
+            </Button>
+          </Stack>
         </Stack>
       </Paper>
 
+      {goster && !sonuc && (parseFloat(nakit) || 0) > 0 && paraToNumber(pesinat) >= (parseFloat(nakit) || 0) && (
+        <Alert severity="warning" sx={{ mb: 2 }}>Peşinat tutarı nakit fiyata eşit veya daha büyük. Taksitlendirilecek tutar kalmadı.</Alert>
+      )}
+
       {sonuc && (
         <>
+          {paraToNumber(pesinat) > 0 && (
+            <Paper sx={{ p: 2, mb: 2, borderRadius: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Nakit Fiyat <span style={{ textDecoration: 'line-through' }}>{fmtTL(parseFloat(nakit) || 0)}</span> − Peşinat {fmtTL(paraToNumber(pesinat))}
+              </Typography>
+              <Typography variant="h5" fontWeight="bold" sx={{ color: '#C62828' }}>{fmtTL(Math.max(kalan, 0))}</Typography>
+              <Typography variant="caption" color="text.secondary">Taksitler bu tutar üzerinden hesaplanmaktadır</Typography>
+            </Paper>
+          )}
           <TaksitTablo sonuc={sonuc} isMobile={isMobile} />
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 2 }}>
             <Button variant="outlined" startIcon={<ShareIcon />} onClick={linkKopyala}>Müşteri Linkini Kopyala</Button>

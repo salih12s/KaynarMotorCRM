@@ -7,9 +7,16 @@ import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as Searc
 import { useReactToPrint } from 'react-to-print';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ikinciElMotorService, musteriService, authService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const IkinciElMotor = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
+  const { user } = useAuth();
+  const isAdmin = user?.rol === 'admin';
+  // Motor Satış yetkilisi satış/müşteri/geçmişi görür; alış fiyatı, kâr ve finansal detaylar yalnızca admindedir
+  const canAlis = isAdmin || !!user?.alis_fiyati_gor;
+  const canKar = isAdmin || !!user?.kar_gor;
+  const canFinans = canAlis && canKar; // motor detaydaki finansal detaylar bloğu
   const location = useLocation();
   const navigate = useNavigate();
   const [motorlar, setMotorlar] = useState([]);
@@ -180,19 +187,22 @@ const IkinciElMotor = () => {
   const statChips = [
     { label: `Toplam: ${motorlar.length}`, color: '#C62828', bg: '#ffebee' },
     { label: `Satış: ₺${parseFloat(stats.toplam_satis_tutari || 0).toLocaleString('tr-TR')}`, color: '#C62828', bg: '#ffebee' },
-    { label: `Kâr: ₺${parseFloat(stats.toplam_kar || 0).toLocaleString('tr-TR')}`, color: '#C62828', bg: '#ffebee' },
+    ...(canKar ? [{ label: `Kâr: ₺${parseFloat(stats.toplam_kar || 0).toLocaleString('tr-TR')}`, color: '#C62828', bg: '#ffebee' }] : []),
   ];
 
   const exportToExcel = () => {
     const formatDate = (d) => d ? new Date(d).toLocaleDateString('tr-TR') : '';
     const num = (v) => parseFloat(v || 0).toLocaleString('tr-TR');
-    const headers = ['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Alış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Satıcı', 'Alıcı', 'Alıcı Tel', 'Ödeme Şekli', 'Yevmiye No', 'Satış Tarihi'];
+    const headers = ['Plaka', 'Marka', 'Model', 'Yıl', 'KM',
+      ...(canAlis ? ['Alım (₺)'] : []), 'Satış (₺)', 'Noter Alış (₺)', 'Noter Satış (₺)',
+      ...(canKar ? ['Kâr (₺)'] : []), 'Satıcı', 'Alıcı', 'Alıcı Tel', 'Ödeme Şekli', 'Yevmiye No', 'Satış Tarihi'];
     const escape = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const rowsHtml = filteredMotorlar.map(m => {
       const cells = [
         m.plaka || '', m.marka || '', m.model || '', m.yil || '',
         m.km ? Number(m.km).toLocaleString('tr-TR') : '',
-        num(m.alis_fiyati), num(m.satis_fiyati), num(m.noter_alis), num(m.noter_satis), num(m.kar),
+        ...(canAlis ? [num(m.alis_fiyati)] : []), num(m.satis_fiyati), num(m.noter_alis), num(m.noter_satis),
+        ...(canKar ? [num(m.kar)] : []),
         m.satici_adi || '', m.alici_adi || '', m.alici_telefon || '',
         m.odeme_sekli || '', m.yevmiye_no || '', formatDate(m.satis_tarihi || m.tarih)
       ];
@@ -252,13 +262,13 @@ const IkinciElMotor = () => {
                 <Typography variant="body2">{m.marka} {m.model} {m.yil ? `(${m.yil})` : ''}</Typography>
                 <Typography variant="body2" color="text.secondary">{m.alici_adi || '-'} • {m.km ? Number(m.km).toLocaleString('tr-TR') + ' km' : ''}</Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
-                  <Typography variant="body2">Alım: <strong>₺{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
+                  {canAlis && <Typography variant="body2">Alım: <strong>₺{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>}
                 <Typography variant="body2">Satış: <strong>₺{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5 }}>
                 <Typography variant="body2">Noter Alış: <strong>₺{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</strong></Typography>
                 <Typography variant="body2">Noter Satış: <strong>₺{parseFloat(m.noter_satis || 0).toLocaleString('tr-TR')}</strong></Typography>
-                <Typography variant="body2" sx={{ color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>Kâr: <strong>₺{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</strong></Typography>
+                {canKar && <Typography variant="body2" sx={{ color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>Kâr: <strong>₺{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</strong></Typography>}
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
                   <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
@@ -270,11 +280,13 @@ const IkinciElMotor = () => {
         </Box>
       ) : (
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
-        <Table size="small">
+        <Table size="small" sx={{ '& td, & th': { px: 0.75, py: 0.6, fontSize: '0.78rem', whiteSpace: 'nowrap' } }}>
           <TableHead>
             <TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM', 'Alım (₺)', 'Satış (₺)', 'Noter Alış (₺)', 'Noter Satış (₺)', 'Kâr (₺)', 'Alıcı', 'Satış Tarihi', 'İşlemler'].map(h => (
-                <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</TableCell>
+              {['Plaka', 'Marka', 'Model', 'Yıl', 'KM',
+                ...(canAlis ? ['Alım (₺)'] : []), 'Satış (₺)', 'Noter Alış (₺)', 'Noter Satış (₺)',
+                ...(canKar ? ['Kâr (₺)'] : []), 'Alıcı', 'Satış Tarihi', 'İşlemler'].map(h => (
+                <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
               ))}
             </TableRow>
           </TableHead>
@@ -288,11 +300,11 @@ const IkinciElMotor = () => {
                   <TableCell>{m.model || '-'}</TableCell>
                   <TableCell>{m.yil || '-'}</TableCell>
                   <TableCell>{m.km ? Number(m.km).toLocaleString('tr-TR') : '-'}</TableCell>
-                  <TableCell>{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
+                  {canAlis && <TableCell>{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>}
                   <TableCell>{parseFloat(m.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{parseFloat(m.noter_satis || 0).toLocaleString('tr-TR')}</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</TableCell>
+                  {canKar && <TableCell sx={{ fontWeight: 'bold', color: parseFloat(m.kar || 0) >= 0 ? 'green' : 'red' }}>{parseFloat(m.kar || 0).toLocaleString('tr-TR')}</TableCell>}
                   <TableCell>{m.alici_adi || '-'}</TableCell>
                   <TableCell>{formatDate(m.satis_tarihi || m.tarih)}</TableCell>
                   <TableCell>
@@ -303,7 +315,7 @@ const IkinciElMotor = () => {
                 </TableRow>
               );
             })}
-            {filteredMotorlar.length === 0 && <TableRow><TableCell colSpan={13} align="center">Kayıt yok</TableCell></TableRow>}
+            {filteredMotorlar.length === 0 && <TableRow><TableCell colSpan={11 + (canAlis ? 1 : 0) + (canKar ? 1 : 0)} align="center">Kayıt yok</TableCell></TableRow>}
           </TableBody>
         </Table>
       </TableContainer>
@@ -393,7 +405,7 @@ const IkinciElMotor = () => {
 
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Fiyat Bilgileri</Typography>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Alış Fiyatı (₺)" type="number" value={f.alis_fiyati} onChange={e => setFormData({ ...f, alis_fiyati: e.target.value })} /></Grid>
+            {canAlis && <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Alış Fiyatı (₺)" type="number" value={f.alis_fiyati} onChange={e => setFormData({ ...f, alis_fiyati: e.target.value })} /></Grid>}
             <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Satış Fiyatı (₺)" type="number" value={f.satis_fiyati} onChange={e => setFormData({ ...f, satis_fiyati: e.target.value })} /></Grid>
             <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Masraflar (₺)" type="number" value={f.masraflar} onChange={e => setFormData({ ...f, masraflar: e.target.value })} helperText="Tamir, bakım, sigorta vb." /></Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Noter Alış (₺)" type="number" value={f.noter_alis} onChange={e => setFormData({ ...f, noter_alis: e.target.value })} /></Grid>
@@ -408,18 +420,20 @@ const IkinciElMotor = () => {
               </Grid>
             )}
           </Grid>
-          <Paper sx={{ p: 2, mt: 2, bgcolor: canliKar >= 0 ? '#e8f5e9' : '#ffebee', textAlign: 'center' }}>
-            <Typography variant="h6" sx={{ color: canliKar >= 0 ? 'green' : 'red' }}>
-              Net Kâr: <strong>{canliKar.toLocaleString('tr-TR')} ₺</strong>
-            </Typography>
-            <Typography variant="caption" color="text.secondary">Kâr = Satış - (Alış + Masraflar + Komisyoncu Tutarı)</Typography>
-            {f.yatirimci_id ? (
-              <Box sx={{ mt: 1, pt: 1, borderTop: '1px dashed #bbb', display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
-                <Typography variant="body2">Yatırımcı Kârı: <strong style={{ color: '#1565C0' }}>{(Number(f.yatirimci_kar) || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
-                <Typography variant="body2">Benim Kârım: <strong style={{ color: '#2e7d32' }}>{(canliKar - (Number(f.yatirimci_kar) || 0)).toLocaleString('tr-TR')} ₺</strong></Typography>
-              </Box>
-            ) : null}
-          </Paper>
+          {canKar && (
+            <Paper sx={{ p: 2, mt: 2, bgcolor: canliKar >= 0 ? '#e8f5e9' : '#ffebee', textAlign: 'center' }}>
+              <Typography variant="h6" sx={{ color: canliKar >= 0 ? 'green' : 'red' }}>
+                Net Kâr: <strong>{canliKar.toLocaleString('tr-TR')} ₺</strong>
+              </Typography>
+              <Typography variant="caption" color="text.secondary">Kâr = Satış - (Alış + Masraflar + Komisyoncu Tutarı)</Typography>
+              {f.yatirimci_id ? (
+                <Box sx={{ mt: 1, pt: 1, borderTop: '1px dashed #bbb', display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
+                  <Typography variant="body2">Yatırımcı Kârı: <strong style={{ color: '#1565C0' }}>{(Number(f.yatirimci_kar) || 0).toLocaleString('tr-TR')} ₺</strong></Typography>
+                  <Typography variant="body2">Benim Kârım: <strong style={{ color: '#2e7d32' }}>{(canliKar - (Number(f.yatirimci_kar) || 0)).toLocaleString('tr-TR')} ₺</strong></Typography>
+                </Box>
+              ) : null}
+            </Paper>
+          )}
 
           <Typography variant="subtitle1" fontWeight="bold" sx={{ mt: 3, mb: 1 }}>Satıcı Bilgileri</Typography>
           <Grid container spacing={2}>
@@ -499,12 +513,12 @@ const IkinciElMotor = () => {
       </Dialog>
 
       {/* Motor Detay Modal */}
-      <MotorDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} isMobile={isMobile} />
+      <MotorDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} isMobile={isMobile} canFinans={canFinans} />
     </Box>
   );
 };
 
-const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
+const MotorDetayModal = ({ open, data, onClose, printRef, isMobile, canFinans }) => {
   const handlePrint = useReactToPrint({ contentRef: printRef });
   if (!data) return null;
 
@@ -557,7 +571,7 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
               <InfoRow label="İsim Soyisim" value={data.satici_adi} />
               <InfoRow label="TC Kimlik" value={data.satici_tc} />
               <InfoRow label="Alım Tarihi" value={formatDate(data.tarih)} />
-              <InfoRow label="Alış Bedeli" value={noterAlis ? `₺${formatTL(noterAlis)}` : null} />
+              {canFinans && <InfoRow label="Alış Bedeli" value={noterAlis ? `₺${formatTL(noterAlis)}` : null} />}
             </Grid>
           </Grid>
 
@@ -586,6 +600,7 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
             </Box>
           )}
 
+          {canFinans && <>
           <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>💰 Finansal Detaylar</Typography>
           <Divider sx={{ mb: 2 }} />
           <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -632,6 +647,7 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile }) => {
               </Paper>
             </Grid>
           </Grid>
+          </>}
 
           {data.aciklama && (
             <>

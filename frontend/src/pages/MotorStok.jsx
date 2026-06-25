@@ -26,8 +26,10 @@ const MotorStok = () => {
   // Liste fiyatı kapalı yatırımcı: kendi motorlarını tam detayıyla görür
   const isYatirimciSahip = isYatirimci && !isYatirimciVitrin;
   const full = isAdmin || isYatirimciSahip; // Admin ve kendi motoru olan yatırımcı tam görür
+  // Motor Satış yetkisi; satış fiyatı, müşteri ve satış geçmişini kapsar — ANCAK alış fiyatı ve kâr yalnızca admin/sahibe açıktır
+  const motorSatis = !!user?.motor_satis_yetkisi;
   const canAlis = full || !!user?.alis_fiyati_gor;
-  const canMusteri = full || !!user?.musteri_gor;
+  const canMusteri = full || motorSatis || !!user?.musteri_gor;
   const canListe = full || !!user?.liste_fiyati_gor;
   const canKar = full || !!user?.kar_gor;
   // Yatırımcı hiçbir operasyonel işlem yapamaz (yalnızca detay görür)
