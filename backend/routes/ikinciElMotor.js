@@ -38,8 +38,9 @@ const sanitizeMotor = (row, user) => {
   const m = { ...row };
   // Motor Satış yetkisi; satış fiyatı, müşteri bilgisi ve satış geçmişini kapsar (alış fiyatı ve kâr HARİÇ — yalnızca admin)
   const ms = !!user.motor_satis_yetkisi;
-  if (!user.alis_fiyati_gor) { m.alis_fiyati = null; m.noter_alis = null; }
-  if (!(user.satis_fiyati_gor || ms)) { m.satis_fiyati = null; m.noter_satis = null; }
+  // Yalnızca "Alış Fiyatı" ve "Kâr" admine özeldir. Noter alış/satış ve satış fiyatı motor satış yetkisinde görünür/düzenlenebilir.
+  if (!user.alis_fiyati_gor) { m.alis_fiyati = null; }
+  if (!(user.satis_fiyati_gor || ms)) { m.satis_fiyati = null; m.noter_satis = null; m.noter_alis = null; }
   if (!user.kar_gor) { m.kar = null; m.yatirimci_kar = null; m.yatirimci_kar_orani = null; }
   if (!(user.musteri_gor || ms)) {
     m.alici_adi = null; m.alici_tc = null; m.alici_telefon = null; m.alici_adres = null;
@@ -220,7 +221,7 @@ router.put('/:id', async (req, res) => {
 
     // Hassas alanlar: yetkisi olmayan kullanıcının gönderdiği (boş/null) değerle veriyi bozmamak için DB değerini koru
     const alis = canAlis ? emptyToZero(alis_fiyati) : parseFloat(mevcut.alis_fiyati || 0);
-    const nAlis = canAlis ? emptyToZero(noter_alis) : parseFloat(mevcut.noter_alis || 0);
+    const nAlis = canSatis ? emptyToZero(noter_alis) : parseFloat(mevcut.noter_alis || 0);
     const satis = canSatis ? emptyToZero(satis_fiyati) : parseFloat(mevcut.satis_fiyati || 0);
     const nSatis = canSatis ? emptyToZero(noter_satis) : parseFloat(mevcut.noter_satis || 0);
     const masraf = emptyToZero(masraflar);
