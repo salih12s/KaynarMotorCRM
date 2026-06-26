@@ -50,7 +50,7 @@ const resizeImage = (file, maxSize = 1280, quality = 0.7) =>
 
 const bosUrun = {
   baslik: '', aciklama: '', fiyat: '', video_url: '',
-  marka: '', model: '', yil: '', segment: '', motor_cc: '', km: '',
+  marka: '', model: '', yil: '', segment: '', motor_cc: '', km: '', hasar_kaydi: '',
   yayinda: true, siralama: 0, one_cikan: false, stok_motor_id: null, rubik_link: '',
 };
 
@@ -179,6 +179,7 @@ const Vitrin = () => {
       aciklama: motor.vitrin_aciklama || f.aciklama,
       segment: motor.vitrin_segment || f.segment,
       motor_cc: motor.vitrin_cc || f.motor_cc,
+      hasar_kaydi: motor.vitrin_hasar || f.hasar_kaydi,
     }));
   };
 
@@ -194,7 +195,7 @@ const Vitrin = () => {
         baslik: d.baslik || '', aciklama: d.aciklama || '', fiyat: d.fiyat || '',
         video_url: d.video_url || '', marka: d.marka || '', model: d.model || '',
         yil: d.yil || '', segment: d.segment || '', motor_cc: d.motor_cc || '',
-        km: d.km || '', yayinda: d.yayinda, siralama: d.siralama || 0,
+        km: d.km || '', hasar_kaydi: d.hasar_kaydi || '', yayinda: d.yayinda, siralama: d.siralama || 0,
         one_cikan: !!d.one_cikan, stok_motor_id: d.stok_motor_id || null, rubik_link: d.rubik_link || '',
       });
       // mevcut görselleri data URL olarak getir (endpoint'ten)
@@ -483,6 +484,8 @@ const Vitrin = () => {
                       helperText="Listeden seçin veya yeni segment yazın" />
                   )}
                 />
+                <TextField label="Hasar Kaydı" value={form.hasar_kaydi} onChange={e => setForm({ ...form, hasar_kaydi: e.target.value })} fullWidth
+                  placeholder="Örn: Hasar kaydı yok / Değişen: ön kaput" helperText="İlan detayında özellikler arasında gösterilir" />
               </>
             )}
 

@@ -272,7 +272,7 @@ const IkinciElMotor = () => {
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
                   <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon /></IconButton>
+                  {isAdmin && <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon /></IconButton>}
                 </Box>
               </Paper>
             );
@@ -310,7 +310,7 @@ const IkinciElMotor = () => {
                   <TableCell>
                     <IconButton size="small" color="primary" onClick={async () => { try { const res = await ikinciElMotorService.getById(m.id); setDetayModal({ open: true, data: res.data }); } catch {} }}><ViewIcon /></IconButton>
                     <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon /></IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon /></IconButton>
+                    {isAdmin && <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon /></IconButton>}
                   </TableCell>
                 </TableRow>
               );

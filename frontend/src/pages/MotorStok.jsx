@@ -46,7 +46,7 @@ const MotorStok = () => {
     durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0],
     fatura_kesildi: false,
     yatirimci: false, yatirimci_id: '', yatirimci_kar_orani: '',
-    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_fiyat: ''
+    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_fiyat: '', vitrin_hasar: ''
   });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -94,7 +94,7 @@ const MotorStok = () => {
       aciklama: motor.aciklama || '', tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       fatura_kesildi: motor.fatura_kesildi || false,
       yatirimci: !!motor.yatirimci_id, yatirimci_id: motor.yatirimci_id || '', yatirimci_kar_orani: motor.yatirimci_kar_orani || '',
-      vitrin_baslik: motor.vitrin_baslik || '', vitrin_aciklama: motor.vitrin_aciklama || '', vitrin_segment: motor.vitrin_segment || '', vitrin_cc: motor.vitrin_cc || '', vitrin_fiyat: motor.vitrin_fiyat || ''
+      vitrin_baslik: motor.vitrin_baslik || '', vitrin_aciklama: motor.vitrin_aciklama || '', vitrin_segment: motor.vitrin_segment || '', vitrin_cc: motor.vitrin_cc || '', vitrin_fiyat: motor.vitrin_fiyat || '', vitrin_hasar: motor.vitrin_hasar || ''
     } : {
       plaka: '', marka: '', model: '', yil: '', km: '',
       alis_fiyati: '', noter_alis: '', masraflar: '', liste_fiyati: '',
@@ -102,7 +102,7 @@ const MotorStok = () => {
       durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0],
       fatura_kesildi: false,
       yatirimci: false, yatirimci_id: '', yatirimci_kar_orani: '',
-    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_fiyat: ''
+    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_fiyat: '', vitrin_hasar: ''
     });
     setDialog({ open: true, data: motor });
   };
@@ -290,7 +290,7 @@ const MotorStok = () => {
                     <IconButton size="small" sx={{ color: '#2e7d32' }} onClick={() => openHizliSatis(m)}><SellIcon fontSize="small" /></IconButton>
                   )}
                   {canEdit && <IconButton size="small" color="info" onClick={() => openDialog(m)}><EditIcon fontSize="small" /></IconButton>}
-                  {canEdit && <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon fontSize="small" /></IconButton>}
+                  {isAdmin && <IconButton size="small" color="error" onClick={() => handleDelete(m.id)}><DeleteIcon fontSize="small" /></IconButton>}
                 </Box>
               </Paper>
             );
@@ -343,7 +343,7 @@ const MotorStok = () => {
                     )}
                     <IconButton size="small" color="primary" sx={{ p: 0.3 }} onClick={async () => { try { const res = await ikinciElMotorService.getById(m.id); setDetayModal({ open: true, data: res.data }); } catch {} }}><ViewIcon fontSize="small" /></IconButton>
                     {canEdit && <IconButton size="small" color="info" sx={{ p: 0.3 }} onClick={() => openDialog(m)}><EditIcon fontSize="small" /></IconButton>}
-                    {canEdit && <IconButton size="small" color="error" sx={{ p: 0.3 }} onClick={() => handleDelete(m.id)}><DeleteIcon fontSize="small" /></IconButton>}
+                    {isAdmin && <IconButton size="small" color="error" sx={{ p: 0.3 }} onClick={() => handleDelete(m.id)}><DeleteIcon fontSize="small" /></IconButton>}
                   </TableCell>
                 </TableRow>
               );
@@ -459,6 +459,7 @@ const MotorStok = () => {
                     renderInput={(params) => <TextField {...params} fullWidth label="Segment" />} />
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Motor CC" type="number" value={f.vitrin_cc} onChange={e => setFormData({ ...f, vitrin_cc: e.target.value })} /></Grid>
+                <Grid size={{ xs: 12 }}><TextField fullWidth label="Hasar Kaydı" value={f.vitrin_hasar} onChange={e => setFormData({ ...f, vitrin_hasar: e.target.value })} placeholder="Örn: Hasar kaydı yok / Değişen: ön çamurluk" /></Grid>
                 <Grid size={{ xs: 12 }}><TextField fullWidth label="Vitrin Açıklaması" value={f.vitrin_aciklama} onChange={e => setFormData({ ...f, vitrin_aciklama: e.target.value })} multiline rows={2} /></Grid>
               </Grid>
             </>

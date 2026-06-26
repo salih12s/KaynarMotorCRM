@@ -15,6 +15,11 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5000',
   'https://web-production-ac0ed.up.railway.app',
+  'https://kaynarmotor.com.tr',
+  'https://www.kaynarmotor.com.tr',
+  'http://kaynarmotor.com.tr',
+  'http://www.kaynarmotor.com.tr',
+  // Eski domain (geriye dönük uyumluluk)
   'https://kaynarmotorservis.com',
   'https://www.kaynarmotorservis.com',
   'http://kaynarmotorservis.com',

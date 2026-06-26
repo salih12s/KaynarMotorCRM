@@ -79,6 +79,7 @@ const StorefrontDetay = () => {
     detay.yil && { label: 'Yıl', value: String(detay.yil) },
     detay.motor_cc && { label: 'Motor Hacmi', value: `${detay.motor_cc} cc` },
     (detay.km !== null && detay.km !== undefined && detay.km !== '') && { label: 'KM', value: `${Number(detay.km).toLocaleString('tr-TR')} km` },
+    detay.hasar_kaydi && { label: 'Hasar Kaydı', value: detay.hasar_kaydi },
   ].filter(Boolean) : []), [detay]);
   const aktifGorselYuklendi = yuklenenGorsel === aktifGorsel;
   const aktifGorselHatali = hataliGorsel === aktifGorsel;

@@ -260,11 +260,11 @@ const IsEmirleri = () => {
         </Box>
       ) : (
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
-        <Table size="small">
+        <Table size="small" sx={{ '& td, & th': { px: 0.75, py: 0.55, fontSize: '0.76rem' } }}>
           <TableHead>
             <TableRow sx={{ bgcolor: 'primary.main' }}>
               {['Fiş No', 'Müşteri', 'Araç', 'Telefon', 'Tarih/Durum', 'Personel', 'Arıza', 'Toplam', 'Maliyet', 'Kar', 'İşlemler'].map(h => (
-                <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.8rem', py: 1 }}>{h}</TableCell>
+                <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</TableCell>
               ))}
             </TableRow>
           </TableHead>
@@ -284,8 +284,8 @@ const IsEmirleri = () => {
                     <Chip label={durumLabel(ie.durum)} size="small" color={durumRenk(ie.durum)}
                       sx={{ height: 20, fontSize: '0.7rem', mt: 0.3 }} />
                   </TableCell>
-                  <TableCell sx={{ fontSize: '0.8rem' }}>{ie.teslim_eden_teknisyen || ie.teslim_alan_ad_soyad || ie.olusturan_kisi || '-'}</TableCell>
-                  <TableCell>{ie.ariza_sikayetler || '-'}</TableCell>
+                  <TableCell>{ie.teslim_eden_teknisyen || ie.teslim_alan_ad_soyad || ie.olusturan_kisi || '-'}</TableCell>
+                  <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ie.ariza_sikayetler || ''}>{ie.ariza_sikayetler || '-'}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>₺{toplam.toLocaleString('tr-TR')}</TableCell>
                   <TableCell sx={{ color: '#C62828' }}>₺{maliyet.toLocaleString('tr-TR')}</TableCell>
                   <TableCell sx={{ color: kar >= 0 ? '#2e7d32' : '#c62828', fontWeight: 'bold' }}>₺{kar.toLocaleString('tr-TR')}</TableCell>

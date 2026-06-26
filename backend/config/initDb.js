@@ -467,6 +467,9 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_segment VARCHAR(50);`);
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_cc INTEGER;`);
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_fiyat DECIMAL(12,2);`);
+    // Migration: hasar kaydı (ilan özelliği) — motor stok taslağı ve vitrin ilanı
+    await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_hasar TEXT;`);
+    await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS hasar_kaydi TEXT;`);
 
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
