@@ -3,14 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, Chip, IconButton, TextField, MenuItem, InputAdornment, Dialog, DialogTitle, DialogContent,
-  DialogActions, Grid, Alert, Divider, useTheme, useMediaQuery
+  DialogActions, Grid, Alert, Divider, Autocomplete, useTheme, useMediaQuery
 } from '@mui/material';
 import {
   Add as AddIcon, Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
   Search as SearchIcon, Close as CloseIcon, Save as SaveIcon, Print as PrintIcon
 } from '@mui/icons-material';
 import { Checkbox, FormControlLabel } from '@mui/material';
-import { isEmriService, musteriService, authService } from '../services/api';
+import { isEmriService, musteriService, authService, aksesuarStokService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const IsEmirleri = () => {
@@ -28,14 +28,15 @@ const IsEmirleri = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [formData, setFormData] = useState({
-    musteri_ad_soyad: '', telefon: '', adres: '', km: '', marka: '', model_tip: '',
+    musteri_ad_soyad: '', telefon: '', adres: '', km: '', marka: '', model_tip: '', plaka: '',
     tahmini_teslim_tarihi: '', tahmini_toplam_ucret: '',
     ariza_sikayetler: '', aciklama: '', odeme_detaylari: '', durum: 'beklemede',
     teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: '',
     kalan_odeme: '', odeme_tamamlandi: true
   });
   const [parcalar, setParcalar] = useState([]);
-  const [newParca, setNewParca] = useState({ takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+  const [newParca, setNewParca] = useState({ parca_kodu: '', takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+  const [stokOptions, setStokOptions] = useState([]);
   const [error, setError] = useState('');
   const [musteriOptions, setMusteriOptions] = useState([]);
 
@@ -125,14 +126,15 @@ const IsEmirleri = () => {
   const openModal = () => {
     setEditId(null);
     setFormData({
-      musteri_ad_soyad: '', telefon: '', adres: '', km: '', marka: '', model_tip: '',
+      musteri_ad_soyad: '', telefon: '', adres: '', km: '', marka: '', model_tip: '', plaka: '',
       tahmini_teslim_tarihi: '', tahmini_toplam_ucret: '',
       ariza_sikayetler: '', aciklama: '', odeme_detaylari: '', durum: 'beklemede',
       teslim_alan_ad_soyad: '', teslim_eden_teknisyen: '', teslim_tarihi: '',
       kalan_odeme: '', odeme_tamamlandi: true
     });
     setParcalar([]);
-    setNewParca({ takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+    setNewParca({ parca_kodu: '', takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+    setStokOptions([]);
     setError('');
     setModalOpen(true);
   };
@@ -145,7 +147,7 @@ const IsEmirleri = () => {
       setEditId(id);
       setFormData({
         musteri_ad_soyad: d.musteri_ad_soyad || '', telefon: d.telefon || '', adres: d.adres || '',
-        km: d.km || '', marka: d.marka || '', model_tip: d.model_tip || '',
+        km: d.km || '', marka: d.marka || '', model_tip: d.model_tip || '', plaka: d.plaka || '',
         tahmini_teslim_tarihi: d.tahmini_teslim_tarihi ? new Date(d.tahmini_teslim_tarihi).toLocaleDateString('en-CA') : '',
         tahmini_toplam_ucret: d.tahmini_toplam_ucret || '',
         ariza_sikayetler: d.ariza_sikayetler || '', aciklama: d.aciklama || '',
@@ -156,7 +158,8 @@ const IsEmirleri = () => {
         kalan_odeme: d.kalan_odeme || '', odeme_tamamlandi: !parseFloat(d.kalan_odeme || 0)
       });
       setParcalar(d.parcalar || []);
-      setNewParca({ takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+      setNewParca({ parca_kodu: '', takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+      setStokOptions([]);
       setModalOpen(true);
     } catch { setError('İş emri yüklenemedi'); }
   };
@@ -164,10 +167,40 @@ const IsEmirleri = () => {
   const addParca = () => {
     if (!newParca.takilan_parca.trim()) return;
     setParcalar([...parcalar, { ...newParca }]);
-    setNewParca({ takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+    setNewParca({ parca_kodu: '', takilan_parca: '', adet: 1, birim_fiyat: 0, maliyet: 0 });
+    setStokOptions([]);
   };
 
   const removeParca = (index) => setParcalar(parcalar.filter((_, i) => i !== index));
+
+  // Aksesuar stoktan parça ara (isim, marka veya stok kodu/barkod ile)
+  const handleStokSearch = async (q) => {
+    if (!q || q.trim().length < 2) { setStokOptions([]); return; }
+    try { const res = await aksesuarStokService.search(q.trim()); setStokOptions(res.data || []); } catch {}
+  };
+
+  // Stok kaydını parça alanlarına doldur
+  const selectStok = (stok) => {
+    setNewParca({
+      parca_kodu: stok.stok_kodu || '',
+      takilan_parca: stok.stok_adi || '',
+      adet: 1,
+      birim_fiyat: stok.satis_fiyati || 0,
+      maliyet: stok.alis_fiyati || 0,
+    });
+    setStokOptions([]);
+  };
+
+  // Barkod okutulduğunda (Enter ile) stok kodundan tam eşleşme bul
+  const handleParcaKeyDown = async (e) => {
+    if (e.key !== 'Enter') return;
+    const kod = (newParca.takilan_parca || '').trim();
+    if (!kod) return;
+    try {
+      const res = await aksesuarStokService.getByBarkod(kod);
+      if (res.data) { e.preventDefault(); selectStok(res.data); }
+    } catch {}
+  };
 
   const handleMusteriSearch = async (query) => {
     if (query.length < 2) return;
@@ -386,15 +419,19 @@ const IsEmirleri = () => {
                 🏍️ Araç Bilgileri
               </Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 6, sm: 3 }}>
+                  <TextField fullWidth size="small" label="Plaka" value={formData.plaka}
+                    onChange={e => setFormData({ ...formData, plaka: e.target.value.toUpperCase() })} />
+                </Grid>
+                <Grid size={{ xs: 6, sm: 3 }}>
                   <TextField fullWidth size="small" label="Marka" value={formData.marka}
                     onChange={e => setFormData({ ...formData, marka: e.target.value })} />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 6, sm: 3 }}>
                   <TextField fullWidth size="small" label="Model/Tip" value={formData.model_tip}
                     onChange={e => setFormData({ ...formData, model_tip: e.target.value })} />
                 </Grid>
-                <Grid size={{ xs: 12, sm: 4 }}>
+                <Grid size={{ xs: 6, sm: 3 }}>
                   <TextField select fullWidth size="small" label="Durum" value={formData.durum}
                     onChange={e => setFormData({ ...formData, durum: e.target.value })}>
                     <MenuItem value="beklemede">Beklemede</MenuItem>
@@ -437,8 +474,39 @@ const IsEmirleri = () => {
                 <Chip label={`${parcalar.length} parça`} size="small" color="primary" variant="outlined" />
               </Box>
               <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                <TextField fullWidth size="small" label="Takılan Parça / İşçilik Adı" value={newParca.takilan_parca}
-                  onChange={e => setNewParca({ ...newParca, takilan_parca: e.target.value })} sx={{ mb: 1.5 }} />
+                <Autocomplete
+                  freeSolo
+                  options={stokOptions}
+                  filterOptions={(x) => x}
+                  inputValue={newParca.takilan_parca}
+                  getOptionLabel={(o) => typeof o === 'string' ? o : (o.stok_adi || '')}
+                  onInputChange={(e, v, reason) => {
+                    if (reason === 'reset') return;
+                    setNewParca(prev => ({ ...prev, takilan_parca: v, parca_kodu: '' }));
+                    handleStokSearch(v);
+                  }}
+                  onChange={(e, v) => { if (v && typeof v === 'object') selectStok(v); }}
+                  renderOption={(props, o) => (
+                    <Box component="li" {...props} key={o.id}>
+                      <Box sx={{ width: '100%' }}>
+                        <Typography variant="body2" fontWeight="bold">{o.stok_adi}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Kod: {o.stok_kodu} • Stok: {o.mevcut ?? 0} • Satış: ₺{parseFloat(o.satis_fiyati || 0).toLocaleString('tr-TR')}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                  renderInput={(params) => (
+                    <TextField {...params} size="small" label="Takılan Parça / İşçilik (ara veya barkod okut)"
+                      onKeyDown={handleParcaKeyDown} />
+                  )}
+                  sx={{ mb: 1.5 }}
+                />
+                {newParca.parca_kodu && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    Stok kodu: <strong>{newParca.parca_kodu}</strong>
+                  </Typography>
+                )}
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 4 }}>
                     <TextField fullWidth size="small" label="Adet" type="number" value={newParca.adet}
@@ -643,6 +711,7 @@ const printIsEmri = (data) => {
     </div>
     <div class="info-box">
       <div class="section-title">Araç Bilgileri</div>
+      <div class="info-row"><span class="label">Plaka:</span><span class="value">${data.plaka || '-'}</span></div>
       <div class="info-row"><span class="label">Marka:</span><span class="value">${data.marka || '-'}</span></div>
       <div class="info-row"><span class="label">Model/Tip:</span><span class="value">${data.model_tip || '-'}</span></div>
       <div class="info-row"><span class="label">Durum:</span><span class="value">${durumLabel(data.durum)}</span></div>
@@ -723,6 +792,7 @@ const IsEmriDetayModal = ({ open, data, onClose, onEdit, isMobile }) => {
               <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>🏍️ Araç Bilgileri</Typography>
               <Divider sx={{ mb: 1 }} />
               <InfoRow label="Fiş No" value={`#${data.fis_no}`} />
+              <InfoRow label="Plaka" value={data.plaka} />
               <InfoRow label="Marka" value={data.marka} />
               <InfoRow label="Model/Tip" value={data.model_tip} />
               <Box sx={{ mt: 1 }}><Chip label={durumLabel(data.durum)} color={durumRenk(data.durum)} size="small" /></Box>

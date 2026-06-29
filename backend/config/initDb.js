@@ -342,6 +342,8 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS kalan_odeme DECIMAL(12,2) DEFAULT 0;`);
     // Migration: aksesuar satışında indirim (toplam ve kârdan düşülür)
     await client.query(`ALTER TABLE aksesuarlar ADD COLUMN IF NOT EXISTS indirim DECIMAL(12,2) DEFAULT 0;`);
+    // Migration: iş emrine plaka alanı
+    await client.query(`ALTER TABLE is_emirleri ADD COLUMN IF NOT EXISTS plaka VARCHAR(20);`);
 
     // Migration: ikinci_el_motorlar tablosuna yatırımcı ve liste fiyatı alanları ekle
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS yatirimci_id INTEGER REFERENCES kullanicilar(id) ON DELETE SET NULL;`);
