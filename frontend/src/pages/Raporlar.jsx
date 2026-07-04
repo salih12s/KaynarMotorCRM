@@ -292,7 +292,7 @@ const Raporlar = () => {
     loadFisKar();
     raporService.getPersoneller().then(r => setPersoneller(r.data)).catch(() => {});
     aksesuarStokService.getAll().then(r => setStokOptions(r.data)).catch(() => {});
-    if (isAdmin) raporService.getYatirimciOzet().then(r => setYatirimciOzet(r.data)).catch(() => {});
+    if (isAdmin) raporService.getYatirimciOzet(baslangic, bitis).then(r => setYatirimciOzet(r.data)).catch(() => {});
   }, [baslangic, bitis]);
 
   const formatTL = (v) => parseFloat(v || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 });

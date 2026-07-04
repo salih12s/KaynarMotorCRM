@@ -308,20 +308,37 @@ router.get('/yatirimci-rapor', async (req, res) => {
 // GET /yatirimci-ozet [ADMIN] - Yatırımcı bazlı özet liste
 router.get('/yatirimci-ozet', engelleYatirimci, async (req, res) => {
   try {
+    const { baslangic, bitis } = req.query;
     const result = await pool.query(`
       SELECT k.id, k.ad_soyad, k.kullanici_adi,
         COUNT(*) FILTER (WHERE m.durum <> 'tamamlandi') AS stok_adet,
-        COUNT(*) FILTER (WHERE m.durum = 'tamamlandi') AS satilan_adet,
+        COUNT(*) FILTER (
+          WHERE m.durum = 'tamamlandi'
+            AND ($1::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) >= $1::date)
+            AND ($2::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) <= $2::date)
+        ) AS satilan_adet,
         COALESCE(SUM(m.alis_fiyati) FILTER (WHERE m.durum <> 'tamamlandi'), 0) AS stok_degeri,
-        COALESCE(SUM(m.satis_fiyati) FILTER (WHERE m.durum = 'tamamlandi'), 0) AS toplam_satis,
-        COALESCE(SUM(m.yatirimci_kar) FILTER (WHERE m.durum = 'tamamlandi'), 0) AS yatirimci_kar,
-        COALESCE(SUM(m.kar - m.yatirimci_kar) FILTER (WHERE m.durum = 'tamamlandi'), 0) AS isletme_kar
+        COALESCE(SUM(m.satis_fiyati) FILTER (
+          WHERE m.durum = 'tamamlandi'
+            AND ($1::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) >= $1::date)
+            AND ($2::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) <= $2::date)
+        ), 0) AS toplam_satis,
+        COALESCE(SUM(m.yatirimci_kar) FILTER (
+          WHERE m.durum = 'tamamlandi'
+            AND ($1::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) >= $1::date)
+            AND ($2::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) <= $2::date)
+        ), 0) AS yatirimci_kar,
+        COALESCE(SUM(COALESCE(m.kar, 0) - COALESCE(m.yatirimci_kar, 0)) FILTER (
+          WHERE m.durum = 'tamamlandi'
+            AND ($1::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) >= $1::date)
+            AND ($2::date IS NULL OR DATE(COALESCE(m.satis_tarihi, m.tamamlama_tarihi)) <= $2::date)
+        ), 0) AS isletme_kar
       FROM kullanicilar k
       LEFT JOIN ikinci_el_motorlar m ON m.yatirimci_id = k.id
       WHERE k.rol = 'yatirimci'
       GROUP BY k.id, k.ad_soyad, k.kullanici_adi
       ORDER BY k.ad_soyad
-    `);
+    `, [baslangic || null, bitis || null]);
     res.json(result.rows);
   } catch (error) {
     console.error('Yatırımcı özet hatası:', error);

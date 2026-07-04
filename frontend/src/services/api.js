@@ -140,7 +140,7 @@ export const raporService = {
   getFisKar: (baslangic, bitis) => api.get('/raporlar/fis-kar', { params: { baslangic, bitis } }),
   getPersoneller: () => api.get('/raporlar/personeller'),
   getYatirimciRapor: (params) => api.get('/raporlar/yatirimci-rapor', { params }),
-  getYatirimciOzet: () => api.get('/raporlar/yatirimci-ozet'),
+  getYatirimciOzet: (baslangic, bitis) => api.get('/raporlar/yatirimci-ozet', { params: { baslangic, bitis } }),
 };
 
 // Veresiye (Açık borçlar)
