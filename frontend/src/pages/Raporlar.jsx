@@ -342,6 +342,32 @@ const Raporlar = () => {
   const duzeltilmisTotalKar = rapor ? (parseFloat(rapor.motorKar || 0) + parseFloat(rapor.isEmriKar || 0) + parseFloat(rapor.aksesuarKar || 0) + hesaplananEticaretKar + yedekParcaKar) : 0;
   const duzeltilmisTotalGelir = rapor ? (parseFloat(rapor.toplam?.gelir || 0) + parseFloat(rapor.yedekParcaToplamDeger || 0)) : 0;
   const duzeltilmisTotalMaliyet = rapor ? (parseFloat(rapor.toplam?.maliyet || 0) + parseFloat(rapor.yedekParcaToplamMaliyet || 0)) : 0;
+  const yatirimciOzetGosterim = (() => {
+    if (!rapor) return yatirimciOzet;
+    const motorOzetMap = new Map();
+    (rapor.motorlar || []).forEach(m => {
+      if (!m.yatirimci_id) return;
+      const key = String(m.yatirimci_id);
+      const prev = motorOzetMap.get(key) || { satilan_adet: 0, toplam_satis: 0, yatirimci_kar: 0, isletme_kar: 0 };
+      const yatirimciKar = parseFloat(m.yatirimci_kar || 0);
+      motorOzetMap.set(key, {
+        satilan_adet: prev.satilan_adet + 1,
+        toplam_satis: prev.toplam_satis + parseFloat(m.satis_fiyati || 0),
+        yatirimci_kar: prev.yatirimci_kar + yatirimciKar,
+        isletme_kar: prev.isletme_kar + (parseFloat(m.kar || 0) - yatirimciKar),
+      });
+    });
+    return yatirimciOzet.map(y => {
+      const motorOzet = motorOzetMap.get(String(y.id)) || {};
+      return {
+        ...y,
+        satilan_adet: motorOzet.satilan_adet || 0,
+        toplam_satis: motorOzet.toplam_satis || 0,
+        yatirimci_kar: motorOzet.yatirimci_kar || 0,
+        isletme_kar: motorOzet.isletme_kar || 0,
+      };
+    });
+  })();
 
   if (isYatirimci) return <YatirimciRapor isMobile={isMobile} />;
 
@@ -1153,16 +1179,16 @@ const Raporlar = () => {
       {/* Yatırımcılar Tab (admin) */}
       {tab === 7 && isAdmin && !loading && (
         <>
-          {yatirimciOzet.length === 0 ? (
+          {yatirimciOzetGosterim.length === 0 ? (
             <Alert severity="info">Henüz yatırımcı bulunmuyor. Kullanıcı Yönetimi ekranından yatırımcı ekleyebilirsiniz.</Alert>
           ) : (
             <>
               <Grid container spacing={2} sx={{ mb: 2 }}>
                 {[
-                  { label: 'Yatırımcı Sayısı', value: yatirimciOzet.length, color: '#C62828' },
-                  { label: 'Toplam Stok', value: yatirimciOzet.reduce((t, y) => t + Number(y.stok_adet || 0), 0), color: '#1565C0' },
-                  { label: 'Toplam Satılan', value: yatirimciOzet.reduce((t, y) => t + Number(y.satilan_adet || 0), 0), color: '#E65100' },
-                  { label: 'Toplam Yatırımcı Kârı', value: `₺${formatTL(yatirimciOzet.reduce((t, y) => t + Number(y.yatirimci_kar || 0), 0))}`, color: '#2e7d32' },
+                  { label: 'Yatırımcı Sayısı', value: yatirimciOzetGosterim.length, color: '#C62828' },
+                  { label: 'Toplam Stok', value: yatirimciOzetGosterim.reduce((t, y) => t + Number(y.stok_adet || 0), 0), color: '#1565C0' },
+                  { label: 'Toplam Satılan', value: yatirimciOzetGosterim.reduce((t, y) => t + Number(y.satilan_adet || 0), 0), color: '#E65100' },
+                  { label: 'Toplam Yatırımcı Kârı', value: `₺${formatTL(yatirimciOzetGosterim.reduce((t, y) => t + Number(y.yatirimci_kar || 0), 0))}`, color: '#2e7d32' },
                 ].map((k, i) => (
                   <Grid size={{ xs: 12, md: 3 }} key={i}>
                     <KartItem label={k.label} value={k.value} color={k.color} />
@@ -1171,7 +1197,7 @@ const Raporlar = () => {
               </Grid>
               {isMobile ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {yatirimciOzet.map((y, i) => (
+                  {yatirimciOzetGosterim.map((y, i) => (
                     <Paper key={i} sx={{ p: 1.5 }}>
                       <Typography variant="subtitle2" fontWeight="bold">{y.ad_soyad}</Typography>
                       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 0.5 }}>
@@ -1193,7 +1219,7 @@ const Raporlar = () => {
                       {['Yatırımcı', 'Stok Adet', 'Satılan', 'Stok Değeri', 'Toplam Satış', 'Yatırımcı Kârı', 'İşletme Kârı'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
                     </TableRow></TableHead>
                     <TableBody>
-                      {yatirimciOzet.map((y, i) => (
+                      {yatirimciOzetGosterim.map((y, i) => (
                         <TableRow key={i} hover>
                           <TableCell sx={{ fontWeight: 'bold' }}>{y.ad_soyad}</TableCell>
                           <TableCell>{y.stok_adet}</TableCell>
