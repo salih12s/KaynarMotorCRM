@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material';
 import { vitrinService } from '../services/api';
 import { KATEGORILER, SEGMENTLER, HIZMET_KATEGORILER } from './Vitrin';
+import { hesaplaTaksit, TaksitTablo, ParaInput, paraToNumber, fmtTL } from './TaksitHesaplama';
 
 const RED = '#C62828';
 
@@ -55,6 +56,67 @@ const waLink = (tel) => {
   return `https://wa.me/${d}`;
 };
 
+// Ana sayfa header'ından açılan, giriş gerektirmeyen taksit hesaplama penceresi.
+// Müşteri nakit fiyat (ve isteğe bağlı peşinat) girip 3/6/9/12 ay taksit tablosunu görür.
+const TaksitHesaplaDialog = ({ open, onClose, isMobile }) => {
+  const [nakit, setNakit] = useState('');
+  const [pesinat, setPesinat] = useState('');
+  const nakitNum = paraToNumber(nakit);
+  const pesinatNum = paraToNumber(pesinat);
+  const kalan = nakitNum - pesinatNum;
+  const sonuc = hesaplaTaksit(nakitNum, pesinatNum);
+
+  const temizle = () => { setNakit(''); setPesinat(''); };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen={isMobile}
+      PaperProps={{ sx: { borderRadius: isMobile ? 0 : 3 } }}>
+      <Box sx={{ bgcolor: '#1a1a1a', color: '#fff', px: 3, py: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CalculateIcon />
+          <Typography variant="h6" fontWeight="bold">Taksit Hesaplama</Typography>
+        </Box>
+        <IconButton onClick={onClose} sx={{ color: '#fff' }}><CloseIcon /></IconButton>
+      </Box>
+      <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Nakit fiyatı girin, 3 / 6 / 9 / 12 ay taksitli ödeme seçeneklerini anında görün.
+        </Typography>
+        <Stack spacing={1.5}>
+          <ParaInput label="Nakit Fiyat" value={nakit} onChange={setNakit} autoFocus />
+          <ParaInput label="Peşinat / Peşin Ödeme" value={pesinat} onChange={setPesinat}
+            helperText={pesinatNum > 0 ? `Kalan tutar: ${fmtTL(Math.max(kalan, 0))}` : 'İsteğe bağlı — boş bırakılırsa nakit fiyat üzerinden hesaplanır'} />
+        </Stack>
+
+        {nakitNum > 0 && !sonuc && (
+          <Typography variant="body2" sx={{ mt: 2, color: RED }}>
+            Peşinat tutarı nakit fiyata eşit veya daha büyük. Taksitlendirilecek tutar kalmadı.
+          </Typography>
+        )}
+
+        {sonuc && (
+          <Box sx={{ mt: 2 }}>
+            {pesinatNum > 0 && (
+              <Paper sx={{ p: 1.5, mb: 2, textAlign: 'center', bgcolor: '#f5f5f5' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Nakit <span style={{ textDecoration: 'line-through' }}>{fmtTL(nakitNum)}</span> − Peşinat {fmtTL(pesinatNum)}
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{ color: RED }}>{fmtTL(Math.max(kalan, 0))}</Typography>
+                <Typography variant="caption" color="text.secondary">Taksitler bu tutar üzerinden hesaplanır</Typography>
+              </Paper>
+            )}
+            <TaksitTablo sonuc={sonuc} isMobile={isMobile} />
+          </Box>
+        )}
+
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button onClick={temizle} sx={{ color: '#666' }}>Temizle</Button>
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const Storefront = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,6 +149,9 @@ const Storefront = () => {
 
   // mobil menü (hamburger) aç/kapa
   const [mobilMenu, setMobilMenu] = useState(false);
+
+  // Taksit hesaplama penceresi (giriş gerektirmez)
+  const [taksitOpen, setTaksitOpen] = useState(false);
 
   const loadIletisim = useCallback(async () => {
     try {
@@ -174,11 +239,20 @@ const Storefront = () => {
               KAYNAR <span style={{ color: RED }}>MOTOR</span>
             </Typography>
           </Box>
-          <Button variant="contained" color="error" startIcon={!isMobile && <LoginIcon />} onClick={() => navigate('/login')}
-            sx={{ fontSize: { xs: 12, md: 14 }, px: { xs: 1.5, md: 2.5 }, boxShadow: '0 4px 20px rgba(198,40,40,0.5)' }}>
-            Servise Git
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 1.5 } }}>
+            <Button variant="outlined" startIcon={!isMobile && <CalculateIcon />} onClick={() => setTaksitOpen(true)}
+              sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.6)', fontSize: { xs: 12, md: 14 }, px: { xs: 1.25, md: 2 },
+                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
+              Taksit Hesapla
+            </Button>
+            <Button variant="contained" color="error" startIcon={!isMobile && <LoginIcon />} onClick={() => navigate('/login')}
+              sx={{ fontSize: { xs: 12, md: 14 }, px: { xs: 1.5, md: 2.5 }, boxShadow: '0 4px 20px rgba(198,40,40,0.5)' }}>
+              Servise Git
+            </Button>
+          </Box>
         </Box>
+
+        <TaksitHesaplaDialog open={taksitOpen} onClose={() => setTaksitOpen(false)} isMobile={isMobile} />
 
         {/* Orta içerik — üst kısma yaslı ki videonun altındaki KAYNAR MOTOR yazısı görünebilsin */}
         <Box sx={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', textAlign: 'center', px: 2, pt: { xs: 3, md: 5 } }}>
@@ -285,6 +359,14 @@ const Storefront = () => {
             </>
           )}
 
+          {!isMobile && (
+            <Button variant="outlined" startIcon={<CalculateIcon />} onClick={() => setTaksitOpen(true)}
+              sx={{ flexShrink: 0, color: '#fff', borderColor: 'rgba(255,255,255,0.5)', fontSize: 14, px: 2, whiteSpace: 'nowrap',
+                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.06)' } }}>
+              Taksit Hesapla
+            </Button>
+          )}
+
           <Button variant="contained" color="error" startIcon={!isMobile && <LoginIcon />} onClick={() => navigate('/login')}
             sx={{ flexShrink: 0, fontSize: { xs: 12, md: 14 }, px: { xs: 1.5, md: 2 } }}>
             Servise Git
@@ -316,6 +398,13 @@ const Storefront = () => {
               </ListItemButton>
             </ListItem>
           ))}
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', my: 0.5 }} />
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => { setTaksitOpen(true); setMobilMenu(false); }}>
+              <ListItemIcon sx={{ color: 'rgba(255,255,255,0.7)', minWidth: 38 }}><CalculateIcon /></ListItemIcon>
+              <ListItemText primary="Taksit Hesapla" />
+            </ListItemButton>
+          </ListItem>
         </List>
       </Drawer>
 
@@ -595,6 +684,9 @@ const Storefront = () => {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Taksit hesaplama penceresi (header'dan açılır, giriş gerektirmez) */}
+      <TaksitHesaplaDialog open={taksitOpen} onClose={() => setTaksitOpen(false)} isMobile={isMobile} />
 
       {/* Footer */}
       <Box sx={{ bgcolor: '#1a1a1a', color: 'rgba(255,255,255,0.7)', py: 3, mt: 4, textAlign: 'center' }}>

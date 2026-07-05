@@ -243,6 +243,13 @@ const Raporlar = () => {
   const lastDay = toLocalDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
   const [baslangic, setBaslangic] = useState(firstDay);
   const [bitis, setBitis] = useState(lastDay);
+  // Hızlı tarih ön ayarları — filtreyi tek tıkla veri olan aralığa taşımak için
+  const setAralik = (b, e) => { setBaslangic(toLocalDate(b)); setBitis(toLocalDate(e)); };
+  const presetBugun = () => setAralik(today, today);
+  const presetBuAy = () => setAralik(new Date(today.getFullYear(), today.getMonth(), 1), new Date(today.getFullYear(), today.getMonth() + 1, 0));
+  const presetGecenAy = () => setAralik(new Date(today.getFullYear(), today.getMonth() - 1, 1), new Date(today.getFullYear(), today.getMonth(), 0));
+  const presetBuYil = () => setAralik(new Date(today.getFullYear(), 0, 1), new Date(today.getFullYear(), 11, 31));
+  const presetGecenYil = () => setAralik(new Date(today.getFullYear() - 1, 0, 1), new Date(today.getFullYear() - 1, 11, 31));
   const [motorSubTab, setMotorSubTab] = useState(0);
   const [komisyoncuFilter, setKomisyoncuFilter] = useState('');
   const [rapor, setRapor] = useState(null);
@@ -389,6 +396,13 @@ const Raporlar = () => {
       </Paper>
 
       <Paper sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 1.5 }}>
+          <Button size="small" variant="outlined" onClick={presetBugun} sx={{ color: '#C62828', borderColor: '#C62828' }}>Bugün</Button>
+          <Button size="small" variant="outlined" onClick={presetBuAy} sx={{ color: '#C62828', borderColor: '#C62828' }}>Bu Ay</Button>
+          <Button size="small" variant="outlined" onClick={presetGecenAy} sx={{ color: '#C62828', borderColor: '#C62828' }}>Geçen Ay</Button>
+          <Button size="small" variant="outlined" onClick={presetBuYil} sx={{ color: '#C62828', borderColor: '#C62828' }}>Bu Yıl</Button>
+          <Button size="small" variant="outlined" onClick={presetGecenYil} sx={{ color: '#C62828', borderColor: '#C62828' }}>Geçen Yıl</Button>
+        </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField size="small" type="date" label="Başlangıç" value={baslangic} onChange={e => setBaslangic(e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField size="small" type="date" label="Bitiş" value={bitis} onChange={e => setBitis(e.target.value)} InputLabelProps={{ shrink: true }} />

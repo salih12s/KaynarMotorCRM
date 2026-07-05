@@ -1,20 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, AppBar, Toolbar, Typography, Paper, Alert, useTheme, useMediaQuery } from '@mui/material';
-import { hesaplaTaksit, fmtTL, TaksitTablo, ParaInput, paraToNumber } from './TaksitHesaplama';
+import { Box, AppBar, Toolbar, Typography, Paper, useTheme, useMediaQuery } from '@mui/material';
+import { hesaplaTaksit, fmtTL, TaksitTablo } from './TaksitHesaplama';
 
 const RED = '#C62828';
 
-// Müşteriye gönderilen paylaşım linki: /taksit/:fiyat — sadece görüntüleme, giriş gerektirmez
+// Müşteriye gönderilen paylaşım linki: /taksit/:fiyat
+// Salt görüntüleme — giriş gerektirmez; müşteri hiçbir tutarı değiştiremez, yalnızca taksit tablosunu görür.
 const TaksitGoruntule = () => {
   const { fiyat } = useParams();
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const nakit = parseFloat(fiyat) || 0;
-  const [pesinat, setPesinat] = useState('');
-  const pesinatNum = paraToNumber(pesinat);
-  const kalan = nakit - pesinatNum;
-  // Peşinat girildikçe taksit tablosu anlık güncellenir
-  const sonuc = useMemo(() => hesaplaTaksit(nakit, pesinatNum), [nakit, pesinatNum]);
+  const sonuc = hesaplaTaksit(nakit, 0);
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
@@ -35,33 +32,12 @@ const TaksitGoruntule = () => {
         {nakit > 0 ? (
           <>
             <Paper sx={{ p: 2, mb: 2, borderRadius: 3, textAlign: 'center', bgcolor: '#fff' }}>
-              {pesinatNum > 0 ? (
-                <>
-                  <Typography variant="body2" color="text.secondary">
-                    Nakit Fiyat <span style={{ textDecoration: 'line-through' }}>{fmtTL(nakit)}</span> − Peşinat {fmtTL(pesinatNum)}
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: RED }}>{fmtTL(Math.max(kalan, 0))}</Typography>
-                  <Typography variant="caption" color="text.secondary">Taksitler bu tutar üzerinden hesaplanmaktadır</Typography>
-                </>
-              ) : (
-                <>
-                  <Typography variant="body2" color="text.secondary">Nakit Fiyat</Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: RED }}>{fmtTL(nakit)}</Typography>
-                </>
-              )}
+              <Typography variant="body2" color="text.secondary">Nakit Fiyat</Typography>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: RED }}>{fmtTL(nakit)}</Typography>
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 2, borderRadius: 3, bgcolor: '#fff' }}>
-              <ParaInput label="Peşinat / Peşin Ödeme" value={pesinat}
-                onChange={setPesinat}
-                helperText={pesinatNum > 0 ? `Taksitlendirilecek kalan tutar: ${fmtTL(Math.max(kalan, 0))}` : 'İsteğe bağlı — peşinat girerseniz taksitler kalan tutar üzerinden hesaplanır'} />
-            </Paper>
+            {sonuc && <TaksitTablo sonuc={sonuc} isMobile={isMobile} />}
 
-            {sonuc ? (
-              <TaksitTablo sonuc={sonuc} isMobile={isMobile} />
-            ) : (
-              <Alert severity="warning">Peşinat tutarı nakit fiyata eşit veya daha büyük. Taksitlendirilecek tutar kalmadı.</Alert>
-            )}
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 2 }}>
               * Tutarlar bilgilendirme amaçlıdır. Detaylı bilgi için bizimle iletişime geçin.
             </Typography>
