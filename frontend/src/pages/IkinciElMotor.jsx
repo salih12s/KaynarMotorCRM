@@ -13,10 +13,9 @@ const IkinciElMotor = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
   const { user } = useAuth();
   const isAdmin = user?.rol === 'admin';
-  // Motor Satış yetkilisi satış/müşteri/geçmişi görür; alış fiyatı, kâr ve finansal detaylar yalnızca admindedir
-  const canAlis = isAdmin || !!user?.alis_fiyati_gor;
+  // Motor Satış yetkilisi satış/müşteri/geçmişi/alış fiyatını görür ve düzenler; yalnızca kâr admindedir
+  const canAlis = isAdmin || !!user?.alis_fiyati_gor || !!user?.motor_satis_yetkisi;
   const canKar = isAdmin || !!user?.kar_gor;
-  const canFinans = canAlis && canKar; // motor detaydaki finansal detaylar bloğu
   const location = useLocation();
   const navigate = useNavigate();
   const [motorlar, setMotorlar] = useState([]);
@@ -513,12 +512,12 @@ const IkinciElMotor = () => {
       </Dialog>
 
       {/* Motor Detay Modal */}
-      <MotorDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} isMobile={isMobile} canFinans={canFinans} />
+      <MotorDetayModal open={detayModal.open} data={detayModal.data} onClose={() => setDetayModal({ open: false, data: null })} printRef={printRef} isMobile={isMobile} canAlis={canAlis} canKar={canKar} />
     </Box>
   );
 };
 
-const MotorDetayModal = ({ open, data, onClose, printRef, isMobile, canFinans }) => {
+const MotorDetayModal = ({ open, data, onClose, printRef, isMobile, canAlis, canKar }) => {
   const handlePrint = useReactToPrint({ contentRef: printRef });
   if (!data) return null;
 
@@ -571,7 +570,7 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile, canFinans })
               <InfoRow label="İsim Soyisim" value={data.satici_adi} />
               <InfoRow label="TC Kimlik" value={data.satici_tc} />
               <InfoRow label="Alım Tarihi" value={formatDate(data.tarih)} />
-              {canFinans && <InfoRow label="Alış Bedeli" value={noterAlis ? `₺${formatTL(noterAlis)}` : null} />}
+              {canAlis && <InfoRow label="Alış Bedeli" value={noterAlis ? `₺${formatTL(noterAlis)}` : null} />}
             </Grid>
           </Grid>
 
@@ -600,7 +599,7 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile, canFinans })
             </Box>
           )}
 
-          {canFinans && <>
+          {canAlis && <>
           <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>💰 Finansal Detaylar</Typography>
           <Divider sx={{ mb: 2 }} />
           <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -628,24 +627,26 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile, canFinans })
                 <Typography fontWeight="bold" sx={{ color: '#c62828' }}>₺{formatTL(noterSatis)}</Typography>
               </Paper>
             </Grid>
-            <Grid size={{ xs: 6, md: 4 }}>
+            <Grid size={{ xs: 6, md: canKar ? 4 : 6 }}>
               <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#ffebee', borderLeft: '4px solid #C62828' }}>
                 <Typography variant="caption" color="text.secondary">Masraflar</Typography>
                 <Typography fontWeight="bold" sx={{ color: '#C62828' }}>₺{formatTL(masraflar)}</Typography>
               </Paper>
             </Grid>
-            <Grid size={{ xs: 6, md: 4 }}>
+            <Grid size={{ xs: 6, md: canKar ? 4 : 6 }}>
               <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: '#ffebee', borderLeft: '4px solid #C62828' }}>
                 <Typography variant="caption" color="text.secondary">Toplam Maliyet</Typography>
                 <Typography fontWeight="bold" sx={{ color: '#C62828' }}>₺{formatTL(toplamMaliyet)}</Typography>
               </Paper>
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: kar >= 0 ? '#e8f5e9' : '#ffebee', borderLeft: `4px solid ${kar >= 0 ? '#2e7d32' : '#C62828'}` }}>
-                <Typography variant="caption" color="text.secondary">NET KÂR</Typography>
-                <Typography variant="h6" fontWeight="bold" sx={{ color: kar >= 0 ? '#2e7d32' : '#C62828' }}>₺{formatTL(kar)}</Typography>
-              </Paper>
-            </Grid>
+            {canKar && (
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Paper sx={{ p: 1.5, textAlign: 'center', bgcolor: kar >= 0 ? '#e8f5e9' : '#ffebee', borderLeft: `4px solid ${kar >= 0 ? '#2e7d32' : '#C62828'}` }}>
+                  <Typography variant="caption" color="text.secondary">NET KÂR</Typography>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: kar >= 0 ? '#2e7d32' : '#C62828' }}>₺{formatTL(kar)}</Typography>
+                </Paper>
+              </Grid>
+            )}
           </Grid>
           </>}
 

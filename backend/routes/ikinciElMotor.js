@@ -36,10 +36,10 @@ const sanitizeMotor = (row, user) => {
   }
 
   const m = { ...row };
-  // Motor Satış yetkisi; satış fiyatı, müşteri bilgisi ve satış geçmişini kapsar (alış fiyatı ve kâr HARİÇ — yalnızca admin)
+  // Motor Satış yetkisi; satış fiyatı, alış fiyatı, müşteri bilgisi ve satış geçmişini kapsar (Kâr HARİÇ — yalnızca admin)
   const ms = !!user.motor_satis_yetkisi;
-  // Yalnızca "Alış Fiyatı" ve "Kâr" admine özeldir. Noter alış/satış ve satış fiyatı motor satış yetkisinde görünür/düzenlenebilir.
-  if (!user.alis_fiyati_gor) { m.alis_fiyati = null; }
+  // Yalnızca "Kâr" admine özeldir. Alış fiyatı, noter alış/satış ve satış fiyatı motor satış yetkisinde görünür/düzenlenebilir.
+  if (!(user.alis_fiyati_gor || ms)) { m.alis_fiyati = null; }
   if (!(user.satis_fiyati_gor || ms)) { m.satis_fiyati = null; m.noter_satis = null; m.noter_alis = null; }
   if (!user.kar_gor) { m.kar = null; m.yatirimci_kar = null; m.yatirimci_kar_orani = null; }
   if (!(user.musteri_gor || ms)) {
@@ -199,7 +199,7 @@ router.put('/:id', async (req, res) => {
 
     const isAdmin = req.user.rol === 'admin';
     const ms = !!req.user.motor_satis_yetkisi;
-    const canAlis = isAdmin || req.user.alis_fiyati_gor;
+    const canAlis = isAdmin || req.user.alis_fiyati_gor || ms;
     const canKar = isAdmin || req.user.kar_gor;
     const canListe = isAdmin || req.user.liste_fiyati_gor;
     // Motor Satış yetkisi satış fiyatı ve müşteri bilgisini düzenlemeyi kapsar
