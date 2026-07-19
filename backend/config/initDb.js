@@ -473,6 +473,40 @@ const initializeDatabase = async () => {
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_hasar TEXT;`);
     await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS hasar_kaydi TEXT;`);
 
+    // 17. Yedek Parça Stok (aksesuar stok ile aynı mantık; barkodlar 9 ile başlar)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS yedek_parca_stok (
+        id SERIAL PRIMARY KEY,
+        stok_kodu VARCHAR(20) UNIQUE NOT NULL,
+        stok_adi VARCHAR(255) NOT NULL,
+        marka VARCHAR(100),
+        giren_miktar INTEGER DEFAULT 0,
+        cikan_miktar INTEGER DEFAULT 0,
+        mevcut INTEGER DEFAULT 0,
+        birimi VARCHAR(20) DEFAULT 'Adet',
+        alis_fiyati DECIMAL(10,2) DEFAULT 0,
+        satis_fiyati DECIMAL(10,2) DEFAULT 0,
+        envanter_degeri DECIMAL(12,2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Migration: yedek parça satışını stok kaydına bağla (satışta stoktan düşme)
+    await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS stok_id INTEGER REFERENCES yedek_parca_stok(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS adet INTEGER DEFAULT 1;`);
+
+    // 18. Servis QR tokenları — plaka bazlı, müşteriye açık servis geçmişi linki
+    //  - Plaka normalize edilerek (büyük harf, boşluksuz) saklanır; token tahmin edilemez.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS servis_qr_tokenler (
+        id SERIAL PRIMARY KEY,
+        plaka VARCHAR(20) UNIQUE NOT NULL,
+        token VARCHAR(64) UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
     console.error('Veritabanı başlatma hatası:', error.message);

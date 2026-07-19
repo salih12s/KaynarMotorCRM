@@ -7,11 +7,58 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon, Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
-  Search as SearchIcon, Close as CloseIcon, Save as SaveIcon, Print as PrintIcon
+  Search as SearchIcon, Close as CloseIcon, Save as SaveIcon, Print as PrintIcon,
+  QrCode2 as QrIcon
 } from '@mui/icons-material';
 import { Checkbox, FormControlLabel } from '@mui/material';
-import { isEmriService, musteriService, authService, aksesuarStokService } from '../services/api';
+import { isEmriService, musteriService, authService, aksesuarStokService, yedekParcaStokService, servisGecmisiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import QRCode from 'qrcode';
+
+// Motorun üzerine yapıştırılacak servis geçmişi QR etiketi — müşteri okutunca
+// sadece o plakanın servis geçmişini gösteren halka açık sayfa açılır.
+const printServisQr = async (plaka) => {
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+  const temiz = esc(String(plaka || '').trim().toUpperCase());
+  if (!temiz) {
+    alert('Bu iş emrinde plaka kayıtlı değil. QR oluşturmak için önce plaka girin.');
+    return;
+  }
+  try {
+    const res = await servisGecmisiService.getQrToken(temiz);
+    const url = `${window.location.origin}/s/${res.data.token}`;
+    const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 400, errorCorrectionLevel: 'M' });
+    const win = window.open('', '_blank', 'width=420,height=340');
+    if (!win) {
+      alert('Yazdırma penceresi açılamadı. Tarayıcı pop-up engelleyicisini kapatın.');
+      return;
+    }
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Servis QR - ${temiz}</title>
+      <style>
+        @page { size: 58mm 40mm; margin: 1mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .qr img { width: 30mm; height: 30mm; display: block; }
+        .info { text-align: center; }
+        .marka { font-size: 11px; font-weight: bold; letter-spacing: 0.5px; }
+        .plaka { font-size: 16px; font-weight: bold; margin: 3px 0; border: 1.5px solid #000; border-radius: 4px; padding: 2px 6px; display: inline-block; }
+        .not { font-size: 8.5px; line-height: 1.25; }
+      </style></head><body>
+        <div class="qr"><img src="${dataUrl}" alt="QR" /></div>
+        <div class="info">
+          <div class="marka">KAYNAR MOTOR</div>
+          <div class="plaka">${temiz}</div>
+          <div class="not">Servis geçmişiniz için<br/>QR kodu okutun</div>
+        </div>
+        <script>window.onload=function(){window.focus();window.print();window.onafterprint=function(){window.close();};setTimeout(function(){window.close();},800);};</script>
+      </body></html>`);
+    win.document.close();
+  } catch (err) {
+    alert(err.response?.data?.message || 'QR oluşturulamadı');
+  }
+};
 
 const IsEmirleri = () => {
   const navigate = useNavigate();
@@ -173,10 +220,19 @@ const IsEmirleri = () => {
 
   const removeParca = (index) => setParcalar(parcalar.filter((_, i) => i !== index));
 
-  // Aksesuar stoktan parça ara (isim, marka veya stok kodu/barkod ile)
+  // Aksesuar ve yedek parça stoğundan parça ara (isim, marka veya stok kodu/barkod ile)
   const handleStokSearch = async (q) => {
     if (!q || q.trim().length < 2) { setStokOptions([]); return; }
-    try { const res = await aksesuarStokService.search(q.trim()); setStokOptions(res.data || []); } catch {}
+    try {
+      const [aks, yedek] = await Promise.all([
+        aksesuarStokService.search(q.trim()).catch(() => ({ data: [] })),
+        yedekParcaStokService.search(q.trim()).catch(() => ({ data: [] })),
+      ]);
+      setStokOptions([
+        ...(aks.data || []).map(s => ({ ...s, stok_kaynak: 'Aksesuar Stok' })),
+        ...(yedek.data || []).map(s => ({ ...s, stok_kaynak: 'Yedek Parça Stok' })),
+      ]);
+    } catch {}
   };
 
   // Stok kaydını parça alanlarına doldur
@@ -192,14 +248,20 @@ const IsEmirleri = () => {
   };
 
   // Barkod okutulduğunda (Enter ile) stok kodundan tam eşleşme bul
+  // Yedek parça barkodları 9 ile başlar; önce olası kaynağa, bulunamazsa diğerine bakılır.
   const handleParcaKeyDown = async (e) => {
     if (e.key !== 'Enter') return;
     const kod = (newParca.takilan_parca || '').trim();
     if (!kod) return;
-    try {
-      const res = await aksesuarStokService.getByBarkod(kod);
-      if (res.data) { e.preventDefault(); selectStok(res.data); }
-    } catch {}
+    const kaynaklar = kod.startsWith('9')
+      ? [yedekParcaStokService, aksesuarStokService]
+      : [aksesuarStokService, yedekParcaStokService];
+    for (const servis of kaynaklar) {
+      try {
+        const res = await servis.getByBarkod(kod);
+        if (res.data) { e.preventDefault(); selectStok(res.data); return; }
+      } catch {}
+    }
   };
 
   const handleMusteriSearch = async (query) => {
@@ -284,6 +346,9 @@ const IsEmirleri = () => {
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
                   <IconButton size="small" sx={{ color: '#C62828' }} onClick={async () => { try { const res = await isEmriService.getById(ie.id); printIsEmri(res.data); } catch {} }}><PrintIcon /></IconButton>
+                  {ie.plaka && (
+                    <IconButton size="small" sx={{ color: '#1a1a1a' }} onClick={() => printServisQr(ie.plaka)} title="Servis Geçmişi QR Yazdır"><QrIcon /></IconButton>
+                  )}
                   <IconButton size="small" color="info" onClick={() => openEditModal(ie.id)}><EditIcon /></IconButton>
                   {user?.rol === 'admin' && <IconButton size="small" color="error" onClick={() => handleDelete(ie.id)}><DeleteIcon /></IconButton>}
                 </Box>
@@ -325,6 +390,9 @@ const IsEmirleri = () => {
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>
                     <IconButton size="small" color="primary" onClick={async () => { try { const res = await isEmriService.getById(ie.id); setDetayModal({ open: true, data: res.data }); } catch {} }}><ViewIcon /></IconButton>
                     <IconButton size="small" sx={{ color: '#C62828' }} onClick={async () => { try { const res = await isEmriService.getById(ie.id); printIsEmri(res.data); } catch {} }}><PrintIcon /></IconButton>
+                    {ie.plaka && (
+                      <IconButton size="small" sx={{ color: '#1a1a1a' }} onClick={() => printServisQr(ie.plaka)} title="Servis Geçmişi QR Yazdır"><QrIcon /></IconButton>
+                    )}
                     <IconButton size="small" color="info" onClick={() => openEditModal(ie.id)}><EditIcon /></IconButton>
                     {user?.rol === 'admin' && (
                       <IconButton size="small" color="error" onClick={() => handleDelete(ie.id)}><DeleteIcon /></IconButton>
@@ -478,6 +546,7 @@ const IsEmirleri = () => {
                   freeSolo
                   options={stokOptions}
                   filterOptions={(x) => x}
+                  groupBy={(o) => o.stok_kaynak || ''}
                   inputValue={newParca.takilan_parca}
                   getOptionLabel={(o) => typeof o === 'string' ? o : (o.stok_adi || '')}
                   onInputChange={(e, v, reason) => {
@@ -487,7 +556,7 @@ const IsEmirleri = () => {
                   }}
                   onChange={(e, v) => { if (v && typeof v === 'object') selectStok(v); }}
                   renderOption={(props, o) => (
-                    <Box component="li" {...props} key={o.id}>
+                    <Box component="li" {...props} key={`${o.stok_kaynak}-${o.id}`}>
                       <Box sx={{ width: '100%' }}>
                         <Typography variant="body2" fontWeight="bold">{o.stok_adi}</Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -774,6 +843,9 @@ const IsEmriDetayModal = ({ open, data, onClose, onEdit, isMobile }) => {
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
         <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>İş Emri #{data.fis_no}</Typography>
         <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => { onClose(); onEdit(data.id); }} sx={{ mr: 1 }}>Düzenle</Button>
+        {data.plaka && (
+          <Button size="small" variant="outlined" startIcon={<QrIcon />} onClick={() => printServisQr(data.plaka)} sx={{ mr: 1 }}>Servis QR</Button>
+        )}
         <Button size="small" variant="contained" startIcon={<PrintIcon />} onClick={() => printIsEmri(data)} sx={{ mr: 1 }}>Yazdır</Button>
         <IconButton onClick={onClose}><CloseIcon /></IconButton>
       </DialogTitle>

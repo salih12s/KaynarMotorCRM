@@ -16,6 +16,8 @@ import IkinciElMotor from './pages/IkinciElMotor';
 import MotorStok from './pages/MotorStok';
 import ETicaret from './pages/ETicaret';
 import YedekParcalar from './pages/YedekParcalar';
+import YedekParcaStok from './pages/YedekParcaStok';
+import ServisGecmisi from './pages/ServisGecmisi';
 import Raporlar from './pages/Raporlar';
 import Kullanicilar from './pages/Kullanicilar';
 import Yetkilendirme from './pages/Yetkilendirme';
@@ -206,6 +208,8 @@ const ThemedApp = () => {
             <Route path="/ilan/:id" element={<StorefrontDetay />} />
             {/* Müşteriye gönderilen taksit linki — herkese açık */}
             <Route path="/taksit/:fiyat" element={<TaksitGoruntule />} />
+            {/* Motor üzerindeki QR koddan açılan servis geçmişi — herkese açık, sadece o plakanın geçmişi */}
+            <Route path="/s/:token" element={<ServisGecmisi />} />
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/servis" element={<ServisRoute><IsEmirleri /></ServisRoute>} />
               <Route path="/vitrin" element={<VitrinRoute><Vitrin /></VitrinRoute>} />
@@ -219,6 +223,7 @@ const ThemedApp = () => {
               <Route path="/motor/:id" element={<MotorSatisRoute><MotorDetay /></MotorSatisRoute>} />
               <Route path="/eticaret" element={<EticaretRoute><ETicaret /></EticaretRoute>} />
               <Route path="/yedek-parcalar" element={<YedekParcaRoute><YedekParcalar /></YedekParcaRoute>} />
+              <Route path="/yedek-parca-stok" element={<YedekParcaRoute><YedekParcaStok /></YedekParcaRoute>} />
               <Route path="/taksit-hesaplama" element={<TaksitHesaplama />} />
               <Route path="/veresiye" element={<AdminRoute><Veresiye /></AdminRoute>} />
               <Route path="/raporlar" element={<RaporRoute><Raporlar /></RaporRoute>} />

@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const { pool } = require('../config/db');
 const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
@@ -8,6 +9,21 @@ const emptyToZero = (value) => {
   if (value === '' || value === undefined || value === null) return 0;
   const num = Number(value);
   return isNaN(num) ? 0 : num;
+};
+
+// İş emri parçalarından yedek parça stoğuna bağlı olanları ayarla (yon: 1 stoktan düş, -1 geri ekle)
+// parca_kodu yedek_parca_stok'ta yoksa (ör. aksesuar stok kodu veya serbest metin) sorgu hiçbir satırı etkilemez.
+const yedekParcaStokAyarla = async (client, parcalar, yon) => {
+  for (const parca of parcalar || []) {
+    const kod = String(parca.parca_kodu || '').trim();
+    if (!kod) continue;
+    const miktar = (emptyToZero(parca.adet) || 1) * yon;
+    await client.query(
+      `UPDATE yedek_parca_stok SET cikan_miktar = cikan_miktar + $1, mevcut = mevcut - $1,
+       envanter_degeri = (mevcut - $1) * satis_fiyati, updated_at = CURRENT_TIMESTAMP WHERE stok_kodu = $2`,
+      [miktar, kod]
+    );
+  }
 };
 
 // GET /next-fis-no/preview
@@ -140,6 +156,9 @@ router.post('/', async (req, res) => {
       [toplamFiyat, toplamMaliyet, kar, isEmriId]
     );
 
+    // Yedek parça stoğundan seçilen parçaları stoktan düş
+    await yedekParcaStokAyarla(client, parcalar, 1);
+
     await client.query('COMMIT');
 
     await logAktivite({
@@ -213,7 +232,9 @@ router.put('/:id', async (req, res) => {
        emptyToNull(teslim_tarihi), tamamlamaTarihi, req.params.id, emptyToZero(kalan_odeme), emptyToNull(plaka)]
     );
 
-    // Parçaları yeniden oluştur
+    // Parçaları yeniden oluştur — önce eski parçaların yedek parça stok düşümünü geri al
+    const eskiParcalar = await client.query('SELECT parca_kodu, adet FROM parcalar WHERE is_emri_id = $1', [req.params.id]);
+    await yedekParcaStokAyarla(client, eskiParcalar.rows, -1);
     await client.query('DELETE FROM parcalar WHERE is_emri_id = $1', [req.params.id]);
 
     let toplamFiyat = 0;
@@ -241,6 +262,9 @@ router.put('/:id', async (req, res) => {
       [toplamFiyat, toplamMaliyet, kar, req.params.id]
     );
 
+    // Yeni parçaların yedek parça stok düşümünü uygula
+    await yedekParcaStokAyarla(client, parcalar, 1);
+
     await client.query('COMMIT');
 
     await logAktivite({
@@ -262,11 +286,36 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// POST /qr-token - Plakaya bağlı müşteri servis geçmişi QR token'ı (yoksa oluşturur)
+router.post('/qr-token', async (req, res) => {
+  try {
+    const plaka = String(req.body.plaka || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!plaka) return res.status(400).json({ message: 'Plaka gerekli' });
+    const token = crypto.randomBytes(8).toString('hex');
+    const result = await pool.query(
+      `INSERT INTO servis_qr_tokenler (plaka, token) VALUES ($1, $2)
+       ON CONFLICT (plaka) DO UPDATE SET plaka = EXCLUDED.plaka
+       RETURNING plaka, token`,
+      [plaka, token]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('QR token hatası:', error);
+    res.status(500).json({ message: 'Sunucu hatası' });
+  }
+});
+
 // DELETE /:id - İş emri sil [ADMIN]
 router.delete('/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
     if (req.user.rol !== 'admin') return res.status(403).json({ message: 'Admin yetkisi gerekli' });
-    await pool.query('DELETE FROM is_emirleri WHERE id = $1', [req.params.id]);
+    await client.query('BEGIN');
+    // Silinen iş emrindeki yedek parça stok düşümlerini geri al
+    const eskiParcalar = await client.query('SELECT parca_kodu, adet FROM parcalar WHERE is_emri_id = $1', [req.params.id]);
+    await yedekParcaStokAyarla(client, eskiParcalar.rows, -1);
+    await client.query('DELETE FROM is_emirleri WHERE id = $1', [req.params.id]);
+    await client.query('COMMIT');
     await logAktivite({
       kullanici_id: req.user.id, kullanici_adi: req.user.kullanici_adi,
       islem_tipi: ISLEM_TIPLERI.IS_EMRI_SIL,
@@ -275,7 +324,10 @@ router.delete('/:id', async (req, res) => {
     });
     res.json({ message: 'İş emri silindi' });
   } catch (error) {
+    await client.query('ROLLBACK');
     res.status(500).json({ message: 'Sunucu hatası' });
+  } finally {
+    client.release();
   }
 });
 

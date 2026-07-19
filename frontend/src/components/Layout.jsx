@@ -24,8 +24,9 @@ const Layout = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [aksesuarOpen, setAksesuarOpen] = useState(false);
-  const [motorOpen, setMotorOpen] = useState(false);
+  // Alt menü açık/kapalı durumu grup başlığına göre ayrı ayrı tutulur
+  const [openMenus, setOpenMenus] = useState({});
+  const toggleMenu = (key) => setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
   const { setDefaultTheme, setAksesuarTheme, setMotorTheme, setEticaretTheme, setYedekParcaTheme } = useCustomTheme();
 
   const pathname = location.pathname;
@@ -37,7 +38,7 @@ const Layout = () => {
       setMotorTheme();
     } else if (pathname === '/eticaret') {
       setEticaretTheme();
-    } else if (pathname === '/yedek-parcalar') {
+    } else if (pathname === '/yedek-parcalar' || pathname === '/yedek-parca-stok') {
       setYedekParcaTheme();
     } else {
       setDefaultTheme();
@@ -76,6 +77,7 @@ const Layout = () => {
     if (pathname === '/aksesuar-stok') return 'Aksesuar Stok';
     if (pathname === '/eticaret') return 'E-Ticaret';
     if (pathname === '/yedek-parcalar') return 'Yedek Parça';
+    if (pathname === '/yedek-parca-stok') return 'Yedek Parça Stok';
     if (pathname === '/taksit-hesaplama') return 'Taksit Hesaplama';
     if (pathname === '/veresiye') return 'Veresiye';
     if (pathname === '/raporlar') return 'Raporlar';
@@ -109,7 +111,13 @@ const Layout = () => {
     },
     { title: 'E-Ticaret', path: '/eticaret', icon: <StoreIcon />, show: isAdmin || hasEticaret, color: '#C62828' },
     { title: 'Taksit Hesaplama', path: '/taksit-hesaplama', icon: <CalculateIcon />, show: !isYatirimci, color: '#C62828' },
-    { title: 'Yedek Parça', path: '/yedek-parcalar', icon: <SettingsIcon />, show: isAdmin || hasYedekParca, color: '#C62828' },
+    {
+      title: 'Yedek Parça', icon: <SettingsIcon />, color: '#C62828', show: isAdmin || hasYedekParca,
+      subItems: [
+        { title: 'Yedek Parça Satış', path: '/yedek-parcalar', icon: <SellIcon /> },
+        { title: 'Yedek Parça Stok', path: '/yedek-parca-stok', icon: <StokIcon /> },
+      ]
+    },
     { title: 'Vitrin / Site', path: '/vitrin', icon: <StoreIcon />, show: isAdmin || hasMotorVitrin || hasAksesuarVitrin, color: '#C62828' },
     { title: 'Veresiye', path: '/veresiye', icon: <VeresiyeIcon />, show: isAdmin, color: '#C62828' },
     { title: isYatirimci ? 'Raporum' : 'Raporlar', path: '/raporlar', icon: <ReportIcon />, show: isAdmin || isYatirimci, color: '#C62828' },
@@ -145,7 +153,7 @@ const Layout = () => {
               <>
                 <ListItem disablePadding>
                   <ListItemButton
-                    onClick={() => item.key === 'motor' ? setMotorOpen(!motorOpen) : setAksesuarOpen(!aksesuarOpen)}
+                    onClick={() => toggleMenu(item.key || item.title)}
                     sx={{
                       color: 'white', py: 1,
                       borderLeft: isSubActive(item) ? '4px solid white' : '4px solid transparent',
@@ -154,10 +162,10 @@ const Layout = () => {
                   >
                     <ListItemIcon sx={{ color: 'white', minWidth: 34, '& svg': { fontSize: 21 } }}>{item.icon}</ListItemIcon>
                     <ListItemText primary={item.title} primaryTypographyProps={{ fontSize: '0.92rem', fontWeight: isSubActive(item) ? 'bold' : 'normal' }} />
-                    {(item.key === 'motor' ? motorOpen : aksesuarOpen) ? <ExpandLess /> : <ExpandMore />}
+                    {openMenus[item.key || item.title] ? <ExpandLess /> : <ExpandMore />}
                   </ListItemButton>
                 </ListItem>
-                <Collapse in={item.key === 'motor' ? motorOpen : aksesuarOpen} timeout="auto" unmountOnExit>
+                <Collapse in={!!openMenus[item.key || item.title]} timeout="auto" unmountOnExit>
                   <List component="div" disablePadding>
                     {item.subItems.map((sub, si) => (
                       <ListItemButton

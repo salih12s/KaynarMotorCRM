@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Checkbox, FormControlLabel, useTheme, useMediaQuery
+  Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Checkbox, FormControlLabel, Autocomplete, useTheme, useMediaQuery
 } from '@mui/material';
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { yedekParcaService, musteriService } from '../services/api';
+import { yedekParcaService, yedekParcaStokService, musteriService } from '../services/api';
 
 const YedekParcalar = () => {
   const isMobile = useMediaQuery(useTheme().breakpoints.down('sm'));
@@ -13,9 +13,12 @@ const YedekParcalar = () => {
   const navigate = useNavigate();
   const [parcalar, setParcalar] = useState([]);
   const [dialog, setDialog] = useState({ open: false, data: null });
-  const [formData, setFormData] = useState({ urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '', kalan_odeme: '', odeme_tamamlandi: true });
+  const [formData, setFormData] = useState({ urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '', kalan_odeme: '', odeme_tamamlandi: true, stok_id: null, adet: 1 });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [stokOptions, setStokOptions] = useState([]);
+  const [stokInput, setStokInput] = useState('');
+  const [seciliStok, setSeciliStok] = useState(null);
 
   const loadData = async () => {
     try { const res = await yedekParcaService.getAll(); setParcalar(res.data); } catch {}
@@ -39,12 +42,67 @@ const YedekParcalar = () => {
 
   const openDialog = (parca = null) => {
     setError('');
+    setStokOptions([]);
+    setStokInput('');
+    setSeciliStok(null);
     setFormData(parca ? {
       urun_adi: parca.urun_adi || '', alis_fiyati: parca.alis_fiyati || '', satis_fiyati: parca.satis_fiyati || '',
       musteri_adi: parca.musteri_adi || '', musteri_telefon: parca.musteri_telefon || '',
-      kalan_odeme: parca.kalan_odeme || '', odeme_tamamlandi: !parseFloat(parca.kalan_odeme || 0)
-    } : { urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '', kalan_odeme: '', odeme_tamamlandi: true });
+      kalan_odeme: parca.kalan_odeme || '', odeme_tamamlandi: !parseFloat(parca.kalan_odeme || 0),
+      stok_id: parca.stok_id || null, adet: parca.adet || 1
+    } : { urun_adi: '', alis_fiyati: '', satis_fiyati: '', musteri_adi: '', musteri_telefon: '', kalan_odeme: '', odeme_tamamlandi: true, stok_id: null, adet: 1 });
     setDialog({ open: true, data: parca });
+  };
+
+  // Yedek parça stoğundan ara (ad, marka veya barkod ile)
+  const handleStokSearch = async (q) => {
+    if (!q || q.trim().length < 2) { setStokOptions([]); return; }
+    try { const res = await yedekParcaStokService.search(q.trim()); setStokOptions(res.data || []); } catch {}
+  };
+
+  // Stok ürününü satışa bağla: ürün adı ve fiyatlar otomatik dolar, kaydedilince stoktan düşer
+  const selectStok = (stok) => {
+    setSeciliStok(stok);
+    setFormData(prev => ({
+      ...prev, stok_id: stok.id, adet: 1,
+      urun_adi: stok.stok_adi || '',
+      alis_fiyati: parseFloat(stok.alis_fiyati || 0),
+      satis_fiyati: parseFloat(stok.satis_fiyati || 0),
+    }));
+    setStokInput('');
+    setStokOptions([]);
+  };
+
+  // Barkod okutulduğunda (Enter) stok kodundan tam eşleşme bul
+  const handleStokKeyDown = async (e) => {
+    if (e.key !== 'Enter') return;
+    const kod = (stokInput || '').trim();
+    if (!kod) return;
+    e.preventDefault();
+    try {
+      const res = await yedekParcaStokService.getByBarkod(kod);
+      if (res.data) selectStok(res.data);
+    } catch { setError(`Barkod bulunamadı: ${kod}`); }
+  };
+
+  // Adet değişince stoğa bağlı satışta toplam fiyatlar birim fiyattan yeniden hesaplanır
+  const handleAdetChange = (v) => {
+    setFormData(prev => {
+      const adet = Number(v) || 0;
+      if (seciliStok && adet > 0) {
+        return {
+          ...prev, adet: v,
+          alis_fiyati: parseFloat(seciliStok.alis_fiyati || 0) * adet,
+          satis_fiyati: parseFloat(seciliStok.satis_fiyati || 0) * adet,
+        };
+      }
+      return { ...prev, adet: v };
+    });
+  };
+
+  const stokBagKaldir = () => {
+    setSeciliStok(null);
+    setFormData(prev => ({ ...prev, stok_id: null }));
   };
 
   const handleSave = async () => {
@@ -91,7 +149,7 @@ const YedekParcalar = () => {
             return (
               <Paper key={p.id} sx={{ p: 1.5 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                  <Typography variant="subtitle2" fontWeight="bold">{p.urun_adi}</Typography>
+                  <Typography variant="subtitle2" fontWeight="bold">{p.urun_adi}{(p.adet || 1) > 1 ? ` (x${p.adet})` : ''}</Typography>
                   <Box>
                     <IconButton size="small" color="info" onClick={() => openDialog(p)}><EditIcon /></IconButton>
                     <IconButton size="small" color="error" onClick={() => handleDelete(p.id)}><DeleteIcon /></IconButton>
@@ -134,7 +192,7 @@ const YedekParcalar = () => {
               const kalan = parseFloat(p.kalan_odeme || 0);
               return (
                 <TableRow key={p.id} hover>
-                  <TableCell>{p.urun_adi}</TableCell>
+                  <TableCell>{p.urun_adi}{(p.adet || 1) > 1 ? ` (x${p.adet})` : ''}</TableCell>
                   <TableCell>{parseFloat(p.alis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{parseFloat(p.satis_fiyati || 0).toLocaleString('tr-TR')}</TableCell>
                   <TableCell>{p.musteri_adi || '-'}</TableCell>
@@ -166,12 +224,37 @@ const YedekParcalar = () => {
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12 }}>
+              <Autocomplete
+                freeSolo
+                options={stokOptions}
+                getOptionLabel={(o) => typeof o === 'string' ? o : `${o.stok_adi} (${o.stok_kodu}) — Mevcut: ${o.mevcut || 0}`}
+                inputValue={stokInput}
+                onInputChange={(e, v) => { setStokInput(v); handleStokSearch(v); }}
+                onChange={(e, v) => { if (v && typeof v !== 'string') selectStok(v); }}
+                filterOptions={(x) => x}
+                renderInput={(params) => (
+                  <TextField {...params} size="small" label="Stoktan sat (ara veya barkod okut)"
+                    placeholder="Barkod okutun veya ürün adı yazın" onKeyDown={handleStokKeyDown} />
+                )}
+              />
+              {formData.stok_id && (
+                <Chip size="small" sx={{ mt: 1, bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 'bold' }}
+                  label={seciliStok
+                    ? `Stoğa bağlı: ${seciliStok.stok_adi} (Mevcut: ${seciliStok.mevcut || 0}) — kaydedilince stoktan düşer`
+                    : 'Stoğa bağlı satış — kaydedilince stoktan düşer'}
+                  onDelete={stokBagKaldir} />
+              )}
+            </Grid>
+            <Grid size={{ xs: 12 }}>
               <TextField fullWidth label="Ürün Adı" value={formData.urun_adi} onChange={e => setFormData({ ...formData, urun_adi: e.target.value })} required />
             </Grid>
-            <Grid size={{ xs: 6 }}>
+            <Grid size={{ xs: 4 }}>
+              <TextField fullWidth label="Adet" type="number" value={formData.adet} onChange={e => handleAdetChange(e.target.value)} />
+            </Grid>
+            <Grid size={{ xs: 4 }}>
               <TextField fullWidth label="Alış Fiyatı (₺)" type="number" value={formData.alis_fiyati} onChange={e => setFormData({ ...formData, alis_fiyati: e.target.value })} />
             </Grid>
-            <Grid size={{ xs: 6 }}>
+            <Grid size={{ xs: 4 }}>
               <TextField fullWidth label="Satış Fiyatı (₺)" type="number" value={formData.satis_fiyati} onChange={e => setFormData({ ...formData, satis_fiyati: e.target.value })} />
             </Grid>
             <Grid size={{ xs: 6 }}>

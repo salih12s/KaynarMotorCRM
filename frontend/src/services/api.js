@@ -132,6 +132,24 @@ export const yedekParcaService = {
   delete: (id) => api.delete(`/yedek-parcalar/${id}`),
 };
 
+// Yedek Parça Stok
+export const yedekParcaStokService = {
+  getAll: () => api.get('/yedek-parca-stok'),
+  search: (q) => api.get('/yedek-parca-stok/ara', { params: { q } }),
+  getByBarkod: (kod) => api.get(`/yedek-parca-stok/barkod/${encodeURIComponent(kod)}`),
+  getNextStokKodu: () => api.get('/yedek-parca-stok/next-stok-kodu'),
+  create: (data) => api.post('/yedek-parca-stok', data),
+  update: (id, data) => api.put(`/yedek-parca-stok/${id}`, data),
+  delete: (id) => api.delete(`/yedek-parca-stok/${id}`),
+  topluEkle: (stoklar) => api.post('/yedek-parca-stok/toplu', { stoklar }),
+};
+
+// Servis geçmişi (müşteri QR sayfası — token halka açık, oluşturma yetkili)
+export const servisGecmisiService = {
+  getByToken: (token) => api.get(`/servis-gecmisi/${encodeURIComponent(token)}`),
+  getQrToken: (plaka) => api.post('/is-emirleri/qr-token', { plaka }),
+};
+
 // Raporlar
 export const raporService = {
   getGunluk: (tarih) => api.get('/raporlar/gunluk', { params: { tarih } }),
