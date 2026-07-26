@@ -40,30 +40,8 @@ const pool = new Pool({
   keepAliveInitialDelayMillis: 10000,
 });
 
-const RETRY_DELAY = 2000;
-const MAX_RETRIES = 5;
-
-const queryWithRetry = async (text, params, retries = 0) => {
-  try {
-    return await pool.query(text, params);
-  } catch (error) {
-    const retryableErrors = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', '57P01', '08006', '08001'];
-    const isRetryable = retryableErrors.some(code =>
-      error.code === code || (error.message && error.message.includes(code))
-    );
-
-    if (isRetryable && retries < MAX_RETRIES) {
-      const delay = RETRY_DELAY * (retries + 1);
-      console.log(`DB bağlantı hatası, ${delay}ms sonra tekrar deneniyor... (${retries + 1}/${MAX_RETRIES})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return queryWithRetry(text, params, retries + 1);
-    }
-    throw error;
-  }
-};
-
 pool.on('error', (err) => {
   console.error('Beklenmeyen pool hatası:', err.message);
 });
 
-module.exports = { pool, queryWithRetry };
+module.exports = { pool };

@@ -13,13 +13,29 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Oturumun bittiğini gösteren yanıtlar. Backend süresi dolmuş token'a 403 döndüğü için
+// yalnızca status'e bakmak yetmez: 403 aynı zamanda "bu işleme yetkin yok" anlamına da
+// gelir ve o durumda kullanıcı ASLA çıkışa zorlanmamalıdır. Ayrım code alanıyla yapılır
+// (eski sürüm backend'lerde code gelmeyebileceği için mesaj metni yedek kontroldür).
+const oturumBittiMi = (error) => {
+  const status = error.response?.status;
+  if (status === 401) return true;
+  if (status !== 403) return false;
+  const data = error.response?.data || {};
+  if (data.code) return data.code === 'TOKEN_INVALID' || data.code === 'TOKEN_MISSING';
+  return typeof data.message === 'string' && data.message.toLowerCase().includes('token');
+};
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (oturumBittiMi(error)) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Zaten login sayfasındaysak yeniden yönlendirip döngü oluşturma
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

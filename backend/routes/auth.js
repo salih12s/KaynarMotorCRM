@@ -9,9 +9,10 @@ const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Token gerekli' });
+  // code alanı için bkz. server.js içindeki aynı isimli middleware.
+  if (!token) return res.status(401).json({ message: 'Token gerekli', code: 'TOKEN_MISSING' });
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: 'Geçersiz token' });
+    if (err) return res.status(403).json({ message: 'Geçersiz token', code: 'TOKEN_INVALID' });
     req.user = user;
     next();
   });

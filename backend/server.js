@@ -50,9 +50,11 @@ app.use(express.json({ limit: '120mb' })); // vitrin video yüklemeleri için y�
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Yetkilendirme token\'ı gerekli' });
+  // code alanı, frontend'in "oturum bitti" ile "bu işleme yetkin yok" (403) ayrımını
+  // mesaj metnine bakmadan yapabilmesi için eklenmiştir.
+  if (!token) return res.status(401).json({ message: 'Yetkilendirme token\'ı gerekli', code: 'TOKEN_MISSING' });
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: 'Geçersiz veya süresi dolmuş token' });
+    if (err) return res.status(403).json({ message: 'Geçersiz veya süresi dolmuş token', code: 'TOKEN_INVALID' });
     req.user = user;
     next();
   });
@@ -97,6 +99,13 @@ app.use('/api/vitrin', vitrinRoutes(authenticateToken, isAdmin));
 // Müşteri servis geçmişi (QR ile erişilen halka açık sayfa) — token bazlı, auth gerektirmez
 app.use('/api/servis-gecmisi', servisGecmisiRoutes);
 
+// Health check
+// NOT: Production'daki SPA catch-all ('*') bu satırdan SONRA tanımlanmalı,
+// aksi hâlde /api/health isteği catch-all'a takılıp index.html döner.
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
@@ -104,11 +113,6 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
   });
 }
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
 
 // Start server (DB'den bağımsız)
 app.listen(PORT, () => {

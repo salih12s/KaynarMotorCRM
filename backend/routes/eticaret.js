@@ -210,8 +210,10 @@ router.post('/', async (req, res) => {
     // Stoktan düş
     if (stok_id) {
       await client.query(
-        `UPDATE aksesuar_stok SET cikan_miktar = cikan_miktar + $1, mevcut = mevcut - $1,
-         envanter_degeri = (mevcut - $1) * satis_fiyati, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE aksesuar_stok SET cikan_miktar = cikan_miktar + $1,
+         mevcut = GREATEST(mevcut - $1, 0),
+         envanter_degeri = GREATEST(mevcut - $1, 0) * satis_fiyati,
+         updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
         [miktar, stok_id]
       );
     }
@@ -253,8 +255,10 @@ router.put('/:id', async (req, res) => {
     // Eski stok geri ekle
     if (eski.stok_id) {
       await client.query(
-        `UPDATE aksesuar_stok SET cikan_miktar = cikan_miktar - $1, mevcut = mevcut + $1,
-         envanter_degeri = (mevcut + $1) * satis_fiyati, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE aksesuar_stok SET cikan_miktar = GREATEST(cikan_miktar - $1, 0),
+         mevcut = mevcut + $1,
+         envanter_degeri = (mevcut + $1) * satis_fiyati,
+         updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
         [eski.adet, eski.stok_id]
       );
     }
@@ -287,8 +291,10 @@ router.put('/:id', async (req, res) => {
     // Yeni stoktan düş
     if (stok_id) {
       await client.query(
-        `UPDATE aksesuar_stok SET cikan_miktar = cikan_miktar + $1, mevcut = mevcut - $1,
-         envanter_degeri = (mevcut - $1) * satis_fiyati, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE aksesuar_stok SET cikan_miktar = cikan_miktar + $1,
+         mevcut = GREATEST(mevcut - $1, 0),
+         envanter_degeri = GREATEST(mevcut - $1, 0) * satis_fiyati,
+         updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
         [miktar, stok_id]
       );
     }
@@ -316,8 +322,10 @@ router.delete('/:id', async (req, res) => {
     const existing = await client.query('SELECT * FROM eticaret_satislar WHERE id = $1', [req.params.id]);
     if (existing.rows.length > 0 && existing.rows[0].stok_id) {
       await client.query(
-        `UPDATE aksesuar_stok SET cikan_miktar = cikan_miktar - $1, mevcut = mevcut + $1,
-         envanter_degeri = (mevcut + $1) * satis_fiyati, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        `UPDATE aksesuar_stok SET cikan_miktar = GREATEST(cikan_miktar - $1, 0),
+         mevcut = mevcut + $1,
+         envanter_degeri = (mevcut + $1) * satis_fiyati,
+         updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
         [existing.rows[0].adet, existing.rows[0].stok_id]
       );
     }

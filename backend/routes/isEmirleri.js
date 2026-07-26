@@ -4,6 +4,10 @@ const router = express.Router();
 const { pool } = require('../config/db');
 const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
 
+// Fiş numarası üretimini serileştiren advisory lock anahtarı (bkz. POST /).
+// Sabit ve bu uygulamaya özgü olması yeterlidir.
+const FIS_NO_LOCK_KEY = 727001;
+
 const emptyToNull = (value) => (value === '' || value === undefined) ? null : value;
 const emptyToZero = (value) => {
   if (value === '' || value === undefined || value === null) return 0;
@@ -18,9 +22,13 @@ const yedekParcaStokAyarla = async (client, parcalar, yon) => {
     const kod = String(parca.parca_kodu || '').trim();
     if (!kod) continue;
     const miktar = (emptyToZero(parca.adet) || 1) * yon;
+    // GREATEST: stok 0'ın altına düşmez (miktar negatifken, yani geri eklemede, etkisizdir).
     await client.query(
-      `UPDATE yedek_parca_stok SET cikan_miktar = cikan_miktar + $1, mevcut = mevcut - $1,
-       envanter_degeri = (mevcut - $1) * satis_fiyati, updated_at = CURRENT_TIMESTAMP WHERE stok_kodu = $2`,
+      `UPDATE yedek_parca_stok SET
+         cikan_miktar = GREATEST(cikan_miktar + $1, 0),
+         mevcut = GREATEST(mevcut - $1, 0),
+         envanter_degeri = GREATEST(mevcut - $1, 0) * satis_fiyati,
+         updated_at = CURRENT_TIMESTAMP WHERE stok_kodu = $2`,
       [miktar, kod]
     );
   }
@@ -91,7 +99,14 @@ router.post('/', async (req, res) => {
       durum, odeme_detaylari, kalan_odeme, parcalar
     } = req.body;
 
-    // Fiş numarası
+    // Fiş numarası.
+    // İki iş emri aynı anda oluşturulduğunda ikisi de aynı MAX(fis_no) değerini okuyup
+    // aynı numarayı üretiyordu; fis_no UNIQUE olduğu için biri "Sunucu hatası" alıyordu.
+    // Advisory lock numara üretimini serileştirir ve COMMIT/ROLLBACK'te kendiliğinden bırakılır.
+    // Numaralama mantığı (MAX+1) bilinçli olarak korunmuştur.
+    // ::bigint cast şart: pg_advisory_xact_lock'un (bigint) ve (int,int) aşırı yüklemeleri
+    // olduğundan, tipsiz parametreyle Postgres fonksiyonu çözemez.
+    await client.query('SELECT pg_advisory_xact_lock($1::bigint)', [FIS_NO_LOCK_KEY]);
     const fisNoResult = await client.query('SELECT COALESCE(MAX(fis_no), 0) + 1 AS next_fis_no FROM is_emirleri');
     const fisNo = fisNoResult.rows[0].next_fis_no;
 

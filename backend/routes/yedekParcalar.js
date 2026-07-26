@@ -8,9 +8,13 @@ const emptyToZero = (v) => { if (v === '' || v === undefined || v === null) retu
 const stokAyarla = async (client, stokId, adet, yon) => {
   if (!stokId || !adet) return;
   const miktar = adet * yon;
+  // GREATEST: stok 0'ın altına düşmez (miktar negatifken, yani geri eklemede, etkisizdir).
   await client.query(
-    `UPDATE yedek_parca_stok SET cikan_miktar = cikan_miktar + $1, mevcut = mevcut - $1,
-     envanter_degeri = (mevcut - $1) * satis_fiyati, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+    `UPDATE yedek_parca_stok SET
+       cikan_miktar = GREATEST(cikan_miktar + $1, 0),
+       mevcut = GREATEST(mevcut - $1, 0),
+       envanter_degeri = GREATEST(mevcut - $1, 0) * satis_fiyati,
+       updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
     [miktar, stokId]
   );
 };
