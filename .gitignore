@@ -1,8 +1,19 @@
 node_modules/
-.env
-.env.local
-.env.production
 dist/
 build/
 
+# Ortam degiskenleri - ASLA commit edilmez
+.env
+.env.*
+!.env.example
+set-local-env.bat
+set-production-env.bat
+
+# Build ciktilari
 *.zip
+
+# Yerel arac konfigurasyonu
+.claude/
+
+# Gercek musteri/islem verisi iceren kaynak dosyalar (KVKK)
+*.csv

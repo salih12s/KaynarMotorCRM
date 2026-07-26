@@ -16,15 +16,15 @@ async function run() {
 
     // 4. Set fatura_kesildi = false for specific plates (user listed + YANLIS in CSV)
     const falsePlates = [
-      '34AA0167', '34AA0166',
-      '34AA0029',
-      '34AA0170',
+      '34AA0165', '34AA0165',
+      '34AA0028',
+      '34AA0168',
       '34AA0022',
-      '34AA0131', '34AA0027',
-      '34AA0037',
-      '34AA0126',
+      '34AA0130', '34AA0130',
       '34AA0036',
-      '34AA0127'
+      '34AA0125',
+      '34AA0035',
+      '34AA0126'
     ];
     
     const r3 = await pool.query(

@@ -230,18 +230,28 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // Varsayılan admin kullanıcı oluştur
+    // Varsayılan admin kullanıcı oluştur.
+    // Şifre ADMIN_INITIAL_PASSWORD ortam değişkeninden okunur; tanımlı değilse
+    // admin oluşturulmaz (koda gömülü varsayılan şifre bilinçli olarak yoktur).
     const adminCheck = await client.query(
       "SELECT id FROM kullanicilar WHERE kullanici_adi = 'admin'"
     );
     if (adminCheck.rows.length === 0) {
-      const hashedPassword = await bcrypt.hash('***REMOVED***', 10);
-      await client.query(
-        `INSERT INTO kullanicilar (kullanici_adi, sifre, plain_sifre, ad_soyad, rol, onay_durumu)
-         VALUES ('admin', $1, '***REMOVED***', 'Admin', 'admin', 'onaylandi')`,
-        [hashedPassword]
-      );
-      console.log('Varsayılan admin oluşturuldu (admin / ***REMOVED***)');
+      const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
+      if (initialPassword) {
+        const hashedPassword = await bcrypt.hash(initialPassword, 10);
+        await client.query(
+          `INSERT INTO kullanicilar (kullanici_adi, sifre, plain_sifre, ad_soyad, rol, onay_durumu)
+           VALUES ('admin', $1, $2, 'Admin', 'admin', 'onaylandi')`,
+          [hashedPassword, initialPassword]
+        );
+        console.log('Varsayılan admin oluşturuldu (kullanıcı adı: admin)');
+      } else {
+        console.warn(
+          'UYARI: admin kullanıcısı yok ve ADMIN_INITIAL_PASSWORD tanımlı değil. ' +
+          'İlk admin hesabını oluşturmak için bu değişkeni set edip sunucuyu yeniden başlatın.'
+        );
+      }
     }
 
     // Varsayılan e-ticaret platformları
