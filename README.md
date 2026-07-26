@@ -1,123 +1,179 @@
-# Kaynar Motor — Servis Yönetim Sistemi (CRM)
+<h1 align="center">Kaynar Motor CRM</h1>
 
-Kaynar Motor için geliştirilmiş, motosiklet servisi, 2. el motosiklet alım-satımı, aksesuar/yedek parça satışı, e-ticaret ve yatırımcı ortaklıklarını tek çatı altında yöneten tam kapsamlı bir işletme yönetim sistemi (CRM). Sistem aynı zamanda `kaynarmotor.com.tr` üzerinden herkese açık bir **vitrin/ilan sitesi** de sunar.
+<p align="center">
+  Motosiklet servisi, 2. el alım-satım, aksesuar ve yedek parça stoğu, e-ticaret ve<br>
+  yatırımcı ortaklıklarını tek panelde yöneten uçtan uca işletme yönetim sistemi.
+</p>
 
-## İçindekiler
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white" alt="Node.js 22">
+  <img src="https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white" alt="Express 4">
+  <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 15">
+  <img src="https://img.shields.io/badge/MUI-7-007FFF?logo=mui&logoColor=white" alt="MUI 7">
+  <img src="https://img.shields.io/badge/Railway-deploy-0B0D0E?logo=railway&logoColor=white" alt="Railway">
+</p>
 
-- [Özellikler](#özellikler)
-- [Teknoloji Yığını](#teknoloji-yığını)
-- [Mimari](#mimari)
-- [Proje Yapısı](#proje-yapısı)
-- [Kurulum](#kurulum)
-- [Ortam Değişkenleri](#ortam-değişkenleri)
-- [Çalıştırma](#çalıştırma)
-- [Veritabanı Şeması](#veritabanı-şeması)
-- [API Uç Noktaları](#api-uç-noktaları)
-- [Roller ve Yetkilendirme](#roller-ve-yetkilendirme)
-- [Deploy (Railway)](#deploy-railway)
-- [Güvenlik Notları](#güvenlik-notları)
-- [Lisans](#lisans)
+<p align="center">
+  <img src="docs/screenshots/03-servis.png" alt="Servis iş emirleri ekranı" width="100%">
+</p>
+
+---
+
+## Genel Bakış
+
+Kaynar Motor CRM, bir motosiklet işletmesinin günlük operasyonunun tamamını tek sistemde
+toplar: servise gelen aracın iş emrinden, 2. el motosikletin alım-satım kârına, aksesuar
+envanterinden pazaryeri satışlarının net kâr hesabına kadar.
+
+Sistem iki yüzlüdür:
+
+- **Yönetim paneli** — personelin rolüne ve yetkilerine göre şekillenen, giriş gerektiren iç panel.
+- **Vitrin sitesi** — `kaynarmotor.com.tr` üzerinden yayınlanan, giriş gerektirmeyen ilan ve tanıtım sitesi. Panelde satılık olarak işaretlenen motosiklet otomatik olarak vitrine düşer, satıldığında ilan kendiliğinden yayından kalkar.
+
+Proje gerçek bir işletmede aktif olarak kullanılmaktadır.
+
+> Bu depodaki ekran görüntüleri ve örnek kayıtlar demo amacıyla üretilmiş **temsili
+> verilerdir**; gerçek müşteri bilgisi içermez.
+
+## Ekran Görüntüleri
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/01-vitrin.jpg" alt="Vitrin sitesi"><br><sub><b>Vitrin / Site</b> — giriş gerektirmeyen halka açık ilan sitesi</sub></td>
+    <td width="50%"><img src="docs/screenshots/09-raporlar.png" alt="Raporlar"><br><sub><b>Raporlar</b> — modül bazlı gelir, maliyet ve kâr analizi</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/04-motor-stok.png" alt="Motor stok"><br><sub><b>Motor Stok</b> — 2. el envanter ve yatırımcı ortaklıkları</sub></td>
+    <td width="50%"><img src="docs/screenshots/10-yetkilendirme.png" alt="Yetkilendirme"><br><sub><b>Yetkilendirme</b> — personel bazlı ince taneli yetki matrisi</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/06-aksesuar-stok.png" alt="Aksesuar stok"><br><sub><b>Aksesuar Stoğu</b> — barkodlu envanter yönetimi</sub></td>
+    <td width="50%"><img src="docs/screenshots/08-eticaret.png" alt="E-ticaret"><br><sub><b>E-Ticaret</b> — platform bazlı komisyon ve net kâr hesabı</sub></td>
+  </tr>
+</table>
+
+<details>
+<summary>Diğer ekranlar</summary>
+<br>
+
+| | |
+|---|---|
+| ![Giriş](docs/screenshots/02-giris.png) | ![Motor satış](docs/screenshots/05-motor-satis.png) |
+| **Giriş** | **2. El Motor Alım-Satım** |
+| ![Yedek parça](docs/screenshots/07-yedek-parca.png) | ![Veresiye](docs/screenshots/11-veresiye.png) |
+| **Yedek Parça Stoğu** | **Veresiye / Açık Borç Takibi** |
+| ![Kullanıcılar](docs/screenshots/12-kullanicilar.png) | ![Müşteriler](docs/screenshots/13-musteriler.png) |
+| **Kullanıcı Yönetimi** | **Müşteri Kayıtları** |
+
+</details>
 
 ## Özellikler
 
-- **Servis modülü** — İş emri oluşturma, otomatik fiş numarası, parça/işçilik ekleme, kâr hesaplama, teslim alan/eden takibi, plaka ve hasar kaydı.
-- **2. el motosiklet alım-satımı** — Alış/satış/noter fiyatları, masraf ve komisyon takibi, yatırımcı ortaklı motorlar için kâr paylaşımı, motor stoğunun vitrine otomatik bağlanması.
-- **Aksesuar satışı ve stok yönetimi** — Barkod/stok kodu ile arama, beden/renk/kategori bazlı envanter, satış tamamlanınca stoktan otomatik düşme.
-- **Yedek parça satışı** — Fiyat listesi yönetimi ve veresiye (kalan ödeme) takibi.
-- **E-ticaret** — Trendyol, Hepsiburada, N11, Shoppier gibi platformlara özel komisyon/KDV/kargo formülleriyle net kâr hesabı.
-- **Yatırımcı sistemi** — Motor sermayesine ortak olan yatırımcılar için ayrı rol, kendi stok/satış/kâr raporları, isteğe bağlı "vitrin modu" (sadece liste fiyatını görme).
-- **Veresiye/borç takibi** — Servis, aksesuar, motor ve yedek parça modüllerindeki tüm açık ödemelerin tek ekranda toplanması.
-- **Taksit hesaplama** — Nakit fiyat üzerinden 3/6/9/12 ay taksit tablosu; müşteriyle salt-okunur bir link üzerinden paylaşılabilir.
-- **Vitrin / Showroom sitesi** — Giriş yapmadan erişilebilen genel kullanıma açık ilan sitesi (motor, aksesuar, yedek parça, bakım-servis, nakliye, sigorta kategorileri; görsel ve video destekli ilanlar).
-- **Raporlama** — Günlük rapor, tarih aralığı raporu, fiş bazlı kâr, personel bazlı raporlar, yatırımcı özeti.
-- **Kullanıcı/personel yönetimi** — Admin onaylı kayıt, modül bazlı ve alan bazlı (kâr, alış fiyatı vb.) ince taneli yetkilendirme.
-- **Aktivite log** — Kim, ne zaman, ne işlem yaptı kaydı (audit trail).
-- **Müşteri sistemi** — Telefon numarasının son 10 hanesiyle otomatik müşteri eşleştirme; tüm modüllerden otomatik müşteri kaydı toplama.
+### Servis Yönetimi
+İş emri oluşturma, otomatik fiş numarası, takılan parça ve işçilik kalemleri, fiş bazlı
+kâr hesabı, teslim alan/eden takibi, plaka ve hasar kaydı. Kullanılan yedek parçalar iş
+emri tamamlandığında stoktan otomatik düşer.
+
+Her araca **plaka bazlı bir QR kod** üretilir; müşteri bu kodu okutarak kendi servis
+geçmişini giriş yapmadan görüntüleyebilir. Bu sayfada yalnızca yapılan işlemler ve tutar
+gösterilir — maliyet, kâr ve iletişim bilgileri asla dönülmez.
+
+### 2. El Motosiklet Alım-Satım
+Alış/satış/noter bedelleri, masraf ve komisyon takibi, otomatik kâr hesabı. Yatırımcı
+ortaklı motosikletler için kâr paylaşımı; satılık araçlar tek tuşla vitrine bağlanır.
+
+### Stok Yönetimi
+Aksesuar ve yedek parça için ayrı envanterler. Barkod veya stok kodu ile arama, toplu
+ürün girişi, satış tamamlandığında otomatik stok düşümü ve iptal edilen satışta stok iadesi.
+
+### E-Ticaret
+Trendyol, Hepsiburada, N11 ve Shoppier gibi platformlara özel komisyon, KDV ve kargo
+formülleriyle ürün başına **net kâr** hesabı.
+
+### Yatırımcı Sistemi
+Motosiklet sermayesine ortak olan yatırımcılar için ayrı bir rol: yalnızca kendi
+araçlarını ve kârlarını görürler. İsteğe bağlı "vitrin modu" ile tüm satılık stoğu
+sadece liste fiyatıyla görebilirler — alış fiyatı ve kâr gizli kalır.
+
+### Finans ve Raporlama
+Günlük ve tarih aralıklı raporlar, modül bazlı kâr analizi, personel performansı,
+yatırımcı özeti. Tüm modüllerdeki açık ödemeler tek "Veresiye" ekranında toplanır.
+Nakit fiyat üzerinden 3/6/9/12 ay taksit tablosu üretilir ve müşteriyle salt-okunur
+bir bağlantı olarak paylaşılabilir.
+
+### Kullanıcı ve Yetki Yönetimi
+Admin onaylı kayıt, modül bazlı ve alan bazlı ince taneli yetkilendirme, tüm işlemlerin
+kim tarafından ne zaman yapıldığını kaydeden aktivite logu.
 
 ## Teknoloji Yığını
 
 | Katman | Teknolojiler |
 |---|---|
-| Backend | Node.js, Express 4, JSON Web Token (`jsonwebtoken`), `bcryptjs`, `pg` (node-postgres) |
-| Veritabanı | PostgreSQL (ORM yok — şema `config/initDb.js` içinde SQL ile yönetilir) |
-| Frontend | React 19, React Router 7, Material UI (MUI) 7, Axios, date-fns, jsbarcode, react-to-print (`react-scripts` / Create React App) |
-| Dev orkestrasyonu | `concurrently` (root `package.json`) |
-| Deploy | Railway (`railway.json`, `nixpacks.toml`), Heroku-tarzı `Procfile` |
+| **Frontend** | React 19, React Router 7, Material UI 7, Axios, date-fns, jsbarcode, qrcode, react-to-print |
+| **Backend** | Node.js 22, Express 4, JSON Web Token, bcryptjs, helmet, express-rate-limit |
+| **Veritabanı** | PostgreSQL 15 — ORM kullanılmadan, `pg` ile doğrudan parametreli SQL |
+| **Altyapı** | Railway (nixpacks), Heroku uyumlu `Procfile` |
 
 ## Mimari
 
-Proje, tek repo içinde backend ve frontend'i barındıran bir monorepo yapısındadır:
-
-- **Backend** (`backend/`): Express tabanlı REST API, JWT ile kimlik doğrulama, PostgreSQL'e `pg` ile doğrudan SQL sorguları.
-- **Frontend** (`frontend/`): React SPA, rol/yetki bazlı route koruması, modül bazına göre değişen MUI temaları.
-- **Production**'da backend, `frontend/build` klasörünü statik olarak serve eder ve SPA route'ları için `index.html`'e yönlendirme yapar.
-- Backend, veritabanı henüz hazır olmasa da ayağa kalkar (`/api/health`) ve arka planda artan gecikmelerle DB bağlantısını yeniden dener (Railway soğuk başlatma senaryolarına dayanıklılık için).
-
-## Proje Yapısı
+Backend ve frontend'i tek repoda barındıran bir monorepo yapısındadır.
 
 ```
-KaynarMotor/
-├── backend/
-│   ├── server.js              # Express app, CORS, JWT middleware, route mount, DB init
-│   ├── config/
-│   │   ├── db.js               # PostgreSQL pool (DATABASE_URL veya DB_HOST bazlı)
-│   │   ├── initDb.js           # Tüm tablo şeması (CREATE TABLE / ALTER TABLE migration'ları)
-│   │   ├── activityLogger.js   # Aktivite log kaydı
-│   │   └── musteriHelper.js    # Otomatik müşteri eşleştirme/kayıt (upsertMusteri)
-│   ├── routes/                 # 11 route dosyası (bkz. API Uç Noktaları)
-│   └── scripts/                # Tek seferlik migration/veri düzeltme script'leri
-├── frontend/
-│   ├── public/
-│   └── src/
-│       ├── components/         # Layout.jsx (rol bazlı sidebar/menü)
-│       ├── context/             # AuthContext, ThemeContext
-│       ├── pages/                # 20 sayfa (servis, aksesuar, motor, e-ticaret, vitrin, raporlar...)
-│       ├── services/             # api.js (axios katmanı)
-│       └── App.jsx               # Route tanımları ve route-guard bileşenleri
-├── backend/.env.example        # Backend ortam değişkeni şablonu
-├── frontend/.env.example       # Frontend ortam değişkeni şablonu
-├── package.json                # Root: install:all / dev / start / build script'leri
-└── Procfile, railway.json, nixpacks.toml   # Deploy konfigürasyonu
+İstemci (React SPA)
+      │  REST + JWT
+      ▼
+Express API ── middleware: kimlik doğrulama → yetkilendirme → hız sınırlama
+      │
+      ▼
+PostgreSQL ── şema kod içinde yönetilir (initDb.js)
 ```
+
+Öne çıkan tasarım kararları:
+
+- **Şema kod içinde yönetilir.** ORM yoktur; tablolar ve migration'lar `config/initDb.js` içinde `CREATE TABLE IF NOT EXISTS` ve kademeli `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` ile tanımlanır. Sunucu her açılışta şemayı eksiksiz hâle getirir, bu da deploy'u tek adıma indirir.
+- **Yetkilendirme sunucu tarafındadır.** Arayüzdeki route guard'ları yalnızca gezinmeyi düzenler; asıl kontrol `backend/middleware/yetki.js` içindedir ve API'ye bağlıdır. Hassas alanlar (kâr, alış fiyatı, müşteri bilgisi) yetkisi olmayan kullanıcının yanıtından sunucuda temizlenir — gizleme arayüzde değil, veri katmanındadır.
+- **Veritabanına dayanıklı başlangıç.** Backend, veritabanı henüz hazır değilken de ayağa kalkar (`/api/health` yanıt verir) ve bağlantıyı artan gecikmelerle yeniden dener. Bu, Railway'in soğuk başlatma senaryolarına karşı dayanıklılık sağlar.
+- **Para ve stok işlemleri transaction içindedir.** Çok adımlı yazma işlemleri (iş emri + parçalar + stok düşümü) tek transaction'da yürür; fiş numarası üretimi advisory lock ile serileştirilir.
 
 ## Kurulum
 
-**Gereksinimler:**
-- Node.js 18+
-- PostgreSQL (yerel kurulum veya Railway/uzak bir instance)
+**Gereksinimler:** Node.js 20+ ve PostgreSQL 14+
 
 ```bash
-git clone <repo-url>
-cd KaynarMotor
-npm run install:all   # root + backend + frontend bağımlılıklarını kurar
+git clone https://github.com/salih12s/KaynarMotorCRM.git
+cd KaynarMotorCRM
+npm run install:all
 ```
 
-Ardından `backend/.env` ve `frontend/.env` dosyalarını aşağıdaki [Ortam Değişkenleri](#ortam-değişkenleri) bölümüne göre oluşturun.
-
-## Ortam Değişkenleri
-
-Şablon dosyaları repoda mevcuttur; kopyalayıp kendi değerlerinizle doldurun:
+Ortam dosyalarını şablonlardan oluşturun:
 
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Gerçek `.env` dosyaları `.gitignore` kapsamındadır ve hiçbir zaman commit edilmez.
+### Ortam Değişkenleri
 
-**`backend/.env`:**
+**`backend/.env`**
 
 | Değişken | Açıklama |
 |---|---|
 | `NODE_ENV` | `development` veya `production` |
 | `PORT` | Sunucu portu (varsayılan `5000`) |
-| `DATABASE_URL` | Tek parça PostgreSQL bağlantı adresi (opsiyonel — verilirse `DB_*` yerine kullanılır) |
-| `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` | PostgreSQL bağlantı bilgileri (ayrı ayrı verilirse) |
-| `JWT_SECRET` | JWT imzalama anahtarı — `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` ile üretilebilir |
-| `FRONTEND_URL` | CORS için izin verilen origin (production'da mutlaka set edilmeli) |
-| `ADMIN_INITIAL_PASSWORD` | Yalnızca ilk kurulumda kullanılır; boş veritabanında `admin` hesabının şifresini belirler. Tanımlı değilse admin oluşturulmaz. |
+| `DATABASE_URL` | Tek parça bağlantı adresi (verilirse `DB_*` yerine kullanılır) |
+| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | Ayrı ayrı bağlantı bilgileri |
+| `JWT_SECRET` | JWT imzalama anahtarı |
+| `FRONTEND_URL` | CORS için izin verilen origin (production'da gereklidir) |
+| `ADMIN_INITIAL_PASSWORD` | Yalnızca ilk kurulumda: boş veritabanında `admin` hesabının şifresi |
 
-**`frontend/.env`:**
+`JWT_SECRET` üretmek için:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**`frontend/.env`**
 
 | Değişken | Açıklama |
 |---|---|
@@ -126,110 +182,113 @@ Gerçek `.env` dosyaları `.gitignore` kapsamındadır ve hiçbir zaman commit e
 ## Çalıştırma
 
 ```bash
-# Geliştirme (backend + frontend eş zamanlı, nodemon + react-scripts)
-npm run dev
-
-# Sadece backend
-cd backend && npm run dev
-
-# Sadece frontend
-cd frontend && npm start
-
-# Production build (frontend)
-npm run build
-
-# Production başlatma (backend, frontend/build'i statik serve eder)
-npm start
+npm run dev      # backend + frontend eş zamanlı (nodemon + react-scripts)
+npm run build    # frontend production build
+npm start        # production: backend, frontend/build'i statik serve eder
 ```
 
 Sağlık kontrolü: `GET /api/health`
 
-## Veritabanı Şeması
+İlk açılışta veritabanı şeması otomatik oluşturulur. `ADMIN_INITIAL_PASSWORD` tanımlıysa
+`admin` kullanıcısı bu şifreyle kurulur.
 
-Şema ORM kullanılmadan `backend/config/initDb.js` içinde SQL olarak tanımlanır ve sunucu her açılışta eksik tablo/kolonları otomatik oluşturur (`CREATE TABLE IF NOT EXISTS` + kademeli `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
+## Proje Yapısı
 
-| Tablo | Açıklama |
-|---|---|
-| `kullanicilar` | Kullanıcılar/personel/yatırımcı/admin, onay durumu, yetki bayrakları |
-| `musteriler` | Müşteri kayıtları |
-| `is_emirleri` | Servis iş emirleri |
-| `parcalar` | İş emrine bağlı parçalar |
-| `aksesuar_stok` | Aksesuar envanteri |
-| `aksesuarlar` | Aksesuar satışları |
-| `aksesuar_parcalar` | Aksesuar satışına bağlı ürün kalemleri |
-| `ikinci_el_motorlar` | 2. el motor alım-satım kayıtları |
-| `eticaret_platformlar` | E-ticaret platformları (komisyon/KDV/kargo oranları) |
-| `eticaret_satislar` | E-ticaret satışları |
-| `yedek_parcalar` | Yedek parça fiyat listesi |
-| `aktivite_log` | Kullanıcı aktivite/audit log |
-| `vitrin_urunleri` | Genel kullanıma açık vitrin ilanları |
-| `vitrin_gorseller` | İlan görselleri (base64) |
-| `vitrin_kategori_iletisim` | Kategoriye özel iletişim/hizmet bilgisi |
-| `vitrin_segmentler` | Motor segmentleri (Chopper, Scooter, Naked, Touring, vb.) |
-| `vitrin_videolar` | İlan videoları (base64, HTTP Range ile servis edilir) |
-
-## API Uç Noktaları
-
-Tüm uçlar `/api` altında toplanır; `vitrin` dışındaki tüm route'lar JWT ile korunur.
-
-| Mount noktası | Dosya | İşlev |
-|---|---|---|
-| `/api/auth` | `auth.js` | Kayıt, login, admin onayı, kullanıcı/yatırımcı oluşturma, yetki güncelleme, aktivite logları |
-| `/api/musteriler` | `musteriler.js` | Müşteri CRUD, isim/telefon arama, geçmiş birleştirme |
-| `/api/is-emirleri` | `isEmirleri.js` | Servis iş emirleri, parça listesi, kâr hesaplama |
-| `/api/aksesuarlar` | `aksesuarlar.js` | Aksesuar satışları, stok düşme/geri ekleme |
-| `/api/aksesuar-stok` | `aksesuarStok.js` | Aksesuar stok CRUD, barkod arama, toplu ekleme |
-| `/api/ikinci-el-motor` | `ikinciElMotor.js` | 2. el motor alış/satış/kâr, yetkiye göre alan gizleme |
-| `/api/eticaret` | `eticaret.js` | E-ticaret platform ve satış yönetimi |
-| `/api/yedek-parcalar` | `yedekParcalar.js` | Yedek parça fiyat listesi |
-| `/api/raporlar` | `raporlar.js` | Günlük/tarih aralığı raporları, yatırımcı raporu/özeti |
-| `/api/veresiye` | `veresiye.js` | Tüm modüllerdeki açık ödemelerin konsolide listesi |
-| `/api/vitrin` | `vitrin.js` | Public + admin vitrin/ilan yönetimi |
-| `/api/health` | `server.js` | Sağlık kontrolü |
+```
+KaynarMotorCRM/
+├── backend/
+│   ├── server.js                # Express app, CORS, route mount, DB init
+│   ├── middleware/
+│   │   ├── auth.js              # JWT doğrulama, admin kontrolü
+│   │   ├── yetki.js             # Modül ve rol bazlı yetkilendirme
+│   │   └── rateLimit.js         # Kimlik doğrulama uçlarında hız sınırlama
+│   ├── config/
+│   │   ├── db.js                # PostgreSQL bağlantı havuzu
+│   │   ├── initDb.js            # Şema, migration'lar ve index'ler
+│   │   ├── activityLogger.js    # Aktivite/audit kaydı
+│   │   └── musteriHelper.js     # Otomatik müşteri eşleştirme
+│   ├── routes/                  # 13 route dosyası
+│   └── scripts/                 # Tek seferlik veri aktarım script'leri
+├── frontend/
+│   └── src/
+│       ├── components/          # Layout — role göre şekillenen menü
+│       ├── context/             # AuthContext, ThemeContext
+│       ├── pages/               # 23 sayfa
+│       ├── services/api.js      # Axios katmanı ve oturum yönetimi
+│       └── App.jsx              # Route tanımları ve guard'lar
+└── docs/screenshots/            # Ekran görüntüleri
+```
 
 ## Roller ve Yetkilendirme
 
-Kimlik doğrulama JWT ile yapılır (24 saat geçerli token), şifreler `bcryptjs` ile hash'lenir. Yeni kayıtlar admin onayı bekler (`onay_durumu`).
+Kimlik doğrulama JWT ile yapılır (24 saat geçerli), şifreler `bcryptjs` ile hash'lenir.
+Yeni kayıtlar admin onayı bekler.
 
-**Roller:**
-- `admin` — tam erişim
-- `personel` — modül bazlı yetkilerle sınırlı
-- `yatirimci` — yalnızca kendi motorlarını görür/yönetir; opsiyonel "vitrin modu" ile tüm satılık motorları liste fiyatıyla görebilir
+**Roller**
 
-**Modül bazlı yetkiler:** `aksesuar_yetkisi`, `motor_satis_yetkisi`, `eticaret_yetkisi`, `servis_yetkisi`, `aksesuar_stok_yetkisi`, `yedek_parca_yetkisi`, `motor_vitrin_yetkisi`, `aksesuar_vitrin_yetkisi`
+| Rol | Kapsam |
+|---|---|
+| `admin` | Tam erişim |
+| `personel` | Yalnızca kendisine verilen modüller |
+| `yatirimci` | Yalnızca sermayesine ortak olduğu motosikletler |
 
-**Alan bazlı görüntüleme yetkileri** (özellikle motor satışında ince taneli kontrol için): `liste_fiyati_gor`, `alis_fiyati_gor`, `satis_fiyati_gor`, `kar_gor`, `musteri_gor`, `satis_gecmisi_gor`. Bu yetkiler `ikinciElMotor.js` içindeki `sanitizeMotor()` fonksiyonu tarafından uygulanır ve hassas alanları (kâr, alış fiyatı, müşteri bilgisi) yetkisi olmayan kullanıcıların response'undan çıkarır.
+**Modül yetkileri** — `servis`, `aksesuar`, `aksesuar_stok`, `yedek_parca`, `motor_satis`,
+`eticaret`, `motor_vitrin`, `aksesuar_vitrin`
 
-## Deploy (Railway)
+**Alan bazlı görüntüleme yetkileri** — `liste_fiyati_gor`, `alis_fiyati_gor`,
+`satis_fiyati_gor`, `kar_gor`, `musteri_gor`, `satis_gecmisi_gor`
 
-Proje Railway üzerinde `nixpacks.toml` ile build edilir:
-1. `frontend`: `npm install` + `npm run build`
-2. `backend`: `npm install`
-3. Başlangıç komutu: `cd backend && node server.js`
+Bu yetkiler API katmanında uygulanır: `sanitizeMotor()` ve `sanitizeOzet()` fonksiyonları,
+yetkisi olmayan kullanıcının yanıtından hassas alanları hem tekil kayıtlarda hem de
+toplamlarda çıkarır.
 
-Heroku-tarzı dağıtım için `Procfile` de mevcuttur (`web: cd backend && node server.js`). Production'da `NODE_ENV=production` set edilmelidir; backend bu durumda `frontend/build` klasörünü statik olarak serve eder.
+## API
 
-## Güvenlik Notları
+Tüm uçlar `/api` altındadır. `vitrin` ve QR ile erişilen servis geçmişi dışındaki tüm
+route'lar JWT ile korunur.
 
-**Uygulanan pratikler:**
+| Mount | İşlev |
+|---|---|
+| `/api/auth` | Kayıt, giriş, admin onayı, yetki güncelleme, aktivite logları |
+| `/api/musteriler` | Müşteri kayıtları; arama uçları tüm modüllerdeki formlar tarafından kullanılır |
+| `/api/is-emirleri` | Servis iş emirleri, parça listesi, kâr hesabı, QR token |
+| `/api/aksesuarlar` · `/api/aksesuar-stok` | Aksesuar satışları ve envanteri |
+| `/api/yedek-parcalar` · `/api/yedek-parca-stok` | Yedek parça satışları ve envanteri |
+| `/api/ikinci-el-motor` | 2. el alım-satım, yetkiye göre alan filtreleme |
+| `/api/eticaret` | Pazaryeri platformları ve satışları |
+| `/api/raporlar` | Günlük/aralıklı raporlar, yatırımcı özeti |
+| `/api/veresiye` | Tüm modüllerdeki açık ödemelerin konsolide listesi |
+| `/api/vitrin` | Halka açık vitrin + ilan yönetimi |
+| `/api/servis-gecmisi` | QR ile erişilen müşteri servis geçmişi |
 
-- Tüm sırlar (DB bağlantı bilgileri, `JWT_SECRET`) ortam değişkenlerinden okunur; repoda hiçbir gerçek kimlik bilgisi bulunmaz. Şablonlar için `.env.example` dosyalarına bakın.
-- Şifreler `bcryptjs` ile hash'lenerek saklanır; kimlik doğrulama 24 saat geçerli JWT ile yapılır.
-- Varsayılan admin hesabı yalnızca `ADMIN_INITIAL_PASSWORD` set edildiğinde oluşturulur — koda gömülü varsayılan şifre yoktur.
-- **Yetkilendirme sunucu tarafında uygulanır.** Frontend'deki route guard'ları yalnızca gezinmeyi kısıtlar; asıl koruma `backend/middleware/yetki.js` içindedir ve API mount noktalarına bağlıdır. Tasarımda okuma/yazma ayrımı gözetilir: bazı uçlar (ör. stok araması) sahibi olmadıkları ekranlar tarafından da okunduğu için salt-okunur erişim açık bırakılıp yazma işlemleri modül yetkisine bağlanmıştır.
-- Alan bazlı gizleme de sunucu tarafındadır: `ikinciElMotor.js` içindeki `sanitizeMotor()` ve `sanitizeOzet()`, kâr/alış fiyatı/müşteri gibi hassas alanları yetkisi olmayan kullanıcının response'undan çıkarır — hem tekil kayıtlarda hem toplamlarda.
-- Kimlik doğrulama uçlarında hız sınırlama vardır (`express-rate-limit`); yalnızca başarısız denemeler sayılır.
-- Güvenlik başlıkları `helmet` ile eklenir; CORS yalnızca tanımlı origin'lere açıktır.
-- Tüm veritabanı sorguları parametrelidir (SQL injection'a karşı); stok hareketleri negatife düşmeye karşı korumalıdır.
-- Repoda gerçek müşteri verisi yer almaz; `backend/scripts/` altındaki tek seferlik veri aktarım script'lerindeki kayıtlar örnek (sahte) verilerdir.
+## Veritabanı
 
-**Bilinen kısıtlar:**
+19 tablo; ilişkiler yabancı anahtarlarla, sık sorgulanan kolonlar index'lerle tanımlıdır.
 
-- `kullanicilar` tablosunda, admin panelindeki "personel şifresini görüntüleme" özelliği için `plain_sifre` adlı düz metin şifre alanı tutulur. Güvenlik açısından tercih edilen bir yaklaşım değildir; yerine admin'in şifre sıfırlayabildiği bir akışa geçirilmesi planlanmaktadır.
-- Frontend hâlâ Create React App (`react-scripts` 5.0.1) üzerinde çalışır; bu paket bakım almamaktadır ve bağımlılık ağacında bilinen açıklar bulunur (büyük bölümü yalnızca geliştirme sunucusunu etkiler). Vite'a geçiş planlanmaktadır.
+| Alan | Tablolar |
+|---|---|
+| Kullanıcı | `kullanicilar`, `aktivite_log` |
+| Müşteri | `musteriler` |
+| Servis | `is_emirleri`, `parcalar`, `servis_qr_tokenler` |
+| Aksesuar | `aksesuar_stok`, `aksesuarlar`, `aksesuar_parcalar` |
+| Yedek parça | `yedek_parca_stok`, `yedek_parcalar` |
+| Motosiklet | `ikinci_el_motorlar` |
+| E-ticaret | `eticaret_platformlar`, `eticaret_satislar` |
+| Vitrin | `vitrin_urunleri`, `vitrin_gorseller`, `vitrin_videolar`, `vitrin_segmentler`, `vitrin_kategori_iletisim` |
 
-Ayrıntılı inceleme notları için [GUVENLIK-BULGULARI.md](GUVENLIK-BULGULARI.md) dosyasına bakın.
+## Deploy
+
+Railway üzerinde `nixpacks.toml` ile derlenir:
+
+1. `frontend`: bağımlılıklar + production build
+2. `backend`: bağımlılıklar
+3. Başlangıç: `cd backend && node server.js`
+
+Production'da `NODE_ENV=production` ayarlanır; backend `frontend/build` klasörünü statik
+olarak serve eder ve SPA route'larını `index.html`'e yönlendirir. Heroku tarzı dağıtım
+için `Procfile` de mevcuttur.
 
 ## Lisans
 
-Bu depo bir portföy/inceleme amacıyla herkese açık olarak yayınlanmıştır. Tüm hakları saklıdır.
+Bu depo portföy ve inceleme amacıyla herkese açık olarak yayınlanmıştır.
+Tüm hakları saklıdır © Kaynar Motor.

@@ -17,3 +17,6 @@ set-production-env.bat
 
 # Gercek musteri/islem verisi iceren kaynak dosyalar (KVKK)
 *.csv
+
+# Ic inceleme notlari (yayinlanmaz)
+GUVENLIK-BULGULARI.md
