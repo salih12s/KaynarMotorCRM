@@ -66,7 +66,6 @@ const Layout = () => {
   const hasYedekParca = user?.yedek_parca_yetkisi;
   const hasMotorVitrin = user?.motor_vitrin_yetkisi;
   const hasAksesuarVitrin = user?.aksesuar_vitrin_yetkisi;
-  const isNormalPersonel = !isAdmin && !hasAksesuar && !hasMotor && !hasEticaret && !hasServis && !hasAksesuarStok && !hasYedekParca;
 
   const getPageTitle = () => {
     if (pathname === '/servis') return 'Servis';

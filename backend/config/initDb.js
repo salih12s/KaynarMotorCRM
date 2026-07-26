@@ -517,6 +517,20 @@ const initializeDatabase = async () => {
       );
     `);
 
+    // --- Index'ler ---
+    // Sık sorgulanan yabancı anahtar ve arama kolonları. CREATE INDEX IF NOT EXISTS
+    // olduğu için tekrar çalıştırmak güvenlidir; mevcut veriyi değiştirmez.
+    // (Birincil anahtarlar üzerinden yapılan "WHERE id = ..." sorguları zaten indexlidir.)
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_parcalar_is_emri ON parcalar(is_emri_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_aksesuar_parcalar_aksesuar ON aksesuar_parcalar(aksesuar_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_is_emirleri_durum ON is_emirleri(durum);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_is_emirleri_created ON is_emirleri(created_at DESC);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_motorlar_durum ON ikinci_el_motorlar(durum);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_motorlar_yatirimci ON ikinci_el_motorlar(yatirimci_id);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_musteriler_telefon ON musteriler(telefon);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_aksesuar_stok_adi ON aksesuar_stok(stok_adi);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_aktivite_log_kullanici ON aktivite_log(kullanici_id, created_at DESC);`);
+
     console.log('Tüm tablolar başarıyla oluşturuldu/kontrol edildi');
   } catch (error) {
     console.error('Veritabanı başlatma hatası:', error.message);

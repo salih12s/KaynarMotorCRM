@@ -19,12 +19,15 @@ if (process.env.DATABASE_URL) {
     ssl: isProduction ? { rejectUnauthorized: false } : false
   };
 } else {
+  // Yerel geliştirme için son çare varsayılanları. Şifre bilinçli olarak koda
+  // gömülmez; DB_PASSWORD tanımlı değilse bağlantı hata verir (sessizce yanlış bir
+  // veritabanına bağlanmaktansa açıkça başarısız olmak tercih edilmiştir).
   poolConfig = {
     host: 'localhost',
     port: 5432,
-    database: 'KaynarMotor',
-    user: 'postgres',
-    password: '12345',
+    database: process.env.DB_NAME || 'KaynarMotor',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD,
     ssl: false
   };
 }

@@ -3,156 +3,207 @@
 **İnceleme tarihi:** 26 Temmuz 2026
 **Kapsam:** Backend (13 route, ~4.000 satır) + Frontend (23 sayfa, ~10.700 satır)
 
-Bu belge, giderilmesi bekleyen bulguları içerir. Aynı incelemede giderilen hatalar
-belgenin sonundaki [Giderilen bulgular](#giderilen-bulgular) bölümündedir.
+Bu incelemede tespit edilen bulguların tamamı giderilmiştir; açık kalan iki madde
+[Açık maddeler](#açık-maddeler) bölümünde, gerekçeleriyle birlikte listelenmiştir.
 
 ---
 
-## 🔴 Kritik — açık, öncelikli
+## Açık maddeler
 
-### K1. Modül yetkilendirmesi yalnızca frontend'de uygulanıyor
+### A1. `plain_sifre` — düz metin şifre alanı
 
-**Durum:** Açık
-**Etki:** Yetkisiz personel, tarayıcı arayüzünü baypas ederek (curl/Postman) yetkisi
-olmayan modüllere okuma **ve yazma** erişimi sağlayabilir.
+**Durum:** Açık — ürün kararı bekliyor
+**Konum:** `backend/config/initDb.js`, `backend/routes/auth.js`
 
-`frontend/src/App.jsx` içinde `AksesuarRoute`, `YedekParcaRoute`, `ServisRoute`,
-`AksesuarStokRoute`, `EticaretRoute` gibi 10 route guard bulunur. Bunlar yalnızca
-gezinmeyi kısıtlar; API tarafında karşılıkları yoktur.
+Admin panelindeki "personel şifresini görüntüleme" özelliği için şifreler `bcrypt`
+hash'inin yanı sıra düz metin olarak da saklanır ve `GET /auth/users` yanıtında döner.
+Veritabanı sızıntısında tüm kullanıcı şifreleri doğrudan açığa çıkar.
 
-Yetki kontrolü bulunmayan route dosyaları:
+Teknik olarak kaldırılması kolaydır (arayüz `plain_sifre || '***'` fallback'i kullandığı
+için çökmez), ancak bu, yöneticinin fiilen kullandığı bir yeteneği ortadan kaldırır.
+Doğru çözüm, şifreyi göstermek yerine **admin'in şifre sıfırlayabildiği** bir akışa
+geçmektir; bu yeni bir arayüz gerektirdiğinden ayrı bir çalışma olarak ele alınmalıdır.
 
-| Dosya | Mount | Kontrol |
-|---|---|---|
-| `routes/aksesuarlar.js` | `/api/aksesuarlar` | yalnızca `authenticateToken` |
-| `routes/aksesuarStok.js` | `/api/aksesuar-stok` | yalnızca `authenticateToken` |
-| `routes/yedekParcalar.js` | `/api/yedek-parcalar` | yalnızca `authenticateToken` |
-| `routes/yedekParcaStok.js` | `/api/yedek-parca-stok` | yalnızca `authenticateToken` |
-| `routes/musteriler.js` | `/api/musteriler` | yalnızca `authenticateToken` |
-| `routes/veresiye.js` | `/api/veresiye` | yalnızca `authenticateToken` |
+### A2. Frontend bağımlılıklarındaki bilinen açıklar (CRA)
 
-**Örnek:** Yalnızca `aksesuar_yetkisi` verilmiş bir personel
-`DELETE /api/musteriler/5` çağırarak müşteri kaydı silebilir.
+**Durum:** Açık — ayrı bir çalışma olarak planlanmalı
 
-**Önerilen çözüm:** `backend/middleware/yetki.js` oluşturup `server.js`'teki mount
-noktalarına eklemek. Kural, `App.jsx`'teki guard'larla birebir aynı olmalıdır:
+`react-scripts` 5.0.1 bağımlılık ağacında 46 bilinen açık bulunur (2 kritik, 23 yüksek).
+Bunların büyük bölümü yalnızca geliştirme sunucusunu (webpack-dev-server vb.) etkiler ve
+üretim paketine girmez. Create React App 2023'ten beri bakım almamaktadır.
 
-```js
-// backend/middleware/yetki.js
-const modulYetkisi = (alan) => (req, res, next) => {
-  if (req.user.rol === 'admin') return next();
-  if (req.user[alan]) return next();
-  return res.status(403).json({ message: 'Bu modül için yetkiniz yok' });
-};
-module.exports = { modulYetkisi };
-
-// server.js
-app.use('/api/aksesuarlar', authenticateToken, modulYetkisi('aksesuar_yetkisi'), aksesuarRoutes);
-```
-
-> Not: Yetkiler JWT payload'ında taşındığı için, yetki değişiklikleri mevcut
-> token'lara 24 saat boyunca yansımaz. Yetki kontrolü eklenirken bu alanların
-> token yerine veritabanından okunması da değerlendirilmelidir.
+Kalıcı çözüm Vite'a geçiştir; bu, açıkların neredeyse tamamını giderir ve build süresini
+belirgin şekilde kısaltır. Ancak 23 sayfalık çalışan bir uygulamada ortam değişkeni
+adları, build çıktı yolu ve giriş noktası değişeceğinden, dikkatli ve ayrı test edilmesi
+gereken bir geçiştir.
 
 ---
 
-### K2. `/api/raporlar/*` — tüm personele açık
+## Giderilen bulgular
 
-**Durum:** Açık
-**Konum:** `backend/routes/raporlar.js:7`
+Aşağıdaki düzeltmeler gerçek bir PostgreSQL 15 örneğine karşı uçtan uca test edilerek
+doğrulanmıştır (45 yetkilendirme testi + 12 veri bütünlüğü testi).
 
-`engelleYatirimci` middleware'i yalnızca `yatirimci` rolünü engeller. Sıradan personel
-`/api/raporlar/gunluk`, `/aralik`, `/genel`, `/fis-kar`, `/personeller` uçlarından
-işletmenin tüm ciro ve kâr rakamlarını çekebilir. Frontend `/raporlar` sayfasını
-admin + yatırımcı ile sınırlar, API sınırlamaz.
+### Yetkilendirme
 
-**Önerilen çözüm:** `engelleYatirimci` yerine "admin veya yatırımcı" kuralı uygulayan
-bir middleware kullanmak.
+#### ✅ G1. Modül yetkilendirmesi yalnızca frontend'de uygulanıyordu
 
----
+`App.jsx` içindeki 10 route guard yalnızca gezinmeyi kısıtlıyor, API tarafında karşılığı
+bulunmuyordu. Yetkisiz personel curl/Postman ile herhangi bir modüle okuma **ve yazma**
+erişimi sağlayabiliyordu.
 
-### K3. `/api/ikinci-el-motor/stats/ozet` — `sanitizeMotor()` baypas ediliyor
+**Çözüm:** `backend/middleware/yetki.js` eklendi ve `server.js`'teki mount noktalarına
+bağlandı. Kurallar `App.jsx`'teki guard'larla birebir eşleşir.
 
-**Durum:** Açık
-**Konum:** `backend/routes/ikinciElMotor.js:55`
+Tasarımın kritik noktası **okuma/yazma ayrımıdır**: bazı uçlar sahibi olmadıkları
+ekranlar tarafından da okunur (ör. aksesuar stoğu; servis, e-ticaret, rapor ve vitrin
+ekranlarında ürün aramak için kullanılır). Frontend'deki tüm çapraz kullanımların
+salt-okunur olduğu tek tek doğrulanmış, bu nedenle salt-okunur uçlar açık bırakılıp
+yalnızca yazma işlemleri yetkiye bağlanmıştır. Aksi hâlde çalışan formlar kırılırdı.
 
-Bu uç `toplam_kar`, `toplam_alis`, `toplam_satis` alanlarını hiçbir yetki filtresinden
-geçirmeden döner. `kar_gor` / `alis_fiyati_gor` yetkilerinin tüm amacı tek uçla
-etkisiz kalır.
+| Uç | Kural |
+|---|---|
+| `/api/is-emirleri` | `servis_yetkisi` (okuma + yazma) |
+| `/api/aksesuarlar` | `aksesuar_yetkisi` (okuma + yazma) |
+| `/api/eticaret` | `eticaret_yetkisi` (okuma + yazma) |
+| `/api/yedek-parcalar` | `yedek_parca_yetkisi` (okuma + yazma) |
+| `/api/aksesuar-stok` | okuma serbest, yazma `aksesuar_stok_yetkisi` |
+| `/api/yedek-parca-stok` | okuma serbest, yazma `yedek_parca_yetkisi` |
+| `/api/ikinci-el-motor` | okuma serbest (`sanitizeMotor` filtreler), yazma admin/yatırımcı/`motor_satis_yetkisi` |
+| `/api/raporlar` | admin veya yatırımcı |
+| `/api/veresiye` | admin |
+| `/api/musteriler` | arama uçları serbest, listeleme ve yönetim admin |
 
-**Önerilen çözüm:** Yanıtı `req.user` yetkilerine göre filtrelemek; `kar_gor` yoksa
-`toplam_kar` alanını çıkarmak.
+#### ✅ G2. `/api/raporlar/*` tüm personele açıktı
 
----
+`engelleYatirimci` yalnızca yatırımcıyı engelliyordu; sıradan personel işletmenin tüm
+ciro ve kâr rakamlarını çekebiliyordu. Artık yalnızca admin ve yatırımcı erişebilir.
 
-### K4. `/api/musteriler` — müşteri PII'si tüm kullanıcılara açık
+#### ✅ G3. `/api/ikinci-el-motor/stats/ozet` yetki filtresini baypas ediyordu
 
-**Durum:** Açık
-**Konum:** `backend/routes/musteriler.js`
+Toplam kâr, alış ve satış tutarları hiçbir filtreden geçmeden dönüyordu. `sanitizeOzet()`
+eklendi; toplamlar artık tekil kayıtlarla aynı yetki kurallarını izler.
 
-Ad, telefon, adres bilgileri her giriş yapmış kullanıcıya okunabilir; ayrıca
-`POST`/`PUT`/`DELETE` uçları da korumasızdır. KVKK açısından risklidir.
+#### ✅ G4. `/api/musteriler` tüm kullanıcılara açıktı
 
----
+Müşteri adı, telefonu ve adresi her kullanıcı tarafından okunabiliyor, ayrıca
+oluşturma/güncelleme/**silme** uçları da korumasızdı. Listeleme, detay ve yönetim
+uçları admin'e kısıtlandı; arama uçları (formların ihtiyaç duyduğu) açık bırakıldı.
 
-### K5. `/api/veresiye` — tüm açık borçlar herkese açık
+#### ✅ G5. `/api/veresiye` tüm kullanıcılara açıktı
 
-**Durum:** Açık
-**Konum:** `backend/routes/veresiye.js:6`
+Tüm modüllerdeki açık borçlar (müşteri adı + tutar) yetki kontrolü olmadan dönüyordu.
+Admin'e kısıtlandı.
 
-Tüm modüllerdeki açık ödemeler (müşteri adı + tutar) yetki kontrolü olmadan döner.
-Frontend'de `/veresiye` yalnızca admin'e açıktır.
+#### ✅ G6. `POST /api/ikinci-el-motor` yetki kontrolsüzdü
 
----
+Artık admin, yatırımcı veya `motor_satis_yetkisi` gerektirir (frontend'deki
+`MotorStokRoute` ile aynı kural).
 
-### K6. `POST /api/ikinci-el-motor` — yetki kontrolü yok
+#### ✅ G7. Hız sınırlama yoktu
 
-**Durum:** Açık
-**Konum:** `backend/routes/ikinciElMotor.js:125`
+`/api/auth/login` sınırsız şifre denemesine açıktı. `express-rate-limit` eklendi.
+Limitler bilinçli olarak geniştir (15 dakikada 30 **başarısız** deneme); işletmedeki tüm
+personel tek bir genel IP arkasından bağlandığı için dar bir limit gerçek kullanıcıları
+kilitleyebilirdi. Başarılı girişler kotayı tüketmez. Kayıt ucu saatte 10 ile sınırlıdır.
 
-Yatırımcı dahil her kullanıcı motor kaydı oluşturabilir ve `yatirimci_id` alanını
-istek gövdesinden serbestçe belirleyebilir.
+#### ✅ G8. `masraflar` yetki kontrolünden geçmiyordu
 
----
+Diğer tüm hassas alanlar korunurken bu alan açıktaydı; yetkisiz kullanıcı boş göndererek
+kâr hesabını değiştirebiliyordu. Alış fiyatıyla aynı yetkiye bağlandı.
 
-### K7. Rate limiting bulunmuyor
+#### ✅ G9. QR token ucu korumasızdı
 
-**Durum:** Açık
+`POST /is-emirleri/qr-token` herhangi bir kullanıcının, herhangi bir plaka için herkese
+açık servis geçmişi bağlantısı üretmesine izin veriyordu. Artık `servis_yetkisi` gerekir.
 
-`/api/auth/login` sınırsız şifre denemesine, `/api/auth/register` sınırsız kayda
-açıktır. `express-rate-limit` ile en azından bu iki uç sınırlandırılmalıdır.
+### Veri bütünlüğü
 
----
+#### ✅ G10. Fiş numarası yarış koşulu
 
-### K8. `plain_sifre` — düz metin şifre alanı
+Kilitsiz `MAX(fis_no)+1` nedeniyle eş zamanlı iki iş emri aynı numarayı üretiyor,
+`fis_no UNIQUE` kısıtı yüzünden biri "Sunucu hatası" alıyordu.
 
-**Durum:** Açık (bilinen kısıt, README'de belgeli)
-**Konum:** `backend/config/initDb.js:13`, `backend/routes/auth.js:156`
+*Test (önce):* 5 eş zamanlı istekten **3'ü** başarısız.
+*Çözüm:* `pg_advisory_xact_lock` ile serileştirildi; `MAX+1` mantığı korundu.
+*Test (sonra):* 5 isteğin tamamı başarılı, numaralar boşluksuz.
 
-Admin panelindeki "personel şifresini görüntüleme" özelliği için şifreler ayrıca düz
-metin saklanır ve `GET /auth/users` yanıtında döner. Veritabanı sızıntısında tüm
-şifreler açığa çıkar.
+#### ✅ G11. Aksesuar stoğunda çift düşüm
 
-**Önerilen çözüm:** Alanı kaldırıp admin'in şifre *sıfırlayabildiği* bir akışa geçmek.
+`stok_adi` UNIQUE olmadığından, aynı adlı iki üründe `UPDATE` iki satırı birden
+güncelliyordu (test ile doğrulandı: `rowCount = 2`). Tekrarlanan 4 SQL bloğu
+`aksesuarStokAyarla()` yardımcısında toplandı; alt sorgu ile tek ve deterministik satır
+güncellenir. Eşleşme bulunamazsa uyarı loglanır.
 
----
+#### ✅ G12. Stok negatife düşebiliyordu
 
-## 🟡 Orta
+Tüm stok hareketleri (`aksesuarlar`, `eticaret`, `isEmirleri`, `yedekParcalar`)
+`GREATEST(..., 0)` ile taban korumasına alındı. Satış akışı engellenmedi.
 
-| # | Bulgu | Konum |
-|---|---|---|
-| O1 | Frontend'de 46 bilinen açık (2 kritik, 23 yüksek) — tamamı `react-scripts` 5.0.1 (CRA) bağımlılık ağacından. CRA 2023'ten beri bakımsız; Vite'a geçiş neredeyse tamamını giderir. | `frontend/package.json` |
-| O2 | Node 18 sürümü pinlenmiş; Nisan 2025'te EOL oldu. Node 22 LTS önerilir. | `nixpacks.toml` |
-| O3 | 19 tablo için yalnızca 3 index var (üçü de vitrin tablolarında). `is_emri_id`, `aksesuar_id`, `stok_kodu`, `telefon`, `token`, `yatirimci_id`, `durum` indexsiz. | `backend/config/initDb.js` |
-| O4 | `express.json({ limit: '120mb' })` tüm uçlara uygulanıyor; yalnızca vitrin yükleme uçlarında olmalı. Mevcut hâli DoS vektörüdür. | `backend/server.js:47` |
-| O5 | 641 kullanılmayan import (ESLint: 0 hata, 641 uyarı) — tamamı ölü MUI import'u. | `frontend/src/pages/*` |
-| O6 | `authenticateToken` ve `isAdmin` iki ayrı dosyada kopyalanmış. | `server.js:50`, `routes/auth.js:9` |
-| O7 | Güvenlik başlıkları yok (`helmet` kullanılmıyor). | `backend/server.js` |
-| O8 | Global error handler yok; beklenmeyen hatalar Express varsayılanına düşüyor. | `backend/server.js` |
-| O9 | Yerel geliştirme için koda gömülü varsayılan şifre (`'12345'`). | `backend/config/db.js:27` |
-| O10 | Production'da `FRONTEND_URL` tanımlı değilse CORS tüm origin'lere açık. | `backend/server.js:39` |
-| O11 | `masraflar` alanı, diğer hassas alanların aksine yetki kontrolünden geçmiyor; yetkisiz kullanıcı 0 göndererek kârı değiştirebilir. | `backend/routes/ikinciElMotor.js:227` |
-| O12 | `POST /is-emirleri/qr-token` yetki kontrolü olmadan herhangi bir plaka için herkese açık servis geçmişi bağlantısı üretebiliyor. | `backend/routes/isEmirleri.js:290` |
+### Oturum ve altyapı
+
+#### ✅ G13. Oturum süresi dolunca ekran sessizce çalışmayı bırakıyordu
+
+Backend süresi dolmuş token'a **403**, `api.js` ise yalnızca **401** yakalıyordu.
+Token hatalarına `code: TOKEN_INVALID | TOKEN_MISSING` eklendi. Yetki reddi kaynaklı
+403'ler kullanıcıyı çıkışa zorlamaz — ayrım bu nedenle status yerine kod üzerinden
+yapılır. Ayrıca hatalı şifre girişinde login sayfasının yeniden yüklenip hata mesajını
+silmesi engellendi.
+
+#### ✅ G14. `/api/health` production'da bozuktu
+
+SPA catch-all (`app.get('*')`) health check'ten önce tanımlıydı; JSON yerine
+`index.html` dönüyordu. Sıralama düzeltildi.
+
+#### ✅ G15. Güvenlik başlıkları yoktu
+
+`helmet` eklendi. `contentSecurityPolicy` kapalıdır (CRA build'i inline script/stil
+üretir, varsayılan CSP arayüzü bozar); `crossOriginResourcePolicy` `cross-origin`
+olarak ayarlanmıştır (vitrin görsel/videoları farklı bir origin'e servis edilir).
+
+#### ✅ G16. Gövde boyutu limiti tüm uçlara uygulanıyordu
+
+120 MB'lik limit yalnızca vitrin yükleme uçlarına indirildi; diğer uçlar için 10 MB.
+
+#### ✅ G17. Global hata yakalayıcı yoktu
+
+Eklendi. İstemciye hiçbir zaman yığın izi sızdırılmaz; aşırı büyük gövdeler için 413
+döner.
+
+#### ✅ G18. CORS production'da tüm origin'lere açılabiliyordu
+
+`FRONTEND_URL` tanımlı değilse tüm origin'lere izin veren yedek kural kaldırıldı.
+Reddedilen origin'ler loglanır; yeni bir alan adı kullanılacaksa `FRONTEND_URL`
+ayarlanmalıdır.
+
+#### ✅ G19. `authenticateToken` iki dosyada kopyalanmıştı
+
+`server.js` ve `routes/auth.js` ayrı ayrı tanımlıyordu. `middleware/auth.js` altında
+birleştirildi.
+
+#### ✅ G20. Koda gömülü veritabanı şifresi
+
+`config/db.js` içindeki yerel geliştirme varsayılanından şifre kaldırıldı; artık
+`DB_PASSWORD` ortam değişkeninden okunur.
+
+#### ✅ G21. Index eksikliği
+
+19 tablo için yalnızca 3 index vardı. Sık sorgulanan yabancı anahtar ve arama kolonları
+için 9 index eklendi (`CREATE INDEX IF NOT EXISTS` — tekrar çalıştırmak güvenlidir).
+
+#### ✅ G22. Node 18 EOL
+
+Nisan 2025'te desteği biten Node 18, Node 22 LTS ile değiştirildi.
+
+#### ✅ G23. Ölü kod
+
+Hiçbir yerde kullanılmayan `queryWithRetry` (`config/db.js`) ve `NormalRoute`
+(`App.jsx`) kaldırıldı; kullanılmayan 9 değişken/import temizlendi. ESLint artık
+uyarısız çalışır.
+
+#### ✅ G24. Backend bağımlılık açıkları
+
+`express`, `qs`, `body-parser` kaynaklı 3 orta seviye açık giderildi. Sonuç: 0 açık.
 
 ---
 
@@ -162,69 +213,9 @@ Mevcut yapı (`config/`, `routes/`, `pages/`, `context/`, `services/`) bu ölçe
 proje için yeterince açık ve okunabilirdir; kapsamlı bir yeniden düzenleme, çalışan
 sistemi bozma riski karşısında yeterli fayda sağlamaz.
 
-Tek gerçek yapısal eksik `backend/middleware/` klasörüdür — K1'in çözümü zaten bu
-klasörü gerektirir. İkinci sırada, route dosyalarının HTTP + iş mantığı + SQL'i bir
-arada tutması gelir (400 satırlık dosyalar); bu, ileride bir `services/` katmanıyla
-ayrılabilir ancak acil değildir.
+Eksik olan tek yapısal parça `backend/middleware/` klasörüydü; G1 kapsamında eklendi ve
+kimlik doğrulama, yetkilendirme ve hız sınırlama artık burada toplanır.
 
----
-
-## Giderilen bulgular
-
-Aşağıdaki hatalar 26 Temmuz 2026 tarihli incelemede giderilmiş ve gerçek bir
-PostgreSQL 15 örneği üzerinde test edilerek doğrulanmıştır.
-
-### ✅ G1. Fiş numarası yarış koşulu
-
-`isEmirleri.js` içinde fiş numarası kilitsiz `MAX(fis_no) + 1` ile üretiliyordu.
-Eşzamanlı iki iş emrinde ikisi de aynı numarayı okuyor, `fis_no UNIQUE` kısıtı
-nedeniyle biri "Sunucu hatası" alıyordu.
-
-*Test sonucu (önce):* 5 eşzamanlı istekten **3'ü** UNIQUE ihlaliyle başarısız.
-*Çözüm:* Numara üretimi `pg_advisory_xact_lock` ile serileştirildi. Kilit COMMIT/ROLLBACK
-ile kendiliğinden bırakılır. `MAX+1` numaralama mantığı bilinçli olarak korundu.
-*Test sonucu (sonra):* 5 eşzamanlı isteğin tamamı başarılı, numaralar boşluksuz (1-5).
-
-### ✅ G2. Aksesuar stoğunda çift düşüm
-
-Stok, UNIQUE olmayan `stok_adi` kolonuyla eşleniyordu. Aynı adlı iki ürün varsa
-`UPDATE ... WHERE stok_adi = $1` **iki satırı birden** güncelliyordu.
-
-*Test sonucu (önce):* Aynı adlı 2 kayıtta `rowCount = 2`.
-*Çözüm:* Alt sorgu ile tek ve deterministik satır güncelleniyor. Aksesuar satış akışı
-baştan sona ad üzerinden çalıştığı ve `aksesuar_parcalar` tablosunda stok id'si
-tutulmadığı için ad bağı korundu; ID'ye taşımak frontend değişikliği gerektirir.
-*Test sonucu (sonra):* Yalnızca 1 satır güncelleniyor.
-
-### ✅ G3. Stok negatife düşebiliyordu
-
-`mevcut = mevcut - $1` kontrolsüzdü. Tüm stok hareketleri (`aksesuarlar.js`,
-`eticaret.js`, `isEmirleri.js`, `yedekParcalar.js`) `GREATEST(..., 0)` ile taban
-korumasına alındı. Satış akışı engellenmedi — yalnızca stok 0'ın altına inmiyor.
-
-### ✅ G4. Oturum süresi dolunca ekran sessizce çalışmayı bırakıyordu
-
-Backend süresi dolmuş token'a **403** dönüyor, `api.js` ise yalnızca **401**
-yakalıyordu. 24 saat sonra her istek sessizce başarısız oluyor, kullanıcı login'e
-yönlendirilmiyordu.
-
-*Çözüm:* Token hatalarına `code: 'TOKEN_INVALID' | 'TOKEN_MISSING'` alanı eklendi;
-`api.js` bu kodu kontrol ediyor. Yetki reddi kaynaklı 403'ler (ör. "Admin yetkisi
-gerekli") kullanıcıyı **çıkışa zorlamaz** — ayrım bu yüzden status yerine kod
-üzerinden yapılır. HTTP status kodları ve mesajlar değiştirilmedi.
-
-### ✅ G5. `/api/health` production'da bozuktu
-
-SPA catch-all (`app.get('*')`) health check'ten önce tanımlıydı; `/api/health`
-production'da JSON yerine `index.html` dönüyordu. Sıralama düzeltildi.
-
-### ✅ G6. `queryWithRetry` ölü kodu
-
-`config/db.js` içinde tanımlanmış ve export edilmiş, ancak hiçbir yerde
-kullanılmıyordu. Kaldırıldı. Sorgu düzeyinde yeniden deneme isteniyorsa ayrı ve
-bilinçli bir çalışma olarak ele alınmalıdır.
-
-### ✅ G7. Backend bağımlılık açıkları
-
-`express`, `qs`, `body-parser` kaynaklı 3 orta seviye açık `npm audit fix` ile
-giderildi. Sonuç: 0 açık.
+Orta vadede değerlendirilebilecek tek konu, route dosyalarının HTTP işleme + iş mantığı +
+SQL'i bir arada tutmasıdır (400 satırlık dosyalar). Bir `services/` katmanına ayrılabilir
+ancak acil değildir.

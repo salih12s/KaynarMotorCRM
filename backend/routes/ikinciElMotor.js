@@ -51,6 +51,21 @@ const sanitizeMotor = (row, user) => {
   return m;
 };
 
+// Özet istatistikleri kullanıcının yetkisine göre temizler.
+// sanitizeMotor tek kayıtları filtreler; toplamlar da aynı kuralı izlemelidir,
+// aksi hâlde kâr/alış bilgisi bu uç üzerinden sızar.
+const sanitizeOzet = (row, user) => {
+  if (user.rol === 'admin') return row;
+  const o = { ...row };
+  if (!user.kar_gor) o.toplam_kar = null;
+  if (!(user.alis_fiyati_gor || user.motor_satis_yetkisi)) o.toplam_alis = null;
+  if (!(user.satis_fiyati_gor || user.motor_satis_yetkisi)) {
+    o.toplam_satis = null;
+    o.toplam_satis_tutari = null;
+  }
+  return o;
+};
+
 // GET /stats/ozet
 router.get('/stats/ozet', async (req, res) => {
   try {
@@ -65,7 +80,7 @@ router.get('/stats/ozet', async (req, res) => {
         COUNT(CASE WHEN durum = 'tamamlandi' THEN 1 END) as tamamlanan
       FROM ikinci_el_motorlar
     `);
-    res.json(result.rows[0]);
+    res.json(sanitizeOzet(result.rows[0], req.user));
   } catch (error) {
     res.status(500).json({ message: 'Sunucu hatası' });
   }
@@ -224,7 +239,9 @@ router.put('/:id', async (req, res) => {
     const nAlis = canSatis ? emptyToZero(noter_alis) : parseFloat(mevcut.noter_alis || 0);
     const satis = canSatis ? emptyToZero(satis_fiyati) : parseFloat(mevcut.satis_fiyati || 0);
     const nSatis = canSatis ? emptyToZero(noter_satis) : parseFloat(mevcut.noter_satis || 0);
-    const masraf = emptyToZero(masraflar);
+    // masraflar kâr hesabına girer; diğer maliyet alanlarıyla aynı yetkiye bağlıdır.
+    // Yetkisi olmayan kullanıcının boş göndermesiyle kâr bozulmasın diye DB değeri korunur.
+    const masraf = canAlis ? emptyToZero(masraflar) : parseFloat(mevcut.masraflar || 0);
     // Müşteri/komisyon alanları: yetkisi olmayan personelin boş göndermesiyle veri bozulmasın
     const komisyonTutar = canMusteri ? emptyToZero(komisyoncu_tutari) : parseFloat(mevcut.komisyoncu_tutari || 0);
     const aliciAdi = canMusteri ? alici_adi : mevcut.alici_adi;

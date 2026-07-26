@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Grid, Chip, IconButton, Button, Divider, useMediaQuery, useTheme
 } from '@mui/material';
-import { ArrowBack as BackIcon, Print as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
+import { ArrowBack as BackIcon, Print as PrintIcon } from '@mui/icons-material';
 import { useReactToPrint } from 'react-to-print';
 import { ikinciElMotorService } from '../services/api';
 
@@ -34,7 +34,6 @@ const MotorDetay = () => {
   const noterSatis = parseFloat(data.noter_satis || 0);
   const masraflar = parseFloat(data.masraflar || 0);
   const toplamMaliyet = alis + noterAlis + masraflar;
-  const eleGecen = satis - noterSatis;
   const kar = parseFloat(data.kar || 0);
 
   const durumLabel = (d) => {

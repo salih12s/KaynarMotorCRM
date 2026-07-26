@@ -1,9 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
+const { isAdmin } = require('../middleware/auth');
 
-// GET / - Tüm müşteriler
-router.get('/', async (req, res) => {
+/*
+ * Yetkilendirme notu:
+ * Arama uçları (/ara, /telefon) bilinçli olarak tüm giriş yapmış kullanıcılara açıktır.
+ * Servis, aksesuar, motor ve yedek parça formlarının tamamı müşteri seçmek için bu
+ * uçları kullanır; kısıtlanmaları hâlinde bu ekranlar çalışmaz.
+ *
+ * Toplu listeleme ve yönetim uçları (liste, detay, ekleme, güncelleme, silme) yalnızca
+ * admin'e açıktır — frontend'de /musteriler sayfası da AdminRoute ile korunur.
+ */
+
+// GET / - Tüm müşteriler [ADMIN]
+router.get('/', isAdmin, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM musteriler ORDER BY created_at DESC');
     res.json(result.rows);
@@ -49,8 +60,9 @@ router.get('/telefon/:telefon', async (req, res) => {
   }
 });
 
-// GET /:id - Tek müşteri + işlem geçmişi
-router.get('/:id', async (req, res) => {
+// GET /:id - Tek müşteri + işlem geçmişi [ADMIN]
+// Yanıt, motor alış fiyatı ve kâr gibi hassas alanları içerdiği için admin'e kısıtlıdır.
+router.get('/:id', isAdmin, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM musteriler WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Müşteri bulunamadı' });
@@ -94,8 +106,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST / - Müşteri ekle
-router.post('/', async (req, res) => {
+// POST / - Müşteri ekle [ADMIN]
+// Not: Diğer modüller müşteri kaydını config/musteriHelper.js içindeki upsertMusteri
+// üzerinden otomatik oluşturur; bu uç yalnızca müşteri yönetim ekranı içindir.
+router.post('/', isAdmin, async (req, res) => {
   try {
     const { ad_soyad, adres, telefon } = req.body;
     const result = await pool.query(
@@ -109,8 +123,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /:id - Müşteri güncelle
-router.put('/:id', async (req, res) => {
+// PUT /:id - Müşteri güncelle [ADMIN]
+router.put('/:id', isAdmin, async (req, res) => {
   try {
     const { ad_soyad, adres, telefon } = req.body;
     const result = await pool.query(
@@ -124,8 +138,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /:id - Müşteri sil
-router.delete('/:id', async (req, res) => {
+// DELETE /:id - Müşteri sil [ADMIN]
+router.delete('/:id', isAdmin, async (req, res) => {
   try {
     await pool.query('DELETE FROM musteriler WHERE id = $1', [req.params.id]);
     res.json({ message: 'Müşteri silindi' });

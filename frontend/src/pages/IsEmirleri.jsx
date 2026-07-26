@@ -292,10 +292,6 @@ const IsEmirleri = () => {
     } catch (err) { setError(err.response?.data?.message || 'Kaydetme hatası'); }
   };
 
-  const toplamFiyat = parcalar.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.birim_fiyat) || 0), 0);
-  const toplamMaliyet = parcalar.reduce((t, p) => t + (Number(p.adet) || 0) * (Number(p.maliyet) || 0), 0);
-  const toplamKarModal = toplamFiyat - toplamMaliyet;
-
   return (
     <Box>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2, alignItems: 'center' }}>
@@ -329,7 +325,6 @@ const IsEmirleri = () => {
           {filtered.length === 0 && <Alert severity="info">Kayıt bulunamadı</Alert>}
           {filtered.map(ie => {
             const toplam = parseFloat(ie.gercek_toplam_ucret || 0);
-            const maliyet = parseFloat(ie.toplam_maliyet || 0);
             const kar = parseFloat(ie.kar || 0);
             return (
               <Paper key={ie.id} sx={{ p: 1.5 }} onClick={async () => { try { const res = await isEmriService.getById(ie.id); setDetayModal({ open: true, data: res.data }); } catch {} }}>

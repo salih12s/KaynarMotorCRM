@@ -139,22 +139,6 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-const NormalRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return null;
-  if (!user) return <Navigate to="/login" />;
-  if (user.rol === 'yatirimci') return <Navigate to="/motor-stok" />;
-  if (user.rol !== 'admin' && !user.servis_yetkisi) {
-    if (user.aksesuar_yetkisi) return <Navigate to="/aksesuarlar" />;
-    if (user.motor_satis_yetkisi) return <Navigate to="/ikinci-el-motor" />;
-    if (user.eticaret_yetkisi) return <Navigate to="/eticaret" />;
-    if (user.aksesuar_stok_yetkisi) return <Navigate to="/aksesuar-stok" />;
-    if (user.yedek_parca_yetkisi) return <Navigate to="/yedek-parcalar" />;
-    if (user.motor_vitrin_yetkisi || user.aksesuar_vitrin_yetkisi) return <Navigate to="/vitrin" />;
-  }
-  return children;
-};
-
 // Giriş yapmış kullanıcıyı rolüne göre uygun panele yönlendiren hedef
 const panelHedefi = (user) => {
   if (user.rol === 'admin') return '/servis';

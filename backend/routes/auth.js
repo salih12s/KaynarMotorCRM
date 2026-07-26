@@ -4,27 +4,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
 const { logAktivite, ISLEM_TIPLERI } = require('../config/activityLogger');
-
-// Middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  // code alanı için bkz. server.js içindeki aynı isimli middleware.
-  if (!token) return res.status(401).json({ message: 'Token gerekli', code: 'TOKEN_MISSING' });
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: 'Geçersiz token', code: 'TOKEN_INVALID' });
-    req.user = user;
-    next();
-  });
-};
-
-const isAdmin = (req, res, next) => {
-  if (req.user.rol !== 'admin') return res.status(403).json({ message: 'Admin yetkisi gerekli' });
-  next();
-};
+const { authenticateToken, isAdmin } = require('../middleware/auth');
+const { girisLimiti, kayitLimiti } = require('../middleware/rateLimit');
 
 // POST /register
-router.post('/register', async (req, res) => {
+router.post('/register', kayitLimiti, async (req, res) => {
   try {
     const { kullanici_adi, sifre, ad_soyad } = req.body;
     if (!kullanici_adi || !sifre || !ad_soyad) {
@@ -59,7 +43,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /login
-router.post('/login', async (req, res) => {
+router.post('/login', girisLimiti, async (req, res) => {
   try {
     const { kullanici_adi, sifre } = req.body;
     const result = await pool.query('SELECT * FROM kullanicilar WHERE kullanici_adi = $1', [kullanici_adi]);

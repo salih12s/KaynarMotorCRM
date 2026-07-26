@@ -987,8 +987,6 @@ const Raporlar = () => {
                 const miktar = parseInt(e.adet || 1);
                 const satis = parseFloat(e.satis_fiyati || 0);
                 const alis = parseFloat(e.alis_fiyati || 0);
-                const komisyonOrani = parseFloat(e.komisyon_orani || 0);
-                const kargoUcreti = parseFloat(e.kargo_ucreti || 0);
                 const pt = detectPlatform(e.platform_adi);
                 const hesap = hesaplaKomisyon(e.satis_fiyati, e.alis_fiyati, e.komisyon_orani, e.kdv_orani || 20, e.kargo_ucreti || 0, e.adet, pt);
                 const netKar = hesap.netKar;

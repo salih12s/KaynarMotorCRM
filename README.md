@@ -216,13 +216,19 @@ Heroku-tarzı dağıtım için `Procfile` de mevcuttur (`web: cd backend && node
 - Tüm sırlar (DB bağlantı bilgileri, `JWT_SECRET`) ortam değişkenlerinden okunur; repoda hiçbir gerçek kimlik bilgisi bulunmaz. Şablonlar için `.env.example` dosyalarına bakın.
 - Şifreler `bcryptjs` ile hash'lenerek saklanır; kimlik doğrulama 24 saat geçerli JWT ile yapılır.
 - Varsayılan admin hesabı yalnızca `ADMIN_INITIAL_PASSWORD` set edildiğinde oluşturulur — koda gömülü varsayılan şifre yoktur.
-- Alan bazlı yetkilendirme sunucu tarafında uygulanır: `ikinciElMotor.js` içindeki `sanitizeMotor()`, kâr/alış fiyatı/müşteri gibi hassas alanları yetkisi olmayan kullanıcının response'undan çıkarır — gizleme yalnızca arayüzde değil, API seviyesindedir.
+- **Yetkilendirme sunucu tarafında uygulanır.** Frontend'deki route guard'ları yalnızca gezinmeyi kısıtlar; asıl koruma `backend/middleware/yetki.js` içindedir ve API mount noktalarına bağlıdır. Tasarımda okuma/yazma ayrımı gözetilir: bazı uçlar (ör. stok araması) sahibi olmadıkları ekranlar tarafından da okunduğu için salt-okunur erişim açık bırakılıp yazma işlemleri modül yetkisine bağlanmıştır.
+- Alan bazlı gizleme de sunucu tarafındadır: `ikinciElMotor.js` içindeki `sanitizeMotor()` ve `sanitizeOzet()`, kâr/alış fiyatı/müşteri gibi hassas alanları yetkisi olmayan kullanıcının response'undan çıkarır — hem tekil kayıtlarda hem toplamlarda.
+- Kimlik doğrulama uçlarında hız sınırlama vardır (`express-rate-limit`); yalnızca başarısız denemeler sayılır.
+- Güvenlik başlıkları `helmet` ile eklenir; CORS yalnızca tanımlı origin'lere açıktır.
+- Tüm veritabanı sorguları parametrelidir (SQL injection'a karşı); stok hareketleri negatife düşmeye karşı korumalıdır.
 - Repoda gerçek müşteri verisi yer almaz; `backend/scripts/` altındaki tek seferlik veri aktarım script'lerindeki kayıtlar örnek (sahte) verilerdir.
 
-**Bilinen kısıtlar / geliştirme alanları:**
+**Bilinen kısıtlar:**
 
-- `kullanicilar` tablosunda, admin panelindeki "personel şifresini görüntüleme" özelliği için `plain_sifre` adlı düz metin şifre alanı tutulur. Güvenlik açısından tercih edilen bir yaklaşım değildir; yerine admin'in şifre sıfırlama yapabildiği bir akışa geçirilmesi planlanmaktadır.
-- CORS ayarı, `NODE_ENV=development` iken veya production'da `FRONTEND_URL` tanımlı değilse tüm origin'lere izin verir. Production'da `FRONTEND_URL` mutlaka set edilmelidir.
+- `kullanicilar` tablosunda, admin panelindeki "personel şifresini görüntüleme" özelliği için `plain_sifre` adlı düz metin şifre alanı tutulur. Güvenlik açısından tercih edilen bir yaklaşım değildir; yerine admin'in şifre sıfırlayabildiği bir akışa geçirilmesi planlanmaktadır.
+- Frontend hâlâ Create React App (`react-scripts` 5.0.1) üzerinde çalışır; bu paket bakım almamaktadır ve bağımlılık ağacında bilinen açıklar bulunur (büyük bölümü yalnızca geliştirme sunucusunu etkiler). Vite'a geçiş planlanmaktadır.
+
+Ayrıntılı inceleme notları için [GUVENLIK-BULGULARI.md](GUVENLIK-BULGULARI.md) dosyasına bakın.
 
 ## Lisans
 
