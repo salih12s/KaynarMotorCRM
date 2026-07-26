@@ -20,6 +20,25 @@
 
 ---
 
+
+<!-- english-overview:start -->
+## English Overview
+
+Kaynar Motor CRM is a production business platform for motorcycle service, used-vehicle sales, accessory and spare-parts inventory, e-commerce profitability, investor profit sharing, debt tracking, reporting, and a public showroom.
+
+### My Contribution
+
+I developed the React interface, Node.js/Express API, PostgreSQL data model, authentication and permission system, reporting tools, barcode and QR workflows, public showroom integration, and Railway deployment.
+
+### Engineering Challenges
+
+- Making multi-step sales, service, payment, and stock updates transaction-safe
+- Restricting investor and staff visibility at the API response level
+- Publishing and removing showroom listings automatically as inventory status changes
+- Exposing privacy-safe QR service history without leaking cost or customer data
+- Recovering cleanly from database cold starts and deployment-time connection delays
+<!-- english-overview:end -->
+
 ## Genel Bakış
 
 Kaynar Motor CRM, bir motosiklet işletmesinin günlük operasyonunun tamamını tek sistemde
