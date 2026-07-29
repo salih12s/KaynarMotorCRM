@@ -1,4 +1,4 @@
-<h1 align="center">Kaynar Motor CRM</h1>
+<h1 align="center">Kaynar Motor — Dealership ERP & Digital Showroom</h1>
 
 <p align="center">
   Motosiklet servisi, 2. el alım-satım, aksesuar ve yedek parça stoğu, e-ticaret ve<br>
@@ -24,7 +24,7 @@
 <!-- english-overview:start -->
 ## English Overview
 
-Kaynar Motor CRM is a production business platform for motorcycle service, used-vehicle sales, accessory and spare-parts inventory, e-commerce profitability, investor profit sharing, debt tracking, reporting, and a public showroom.
+Kaynar Motor is a production dealership ERP and digital showroom integrating motorcycle service, used-vehicle sales, accessory and spare-parts inventory, e-commerce profitability, investor profit sharing, debt tracking, reporting, and a public showroom.
 
 ### My Contribution
 
@@ -41,7 +41,7 @@ I developed the React interface, Node.js/Express API, PostgreSQL data model, aut
 
 ## Genel Bakış
 
-Kaynar Motor CRM, bir motosiklet işletmesinin günlük operasyonunun tamamını tek sistemde
+Kaynar Motor için geliştirilen dealership ERP ve dijital showroom, işletmenin günlük operasyonunu tek sistemde
 toplar: servise gelen aracın iş emrinden, 2. el motosikletin alım-satım kârına, aksesuar
 envanterinden pazaryeri satışlarının net kâr hesabına kadar.
 
