@@ -271,7 +271,7 @@ const Storefront = () => {
               {/* Kategori kartları */}
               <Grid container spacing={1.5} justifyContent="center">
                 {KATEGORILER.map((k, i) => (
-                  <Grid item xs={6} sm={4} md={2} key={k.key}>
+                  <Grid size={{ xs: 6, sm: 4, md: 2 }} key={k.key}>
                     <Box
                       onClick={() => enterKategori(i)}
                       sx={{

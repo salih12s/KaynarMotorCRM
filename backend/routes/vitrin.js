@@ -194,7 +194,9 @@ module.exports = (authenticateToken, isAdmin) => {
       if (km_max) { params.push(Number(km_max)); query += ` AND km <= $${params.length}`; }
       if (q) { params.push(`%${q}%`); query += ` AND (baslik ILIKE $${params.length} OR aciklama ILIKE $${params.length} OR marka ILIKE $${params.length} OR model ILIKE $${params.length})`; }
 
-      query += ' ORDER BY one_cikan DESC, siralama ASC, created_at DESC';
+      // Yönetim ekranında belirlenen sıra her zaman önceliklidir. one_cikan sadece
+      // aynı sıra değerine sahip eski kayıtlarda ikincil bir tercih olarak kalır.
+      query += ' ORDER BY siralama ASC, one_cikan DESC, created_at DESC';
       const result = await pool.query(query, params);
       res.json(result.rows);
     } catch (e) {
@@ -221,6 +223,45 @@ module.exports = (authenticateToken, isAdmin) => {
   });
 
   // ---------- ADMIN ----------
+
+  // PUT /sirala - kategori içindeki ilanların vitrin sırasını topluca güncelle
+  router.put('/sirala', ...vitrinWrite, async (req, res) => {
+    const { kategori, urun_ids: urunIds } = req.body;
+    if (!KATEGORILER.includes(kategori)) return res.status(400).json({ message: 'Geçersiz kategori' });
+    if (!kategoriYetkiliMi(req.user, kategori)) return res.status(403).json({ message: 'Bu kategori için vitrin yetkiniz yok' });
+    if (!Array.isArray(urunIds) || urunIds.length === 0 || urunIds.length > 1000) {
+      return res.status(400).json({ message: 'Sıralanacak ilan listesi geçersiz' });
+    }
+
+    const ids = urunIds.map(Number);
+    if (ids.some(id => !Number.isInteger(id) || id <= 0) || new Set(ids).size !== ids.length) {
+      return res.status(400).json({ message: 'İlan listesinde geçersiz veya tekrar eden kayıt var' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `UPDATE vitrin_urunleri AS v
+         SET siralama = x.sira::int - 1, updated_at = CURRENT_TIMESTAMP
+         FROM unnest($1::int[]) WITH ORDINALITY AS x(id, sira)
+         WHERE v.id = x.id AND v.kategori = $2`,
+        [ids, kategori]
+      );
+      if (result.rowCount !== ids.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Bazı ilanlar bu kategoriye ait değil' });
+      }
+      await client.query('COMMIT');
+      res.json({ message: 'Vitrin sırası güncellendi' });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error('Vitrin sıralama hatası:', e.message);
+      res.status(500).json({ message: 'Sunucu hatası' });
+    } finally {
+      client.release();
+    }
+  });
 
   // POST / - ürün oluştur (gorseller: base64 data URL dizisi; ilki kapak)
   router.post('/', ...vitrinWrite, async (req, res) => {

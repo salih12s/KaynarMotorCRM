@@ -192,6 +192,7 @@ export const vitrinService = {
   addSegment: (ad) => api.post('/vitrin/segmentler', { ad }),
   create: (data) => api.post('/vitrin', data),
   update: (id, data) => api.put(`/vitrin/${id}`, data),
+  reorder: (kategori, urunIds) => api.put('/vitrin/sirala', { kategori, urun_ids: urunIds }),
   delete: (id) => api.delete(`/vitrin/${id}`),
   updateIletisim: (kategori, data) => api.put(`/vitrin/iletisim/${kategori}`, data),
   gorselUrl: (id) => `${API_URL}/vitrin/gorsel/${id}`,

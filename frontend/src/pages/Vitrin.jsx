@@ -7,7 +7,9 @@ import {
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon,
   Save as SaveIcon, PhotoCamera as PhotoIcon, Phone as PhoneIcon,
-  Movie as MovieIcon, PlayCircle as PlayCircleIcon
+  Movie as MovieIcon, PlayCircle as PlayCircleIcon, DragIndicator as DragIcon,
+  KeyboardArrowUp as UpIcon, KeyboardArrowDown as DownIcon,
+  ArrowBack as BackIcon, ArrowForward as ForwardIcon
 } from '@mui/icons-material';
 import { vitrinService, ikinciElMotorService, aksesuarStokService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -82,6 +84,9 @@ const Vitrin = () => {
   const [editId, setEditId] = useState(null);
   const [gorseller, setGorseller] = useState([]); // base64 data URL dizisi
   const [saving, setSaving] = useState(false);
+  const [draggedGorselIndex, setDraggedGorselIndex] = useState(null);
+  const [draggedUrunId, setDraggedUrunId] = useState(null);
+  const [orderSaving, setOrderSaving] = useState(false);
   const [stokMotorlar, setStokMotorlar] = useState([]); // stoktaki motorlar (vitrine aktarma için)
   const [stokAksesuarlar, setStokAksesuarlar] = useState([]); // aksesuar stok (vitrine aktarma için)
 
@@ -185,7 +190,11 @@ const Vitrin = () => {
 
   const resetVideo = () => { setVideoFile(null); setVideoAdi(''); setVideoVar(false); setVideoSil(false); };
 
-  const openNew = () => { setForm(bosUrun); setGorseller([]); setEditId(null); resetVideo(); setDlgOpen(true); };
+  const openNew = () => {
+    const nextSira = urunler.reduce((max, u) => Math.max(max, Number(u.siralama) || 0), -1) + 1;
+    setForm({ ...bosUrun, siralama: nextSira });
+    setGorseller([]); setEditId(null); resetVideo(); setDlgOpen(true);
+  };
 
   const openEdit = async (urun) => {
     try {
@@ -249,6 +258,64 @@ const Vitrin = () => {
   const makeKapak = (i) => setGorseller(prev => {
     const arr = [...prev]; const [g] = arr.splice(i, 1); arr.unshift(g); return arr;
   });
+
+  const moveGorsel = (from, to) => {
+    if (from === to || from < 0 || to < 0 || from >= gorseller.length || to >= gorseller.length) return;
+    setGorseller(prev => {
+      const arr = [...prev];
+      const [moved] = arr.splice(from, 1);
+      arr.splice(to, 0, moved);
+      return arr;
+    });
+  };
+
+  const handleGorselDrop = (to) => {
+    if (draggedGorselIndex !== null) moveGorsel(draggedGorselIndex, to);
+    setDraggedGorselIndex(null);
+  };
+
+  const saveUrunSirasi = async (siraliUrunler) => {
+    const onceki = urunler;
+    const yeni = siraliUrunler.map((u, index) => ({ ...u, siralama: index }));
+    setUrunler(yeni);
+    setOrderSaving(true);
+    try {
+      await vitrinService.reorder(kategori, yeni.map(u => u.id));
+      showSnack('Anasayfa vitrin sırası kaydedildi');
+    } catch {
+      setUrunler(onceki);
+      showSnack('Vitrin sırası kaydedilemedi', 'error');
+      loadUrunler();
+    } finally {
+      setOrderSaving(false);
+    }
+  };
+
+  const moveUrun = (id, direction) => {
+    if (orderSaving) return;
+    const from = urunler.findIndex(u => u.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= urunler.length) return;
+    const yeni = [...urunler];
+    const [moved] = yeni.splice(from, 1);
+    yeni.splice(to, 0, moved);
+    saveUrunSirasi(yeni);
+  };
+
+  const handleUrunDrop = (targetId) => {
+    if (orderSaving || draggedUrunId === null || draggedUrunId === targetId) {
+      setDraggedUrunId(null);
+      return;
+    }
+    const from = urunler.findIndex(u => u.id === draggedUrunId);
+    const to = urunler.findIndex(u => u.id === targetId);
+    if (from < 0 || to < 0) return;
+    const yeni = [...urunler];
+    const [moved] = yeni.splice(from, 1);
+    yeni.splice(to, 0, moved);
+    setDraggedUrunId(null);
+    saveUrunSirasi(yeni);
+  };
 
   const handleSave = async () => {
     if (!form.baslik.trim()) { showSnack('Başlık zorunlu', 'warning'); return; }
@@ -375,26 +442,45 @@ const Vitrin = () => {
           Bu kategoride henüz ilan yok. "İlan Ekle" ile başlayın.
         </Paper>
       ) : (
+        <>
+        <Paper variant="outlined" sx={{ p: 1.5, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DragIcon color="action" />
+          <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+            Kartları sürükleyerek anasayfadaki sırayı belirleyin. Telefonda ok tuşlarını kullanabilirsiniz.
+          </Typography>
+          {orderSaving && <CircularProgress size={18} />}
+        </Paper>
         <Grid container spacing={2}>
-          {urunler.map(u => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={u.id}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', opacity: u.yayinda ? 1 : 0.55 }}>
-                <CardMedia
-                  component="img"
-                  height="170"
-                  image={u.kapak_gorsel_id ? vitrinService.gorselUrl(u.kapak_gorsel_id) : '/KaynarMotor.png'}
-                  alt={u.baslik}
-                  loading="lazy"
-                  decoding="async"
-                  sx={{ objectFit: 'cover', bgcolor: '#f0f0f0' }}
-                />
-                <CardContent sx={{ flex: 1, pb: 1 }}>
+          {urunler.map((u, index) => (
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={u.id}
+              sx={{ display: 'flex', minWidth: 0 }}
+              onDragOver={e => e.preventDefault()}
+              onDrop={() => handleUrunDrop(u.id)}>
+              <Card sx={{ width: '100%', height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', opacity: u.yayinda ? 1 : 0.55 }}>
+                <Box draggable={!orderSaving}
+                  onDragStart={e => { setDraggedUrunId(u.id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragEnd={() => setDraggedUrunId(null)}
+                  sx={{ px: 1.2, py: 0.7, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: draggedUrunId === u.id ? 'action.selected' : 'action.hover', cursor: orderSaving ? 'wait' : 'grab', userSelect: 'none' }}>
+                  <DragIcon fontSize="small" color="action" />
+                  <Typography variant="caption" fontWeight="bold">{index + 1}. sıra</Typography>
+                </Box>
+                <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', bgcolor: '#f0f0f0', flexShrink: 0 }}>
+                  <CardMedia
+                    component="img"
+                    image={u.kapak_gorsel_id ? vitrinService.gorselUrl(u.kapak_gorsel_id) : '/KaynarMotor.png'}
+                    alt={u.baslik}
+                    loading="lazy"
+                    decoding="async"
+                    sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </Box>
+                <CardContent sx={{ flex: 1, pb: 1, display: 'flex', flexDirection: 'column' }}>
                   {u.ilan_no != null && (
                     <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
                       İlan No: ILN-{String(u.ilan_no).padStart(4, '0')}
                     </Typography>
                   )}
-                  <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, mt: 0.3, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignContent: 'flex-start', gap: 0.5, mb: 0.5, mt: 0.3, minHeight: 52, flexWrap: 'wrap' }}>
                     {!u.yayinda && <Chip size="small" label="Yayında değil" color="default" />}
                     {u.one_cikan ? <Chip size="small" label="★ Öne Çıkan" color="warning" /> : null}
                     {u.stok_motor_id ? <Chip size="small" label="Stok bağlı" color="success" variant="outlined" /> : null}
@@ -402,20 +488,28 @@ const Vitrin = () => {
                     {u.motor_cc ? <Chip size="small" label={`${u.motor_cc} cc`} variant="outlined" /> : null}
                   </Box>
                   <Typography variant="subtitle1" fontWeight="bold" noWrap>{u.baslik}</Typography>
-                  {(u.marka || u.model) && <Typography variant="body2" color="text.secondary" noWrap>{[u.marka, u.model, u.yil].filter(Boolean).join(' ')}</Typography>}
-                  {u.km ? <Typography variant="body2" color="text.secondary">{Number(u.km).toLocaleString('tr-TR')} km</Typography> : null}
-                  <Typography variant="h6" color="error" fontWeight="bold" sx={{ mt: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary" noWrap sx={{ minHeight: 20 }}>
+                    {[u.marka, u.model, u.yil].filter(Boolean).join(' ') || '\u00a0'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ minHeight: 20 }}>
+                    {u.km ? `${Number(u.km).toLocaleString('tr-TR')} km` : '\u00a0'}
+                  </Typography>
+                  <Typography variant="h6" color="error" fontWeight="bold" sx={{ mt: 'auto', pt: 0.5 }}>
                     {Number(u.fiyat).toLocaleString('tr-TR')} ₺
                   </Typography>
                 </CardContent>
                 <CardActions sx={{ pt: 0 }}>
                   <IconButton size="small" color="primary" onClick={() => openEdit(u)}><EditIcon /></IconButton>
                   <IconButton size="small" color="error" onClick={() => handleDelete(u.id)}><DeleteIcon /></IconButton>
+                  <Box sx={{ flexGrow: 1 }} />
+                  <IconButton size="small" disabled={orderSaving || index === 0} onClick={() => moveUrun(u.id, -1)} title="Bir sıra yukarı"><UpIcon /></IconButton>
+                  <IconButton size="small" disabled={orderSaving || index === urunler.length - 1} onClick={() => moveUrun(u.id, 1)} title="Bir sıra aşağı"><DownIcon /></IconButton>
                 </CardActions>
               </Card>
             </Grid>
           ))}
         </Grid>
+        </>
       )}
       </>
       )}
@@ -526,16 +620,26 @@ const Vitrin = () => {
                 Görsel Ekle
                 <input type="file" hidden accept="image/*" multiple onChange={handleFiles} />
               </Button>
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>İlk görsel <strong>vitrin fotoğrafı</strong> olur (⭐ ile değiştir)</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>İlk görsel <strong>vitrin fotoğrafı</strong> olur. Sürükleyin veya oklarla sıralayın.</Typography>
               <Grid container spacing={1} sx={{ mt: 0.5 }}>
                 {gorseller.map((g, i) => (
-                  <Grid item xs={4} sm={3} key={i}>
-                    <Box sx={{ position: 'relative', border: i === 0 ? '2px solid #C62828' : '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
-                      <img src={g} alt={`gorsel-${i}`} style={{ width: '100%', height: 70, objectFit: 'cover', display: 'block' }} />
+                  <Grid size={{ xs: 4, sm: 3 }} key={i}>
+                    <Box draggable
+                      onDragStart={e => { setDraggedGorselIndex(i); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragEnd={() => setDraggedGorselIndex(null)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={() => handleGorselDrop(i)}
+                      sx={{ position: 'relative', border: i === 0 ? '2px solid #C62828' : '1px solid #ddd', borderRadius: 1, overflow: 'hidden', cursor: 'grab', opacity: draggedGorselIndex === i ? 0.55 : 1 }}>
+                      <img src={g} alt={`gorsel-${i}`} draggable={false} style={{ width: '100%', height: 70, objectFit: 'cover', display: 'block' }} />
                       {i === 0 && <Chip size="small" label="Vitrin" color="error" sx={{ position: 'absolute', top: 2, left: 2, height: 18, fontSize: 10 }} />}
                       <Box sx={{ position: 'absolute', top: 0, right: 0, display: 'flex' }}>
                         {i !== 0 && <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.8)', p: 0.2 }} onClick={() => makeKapak(i)} title="Vitrin fotoğrafı yap">⭐</IconButton>}
                         <IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.8)', p: 0.2 }} onClick={() => removeGorsel(i)}><CloseIcon fontSize="small" /></IconButton>
+                      </Box>
+                      <Box sx={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'background.paper' }}>
+                        <IconButton size="small" disabled={i === 0} onClick={() => moveGorsel(i, i - 1)} title="Sola kaydır"><BackIcon fontSize="small" /></IconButton>
+                        <Typography variant="caption" fontWeight="bold">{i + 1}</Typography>
+                        <IconButton size="small" disabled={i === gorseller.length - 1} onClick={() => moveGorsel(i, i + 1)} title="Sağa kaydır"><ForwardIcon fontSize="small" /></IconButton>
                       </Box>
                     </Box>
                   </Grid>
