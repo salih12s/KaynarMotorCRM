@@ -9,7 +9,8 @@ import {
   Save as SaveIcon, PhotoCamera as PhotoIcon, Phone as PhoneIcon,
   Movie as MovieIcon, PlayCircle as PlayCircleIcon, DragIndicator as DragIcon,
   KeyboardArrowUp as UpIcon, KeyboardArrowDown as DownIcon,
-  ArrowBack as BackIcon, ArrowForward as ForwardIcon
+  ArrowBack as BackIcon, ArrowForward as ForwardIcon,
+  Visibility as VisibilityIcon, VisibilityOff as VisibilityOffIcon
 } from '@mui/icons-material';
 import { vitrinService, ikinciElMotorService, aksesuarStokService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -87,6 +88,9 @@ const Vitrin = () => {
   const [draggedGorselIndex, setDraggedGorselIndex] = useState(null);
   const [draggedUrunId, setDraggedUrunId] = useState(null);
   const [orderSaving, setOrderSaving] = useState(false);
+  const [siraTaslaklari, setSiraTaslaklari] = useState({});
+  const [siraSavingId, setSiraSavingId] = useState(null);
+  const [yayinSavingId, setYayinSavingId] = useState(null);
   const [stokMotorlar, setStokMotorlar] = useState([]); // stoktaki motorlar (vitrine aktarma için)
   const [stokAksesuarlar, setStokAksesuarlar] = useState([]); // aksesuar stok (vitrine aktarma için)
 
@@ -134,6 +138,9 @@ const Vitrin = () => {
   useEffect(() => { loadUrunler(); }, [loadUrunler]);
   useEffect(() => { loadIletisim(); }, [loadIletisim]);
   useEffect(() => { loadSegmentler(); }, [loadSegmentler]);
+  useEffect(() => {
+    setSiraTaslaklari(Object.fromEntries(urunler.map((urun, index) => [urun.id, String(index + 1)])));
+  }, [urunler]);
 
   // Stoktaki (satılmamış) motorları yükle — vitrine aktarma için
   useEffect(() => {
@@ -317,6 +324,50 @@ const Vitrin = () => {
     saveUrunSirasi(yeni);
   };
 
+  const handleYayinToggle = async (urun) => {
+    if (!isAdmin || yayinSavingId !== null) return;
+    const yeniDurum = !urun.yayinda;
+    setYayinSavingId(urun.id);
+    try {
+      const res = await vitrinService.setPublished(urun.id, yeniDurum);
+      setUrunler(prev => prev.map(item => item.id === urun.id ? { ...item, yayinda: res.data.yayinda } : item));
+      showSnack(res.data.yayinda ? 'İlan yayına alındı' : 'İlan yayından kaldırıldı');
+    } catch {
+      showSnack('İlanın yayın durumu değiştirilemedi', 'error');
+    } finally {
+      setYayinSavingId(null);
+    }
+  };
+
+  const handleDogrudanSira = async (urun) => {
+    if (!isAdmin || orderSaving || siraSavingId !== null) return;
+    const yeniSira = Number(siraTaslaklari[urun.id]);
+    if (!Number.isInteger(yeniSira) || yeniSira < 1 || yeniSira > urunler.length) {
+      showSnack(`Sıra numarası 1 ile ${urunler.length} arasında olmalı`, 'warning');
+      return;
+    }
+
+    const mevcutSira = urunler.findIndex(item => item.id === urun.id) + 1;
+    if (mevcutSira === yeniSira) return;
+
+    setSiraSavingId(urun.id);
+    setOrderSaving(true);
+    try {
+      const res = await vitrinService.moveToPosition(urun.id, yeniSira);
+      setUrunler(prev => {
+        const urunMap = new Map(prev.map(item => [Number(item.id), item]));
+        return (res.data.urun_ids || []).map((id, index) => ({ ...urunMap.get(Number(id)), siralama: index }));
+      });
+      showSnack(`İlan ${res.data.sira}. sıraya taşındı`);
+    } catch {
+      showSnack('İlan sırası değiştirilemedi', 'error');
+      loadUrunler();
+    } finally {
+      setSiraSavingId(null);
+      setOrderSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!form.baslik.trim()) { showSnack('Başlık zorunlu', 'warning'); return; }
     if (isMotor && !(form.segment || '').trim()) { showSnack('Motor ilanı için segment seçin', 'warning'); return; }
@@ -444,9 +495,11 @@ const Vitrin = () => {
       ) : (
         <>
         <Paper variant="outlined" sx={{ p: 1.5, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <DragIcon color="action" />
+          {!isAdmin && <DragIcon color="action" />}
           <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-            Kartları sürükleyerek anasayfadaki sırayı belirleyin. Telefonda ok tuşlarını kullanabilirsiniz.
+            {isAdmin
+              ? 'Kartın üstündeki sıra numarasını yazıp Değiştir düğmesine basın.'
+              : 'Kartları sürükleyerek anasayfadaki sırayı belirleyin. Telefonda ok tuşlarını kullanabilirsiniz.'}
           </Typography>
           {orderSaving && <CircularProgress size={18} />}
         </Paper>
@@ -456,14 +509,39 @@ const Vitrin = () => {
               sx={{ display: 'flex', minWidth: 0 }}
               onDragOver={e => e.preventDefault()}
               onDrop={() => handleUrunDrop(u.id)}>
-              <Card sx={{ width: '100%', height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', opacity: u.yayinda ? 1 : 0.55 }}>
-                <Box draggable={!orderSaving}
-                  onDragStart={e => { setDraggedUrunId(u.id); e.dataTransfer.effectAllowed = 'move'; }}
-                  onDragEnd={() => setDraggedUrunId(null)}
-                  sx={{ px: 1.2, py: 0.7, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: draggedUrunId === u.id ? 'action.selected' : 'action.hover', cursor: orderSaving ? 'wait' : 'grab', userSelect: 'none' }}>
-                  <DragIcon fontSize="small" color="action" />
-                  <Typography variant="caption" fontWeight="bold">{index + 1}. sıra</Typography>
-                </Box>
+              <Card sx={{ width: '100%', height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', bgcolor: u.yayinda ? 'background.paper' : 'action.hover' }}>
+                {isAdmin ? (
+                  <Box sx={{ px: 1, py: 0.75, display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: 'action.hover' }}>
+                    <Typography variant="caption" fontWeight="bold" sx={{ whiteSpace: 'nowrap' }}>Sıra</Typography>
+                    <TextField
+                      size="small"
+                      type="number"
+                      value={siraTaslaklari[u.id] ?? String(index + 1)}
+                      onChange={e => setSiraTaslaklari(prev => ({ ...prev, [u.id]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleDogrudanSira(u); } }}
+                      inputProps={{ min: 1, max: urunler.length, step: 1, 'aria-label': `${u.baslik} sıra numarası` }}
+                      disabled={orderSaving}
+                      sx={{ width: 72, '& .MuiInputBase-input': { py: 0.75, textAlign: 'center', fontWeight: 700 } }}
+                    />
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={() => handleDogrudanSira(u)}
+                      disabled={orderSaving}
+                      sx={{ minWidth: 78, ml: 'auto' }}
+                    >
+                      {siraSavingId === u.id ? <CircularProgress size={16} color="inherit" /> : 'Değiştir'}
+                    </Button>
+                  </Box>
+                ) : (
+                  <Box draggable={!orderSaving}
+                    onDragStart={e => { setDraggedUrunId(u.id); e.dataTransfer.effectAllowed = 'move'; }}
+                    onDragEnd={() => setDraggedUrunId(null)}
+                    sx={{ px: 1.2, py: 0.7, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: draggedUrunId === u.id ? 'action.selected' : 'action.hover', cursor: orderSaving ? 'wait' : 'grab', userSelect: 'none' }}>
+                    <DragIcon fontSize="small" color="action" />
+                    <Typography variant="caption" fontWeight="bold">{index + 1}. sıra</Typography>
+                  </Box>
+                )}
                 <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', bgcolor: '#f0f0f0', flexShrink: 0 }}>
                   <CardMedia
                     component="img"
@@ -498,6 +576,23 @@ const Vitrin = () => {
                     {Number(u.fiyat).toLocaleString('tr-TR')} ₺
                   </Typography>
                 </CardContent>
+                {isAdmin && (
+                  <Box sx={{ px: 1.25, pb: 1.25, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Button
+                      fullWidth
+                      size="small"
+                      variant={u.yayinda ? 'outlined' : 'contained'}
+                      color={u.yayinda ? 'warning' : 'success'}
+                      startIcon={yayinSavingId === u.id
+                        ? <CircularProgress size={15} color="inherit" />
+                        : (u.yayinda ? <VisibilityOffIcon /> : <VisibilityIcon />)}
+                      disabled={yayinSavingId !== null}
+                      onClick={() => handleYayinToggle(u)}
+                    >
+                      {u.yayinda ? 'Yayından Kaldır' : 'Yayına Al'}
+                    </Button>
+                  </Box>
+                )}
                 <CardActions sx={{ pt: 0 }}>
                   <IconButton size="small" color="primary" onClick={() => openEdit(u)}><EditIcon /></IconButton>
                   <IconButton size="small" color="error" onClick={() => handleDelete(u.id)}><DeleteIcon /></IconButton>

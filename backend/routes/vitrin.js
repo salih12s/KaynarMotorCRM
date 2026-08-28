@@ -263,6 +263,87 @@ module.exports = (authenticateToken, isAdmin) => {
     }
   });
 
+  // PATCH /:id/yayin - yalnızca admin, ilanı hızlıca yayına al/kaldır
+  router.patch('/:id/yayin', ...admin, async (req, res) => {
+    const id = Number(req.params.id);
+    const { yayinda } = req.body;
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ message: 'Geçersiz ilan' });
+    if (typeof yayinda !== 'boolean') return res.status(400).json({ message: 'Yayın durumu geçersiz' });
+
+    try {
+      const result = await pool.query(
+        `UPDATE vitrin_urunleri
+         SET yayinda = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING id, yayinda`,
+        [yayinda, id]
+      );
+      if (result.rows.length === 0) return res.status(404).json({ message: 'Kayıt bulunamadı' });
+      res.json(result.rows[0]);
+    } catch (e) {
+      console.error('Vitrin yayın durumu hatası:', e.message);
+      res.status(500).json({ message: 'Sunucu hatası' });
+    }
+  });
+
+  // PATCH /:id/sira - yalnızca admin, ilanı doğrudan istenen sıraya taşı
+  router.patch('/:id/sira', ...admin, async (req, res) => {
+    const id = Number(req.params.id);
+    const istenenSira = Number(req.body.sira);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ message: 'Geçersiz ilan' });
+    if (!Number.isInteger(istenenSira) || istenenSira < 1) {
+      return res.status(400).json({ message: 'Sıra numarası 1 veya daha büyük olmalı' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const urun = await client.query(
+        'SELECT id, kategori FROM vitrin_urunleri WHERE id = $1',
+        [id]
+      );
+      if (urun.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Kayıt bulunamadı' });
+      }
+
+      const kategori = urun.rows[0].kategori;
+      const liste = await client.query(
+        `SELECT id FROM vitrin_urunleri
+         WHERE kategori = $1
+         ORDER BY siralama ASC, one_cikan DESC, created_at DESC, id DESC
+         FOR UPDATE`,
+        [kategori]
+      );
+      const ids = liste.rows.map(row => Number(row.id));
+      const mevcutIndex = ids.indexOf(id);
+      if (mevcutIndex === -1) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Kayıt bulunamadı' });
+      }
+
+      ids.splice(mevcutIndex, 1);
+      const hedefIndex = Math.min(istenenSira, ids.length + 1) - 1;
+      ids.splice(hedefIndex, 0, id);
+
+      await client.query(
+        `UPDATE vitrin_urunleri AS v
+         SET siralama = x.sira::int - 1, updated_at = CURRENT_TIMESTAMP
+         FROM unnest($1::int[]) WITH ORDINALITY AS x(id, sira)
+         WHERE v.id = x.id AND v.kategori = $2`,
+        [ids, kategori]
+      );
+      await client.query('COMMIT');
+      res.json({ sira: hedefIndex + 1, urun_ids: ids });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error('Vitrin doğrudan sıralama hatası:', e.message);
+      res.status(500).json({ message: 'Sunucu hatası' });
+    } finally {
+      client.release();
+    }
+  });
+
   // POST / - ürün oluştur (gorseller: base64 data URL dizisi; ilki kapak)
   router.post('/', ...vitrinWrite, async (req, res) => {
     const client = await pool.connect();
