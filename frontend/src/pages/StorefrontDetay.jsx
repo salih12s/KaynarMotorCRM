@@ -229,7 +229,7 @@ const StorefrontDetay = () => {
               <Typography variant="h6" fontWeight={800} sx={{ mb: 1.25 }}>İşlemler ve İletişim</Typography>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
                 {Number(detay.fiyat) > 0 && <Button fullWidth size="medium" variant="outlined" color="inherit" startIcon={<CalculateIcon />} onClick={() => window.open(`/taksit/${Math.round(Number(detay.fiyat))}`, '_blank')} sx={{ borderColor: '#aaa' }}>Nakit / Taksit Hesapla</Button>}
-                {detay.rubik_link && <Button fullWidth size="medium" variant="contained" startIcon={<CreditCardIcon />} href={detay.rubik_link} target="_blank" rel="noopener noreferrer" sx={{ bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}>Taksitli Ödeme Yap</Button>}
+                {detay.rubik_link && <Button fullWidth size="medium" variant="contained" startIcon={<CreditCardIcon />} href={detay.rubik_link} target="_blank" rel="noopener noreferrer" sx={{ bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}>Sipariş Ver</Button>}
                 {iletisim?.telefon && <Button fullWidth size="medium" variant="contained" color="error" startIcon={<PhoneIcon />} href={`tel:${iletisim.telefon}`}>{iletisim.telefon}</Button>}
                 {waLink(iletisim?.telefon) && <Button fullWidth size="medium" variant="contained" startIcon={<WhatsAppIcon />} href={waLink(iletisim.telefon)} target="_blank" rel="noopener noreferrer" sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#1da851' } }}>WhatsApp</Button>}
               </Stack>
