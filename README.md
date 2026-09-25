@@ -37,6 +37,8 @@ I developed the React interface, Node.js/Express API, PostgreSQL data model, aut
 - Publishing and removing showroom listings automatically as inventory status changes
 - Exposing privacy-safe QR service history without leaking cost or customer data
 - Recovering cleanly from database cold starts and deployment-time connection delays
+
+**See it in action:** the [Nasıl Çalışır](#nasıl-çalışır) section has four end-to-end recordings: public showroom, service work order with QR history, inventory ↔ showroom sync, and role-based access. The [Mimari](#mimari) section has the C4 container view, the request lifecycle, and the listing lifecycle.
 <!-- english-overview:end -->
 
 ## Genel Bakış
@@ -48,12 +50,48 @@ envanterinden pazaryeri satışlarının net kâr hesabına kadar.
 Sistem iki yüzlüdür:
 
 - **Yönetim paneli** — personelin rolüne ve yetkilerine göre şekillenen, giriş gerektiren iç panel.
-- **Vitrin sitesi** — `kaynarmotor.com.tr` üzerinden yayınlanan, giriş gerektirmeyen ilan ve tanıtım sitesi. Panelde satılık olarak işaretlenen motosiklet otomatik olarak vitrine düşer, satıldığında ilan kendiliğinden yayından kalkar.
+- **Vitrin sitesi** — [kaynarmotor.com.tr](https://kaynarmotor.com.tr) üzerinden yayınlanan, giriş gerektirmeyen ilan ve tanıtım sitesi. Stoktaki motora bağlanan ilanın fiyatı stokla birlikte güncellenir, motor satıldığında ilan kendiliğinden yayından kalkar.
 
 Proje gerçek bir işletmede aktif olarak kullanılmaktadır.
 
-> Bu depodaki ekran görüntüleri ve örnek kayıtlar demo amacıyla üretilmiş **temsili
-> verilerdir**; gerçek müşteri bilgisi içermez.
+> Bu depodaki ekran görüntüleri, demo kayıtları ve örnek kayıtlar demo amacıyla üretilmiş
+> **temsili verilerdir**; gerçek müşteri bilgisi içermez. Demo kayıtlarındaki motosiklet
+> fotoğrafları CC0 lisanslıdır.
+
+## Nasıl Çalışır
+
+Aşağıdaki kayıtlar, uygulamanın ayrı bir demo veritabanı üzerinde uçtan uca çalıştırılmasıyla
+alınmıştır. Her adımın ne yaptığı kaydın altındaki açıklama bandında yazar.
+
+### 1 · Vitrin — ziyaretçinin gözünden
+
+Giriş gerektirmeyen site: sıfır / ikinci el ayrımı, yayındaki ilanlardan otomatik üretilen marka
+filtresi, ilan detayı ve müşteriye link olarak gönderilebilen taksit tablosu.
+
+<p align="center"><img src="docs/demo/01-vitrin.gif" alt="Vitrin sitesi demo" width="100%"></p>
+
+### 2 · Servis — iş emrinden müşterinin QR sayfasına
+
+Telefonla kayıtlı müşteri eşleşmesi, stoktan arama ve barkodla parça ekleme, tek transaction'da
+kaydedilen iş emri ve fiş bazlı kâr. Plakaya özel QR etiketi, müşteriye giriş gerektirmeyen servis
+geçmişi sayfasını açar. Bu sayfaya maliyet, kâr ve iletişim bilgisi API'den hiç gönderilmez.
+
+<p align="center"><img src="docs/demo/02-servis.gif" alt="Servis iş emri ve QR servis geçmişi demo" width="100%"></p>
+
+### 3 · Stok ↔ Vitrin senkronu
+
+Stoktaki ilan fiyatı değişince sitedeki ilanın fiyatı da güncellenir. Motor satılınca kâr ve
+yatırımcı payı hesaplanır, bağlı ilan elle bir işlem gerekmeden yayından kalkar.
+
+<p align="center"><img src="docs/demo/03-stok-vitrin.gif" alt="Stok ve vitrin senkronizasyonu demo" width="100%"></p>
+
+### 4 · Yetkilendirme — aynı ekran, farklı roller
+
+Admin personele modül yetkisi verir ve bekleyen kaydı onaylar. Yatırımcı yalnızca ortağı olduğu
+motorları ve kendi kâr payını görür. "Vitrin modundaki" yatırımcı tüm satılık stoğu görür ama alış
+fiyatı ile kâr sunucu yanıtından silinmiştir.
+
+<p align="center"><img src="docs/demo/04-yetki.gif" alt="Rol ve yetki demo" width="100%"></p>
 
 ## Ekran Görüntüleri
 
@@ -92,7 +130,8 @@ Proje gerçek bir işletmede aktif olarak kullanılmaktadır.
 ### Servis Yönetimi
 İş emri oluşturma, otomatik fiş numarası, takılan parça ve işçilik kalemleri, fiş bazlı
 kâr hesabı, teslim alan/eden takibi, plaka ve hasar kaydı. Kullanılan yedek parçalar iş
-emri tamamlandığında stoktan otomatik düşer.
+emri kaydedildiği anda aynı transaction içinde stoktan düşer. İş emri düzenlenirse ya da silinirse
+stok farkı geri alınır.
 
 Her araca **plaka bazlı bir QR kod** üretilir; müşteri bu kodu okutarak kendi servis
 geçmişini giriş yapmadan görüntüleyebilir. Bu sayfada yalnızca yapılan işlemler ve tutar
@@ -101,6 +140,13 @@ gösterilir — maliyet, kâr ve iletişim bilgileri asla dönülmez.
 ### 2. El Motosiklet Alım-Satım
 Alış/satış/noter bedelleri, masraf ve komisyon takibi, otomatik kâr hesabı. Yatırımcı
 ortaklı motosikletler için kâr paylaşımı; satılık araçlar tek tuşla vitrine bağlanır.
+
+### Vitrin Sitesi
+Motor, aksesuar, yedek parça ve hizmet (bakım, nakliye, sigorta) kategorileri. Motor ilanları
+**Sıfır** ve **İkinci El** olarak ayrı listelenir. Marka filtresi yayındaki ilanlardan otomatik
+üretilir. Segment, cc ve km filtreleri, çoklu görsel ve video galerisi, hasar kaydı bulunur.
+Stoka bağlı ilanlarda tek bir **İlan Fiyatı** kullanılır; fiyat stokta değişince ilan da güncellenir.
+Kategori bazında iletişim kişisi ve WhatsApp bağlantısı vardır. Vitrindeki sıralama panelden yönetilir.
 
 ### Stok Yönetimi
 Aksesuar ve yedek parça için ayrı envanterler. Barkod veya stok kodu ile arama, toplu
@@ -113,7 +159,7 @@ formülleriyle ürün başına **net kâr** hesabı.
 ### Yatırımcı Sistemi
 Motosiklet sermayesine ortak olan yatırımcılar için ayrı bir rol: yalnızca kendi
 araçlarını ve kârlarını görürler. İsteğe bağlı "vitrin modu" ile tüm satılık stoğu
-sadece liste fiyatıyla görebilirler — alış fiyatı ve kâr gizli kalır.
+sadece ilan fiyatıyla görebilirler — alış fiyatı ve kâr gizli kalır.
 
 ### Finans ve Raporlama
 Günlük ve tarih aralıklı raporlar, modül bazlı kâr analizi, personel performansı,
@@ -136,24 +182,157 @@ kim tarafından ne zaman yapıldığını kaydeden aktivite logu.
 
 ## Mimari
 
-Backend ve frontend'i tek repoda barındıran bir monorepo yapısındadır.
+Backend ve frontend tek repoda (monorepo) durur. Production'da tek bir Railway servisi olarak
+çalışır: Express hem `/api` uçlarını hem de React build'ini aynı domain'den servis eder.
 
+### Sistem görünümü
+
+[C4 modelinin](https://c4model.com/) konteyner seviyesi: kimler sistemi kullanıyor, istek hangi
+katmanlardan geçiyor ve veri nerede duruyor.
+
+```mermaid
+flowchart TB
+    ziyaretci(["<b>Ziyaretçi · Müşteri</b><br/>giriş yapmaz"])
+    personel(["<b>Personel · Admin</b><br/>modül yetkisine göre"])
+    yatirimci(["<b>Yatırımcı</b><br/>yalnızca kendi motorları"])
+
+    subgraph railway["Railway · tek servis"]
+        direction TB
+
+        subgraph spa["React 19 SPA"]
+            direction LR
+            site["<b>Vitrin sitesi</b><br/>/ · /site · /ilan/:id<br/>/taksit/:fiyat · /s/:token"]
+            panel["<b>Yönetim paneli</b><br/>route guard · AuthContext<br/>Axios + JWT interceptor"]
+        end
+
+        subgraph api["Express 4 API"]
+            direction TB
+            edge["<b>/api</b> · helmet · CORS allowlist<br/>JSON gövde limiti"]
+            public["<b>Herkese açık</b><br/>GET /vitrin<br/>GET /servis-gecmisi/:token"]
+            login["<b>/auth</b><br/>login · register<br/>IP başına hız sınırı"]
+            subgraph korumali["Korumalı uçlar"]
+                direction TB
+                jwt["authenticateToken · JWT 24 saat"]
+                rbac["Yetki katmanı<br/>modül · yazma · rol kontrolü"]
+                modules["<b>İş modülleri</b><br/>servis · stok · motor · e-ticaret<br/>rapor · veresiye · müşteri · vitrin"]
+                sanitize["Yanıt temizleme<br/>sanitizeMotor · sanitizeOzet"]
+                jwt --> rbac --> modules --> sanitize
+            end
+        end
+
+        db[("<b>PostgreSQL 15</b><br/>19 tablo · FK + index<br/>ORM yok · parametreli SQL")]
+        init["<b>initDb.js</b><br/>açılışta şema + migration<br/>DB hazır değilse yeniden dener"]
+    end
+
+    ziyaretci -->|HTTPS| site
+    personel -->|HTTPS| panel
+    yatirimci -->|HTTPS| panel
+    site -->|REST| edge
+    panel -->|REST + Bearer JWT| edge
+    edge --> public
+    edge --> login
+    edge --> jwt
+    public -->|salt okuma| db
+    login --> db
+    korumali ==>|transaction · advisory lock| db
+    init -.-> db
+
+    classDef person fill:#08427b,stroke:#052e56,color:#fff
+    classDef web fill:#c62828,stroke:#8e0000,color:#fff
+    classDef comp fill:#438dd5,stroke:#2e6295,color:#fff
+    classDef guard fill:#1d3557,stroke:#0b1d33,color:#fff
+    classDef store fill:#2f4858,stroke:#1b2a33,color:#fff
+    classDef aux fill:#eceff1,stroke:#90a4ae,color:#263238,stroke-dasharray:4 3
+
+    class ziyaretci,personel,yatirimci person
+    class site,panel web
+    class public,login,modules comp
+    class edge,jwt,rbac,sanitize guard
+    class db store
+    class init aux
+
+    style railway fill:transparent,stroke:#888,stroke-dasharray:6 4
+    style spa fill:transparent,stroke:#c62828
+    style api fill:transparent,stroke:#438dd5
+    style korumali fill:transparent,stroke:#1d3557,stroke-dasharray:3 3
 ```
-İstemci (React SPA)
-      │  REST + JWT
-      ▼
-Express API ── middleware: kimlik doğrulama → yetkilendirme → hız sınırlama
-      │
-      ▼
-PostgreSQL ── şema kod içinde yönetilir (initDb.js)
+
+İstekler üç yoldan geçer:
+
+- **Herkese açık uçlar** yalnızca okuma yapar ve hassas alan döndürmez.
+- **`/auth`** giriş ve kayıt uçlarıdır; IP başına hız sınırı vardır.
+- **Korumalı uçlar** JWT doğrulaması ve yetki kontrolünden geçer. Yanıt istemciye gitmeden önce
+  kullanıcının göremeyeceği alanlardan temizlenir.
+
+### Bir isteğin yolculuğu — yeni iş emri
+
+Bir iş emri kaydı; fiş numarası, müşteri, parçalar ve stok düşümüyle birlikte tek transaction'da
+yürür. Adımlardan biri başarısız olursa hiçbiri kalıcı olmaz.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Servis personeli
+    participant P as Panel (React)
+    participant M as Middleware zinciri
+    participant R as routes/isEmirleri.js
+    participant DB as PostgreSQL
+
+    U->>P: Yeni iş emri: müşteri, plaka, parçalar
+    P->>M: POST /api/is-emirleri · Authorization: Bearer JWT
+    M->>M: authenticateToken → modulYetkisi('servis_yetkisi')
+    alt token geçersiz veya yetki yok
+        M-->>P: 401 / 403 + code (TOKEN_INVALID …)
+        Note over P: code alanı "oturum bitti" ile "yetkin yok" ayrımını yapar
+    end
+    M->>R: req.user
+    R->>DB: BEGIN
+    R->>DB: pg_advisory_xact_lock(fiş no anahtarı)
+    R->>DB: MAX(fis_no) + 1 → yeni fiş no
+    R->>DB: müşteri upsert (telefon ile eşleşme)
+    R->>DB: INSERT is_emirleri + parcalar
+    R->>DB: UPDATE yedek_parca_stok · mevcut − adet
+    R->>DB: toplam · maliyet · kâr güncelle
+    R->>DB: COMMIT
+    Note over R,DB: Herhangi bir adım hata verirse ROLLBACK:<br/>fiş, parçalar ve stok birlikte geri alınır
+    R->>DB: INSERT aktivite_log (kim, ne zaman, ne yaptı)
+    R-->>P: 201 · fiş no, toplam, maliyet, kâr
 ```
 
-Öne çıkan tasarım kararları:
+### Stok ↔ vitrin yaşam döngüsü
 
-- **Şema kod içinde yönetilir.** ORM yoktur; tablolar ve migration'lar `config/initDb.js` içinde `CREATE TABLE IF NOT EXISTS` ve kademeli `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` ile tanımlanır. Sunucu her açılışta şemayı eksiksiz hâle getirir, bu da deploy'u tek adıma indirir.
-- **Yetkilendirme sunucu tarafındadır.** Arayüzdeki route guard'ları yalnızca gezinmeyi düzenler; asıl kontrol `backend/middleware/yetki.js` içindedir ve API'ye bağlıdır. Hassas alanlar (kâr, alış fiyatı, müşteri bilgisi) yetkisi olmayan kullanıcının yanıtından sunucuda temizlenir — gizleme arayüzde değil, veri katmanındadır.
-- **Veritabanına dayanıklı başlangıç.** Backend, veritabanı henüz hazır değilken de ayağa kalkar (`/api/health` yanıt verir) ve bağlantıyı artan gecikmelerle yeniden dener. Bu, Railway'in soğuk başlatma senaryolarına karşı dayanıklılık sağlar.
-- **Para ve stok işlemleri transaction içindedir.** Çok adımlı yazma işlemleri (iş emri + parçalar + stok düşümü) tek transaction'da yürür; fiş numarası üretimi advisory lock ile serileştirilir.
+Vitrindeki motor ilanı stoktaki kayda `stok_motor_id` ile bağlıdır. Bu yüzden site her zaman
+stokla aynı durumu gösterir.
+
+```mermaid
+flowchart LR
+    stok["<b>Motor stoğa girer</b><br/>alış · masraf · ilan fiyatı<br/>isteğe bağlı yatırımcı"]
+    ilan["<b>Vitrin ilanı</b><br/>panelde stoktan seçilir<br/>stok_motor_id ile bağlanır"]
+    yayin{{"Sitede yayında"}}
+    satis["<b>Hızlı satış</b><br/>durum = tamamlandi<br/>kâr − yatırımcı payı"]
+    kalkar["<b>İlan yayından kalkar</b><br/>yayinda = false"]
+
+    stok --> ilan --> yayin
+    stok -. "ilan fiyatı değişti → ilan fiyatı güncellenir" .-> yayin
+    stok --> satis
+    satis == "aynı istekte, otomatik" ==> kalkar
+
+    classDef s fill:#438dd5,stroke:#2e6295,color:#fff
+    classDef live fill:#2e7d32,stroke:#1b5e20,color:#fff
+    classDef end_ fill:#c62828,stroke:#8e0000,color:#fff
+    class stok,ilan,satis s
+    class yayin live
+    class kalkar end_
+```
+
+### Tasarım kararları
+
+- **Şema kod içinde yönetilir.** ORM yoktur. Tablolar ve migration'lar `config/initDb.js` içinde `CREATE TABLE IF NOT EXISTS` ve kademeli `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` ile tanımlanır. Sunucu her açılışta şemayı eksiksiz hâle getirir, bu da deploy'u tek adıma indirir.
+- **Yetkilendirme sunucu tarafındadır.** Arayüzdeki route guard'lar yalnızca gezinmeyi düzenler; asıl kontrol `backend/middleware/yetki.js` içindedir ve API'ye bağlıdır. Hassas alanlar (kâr, alış fiyatı, müşteri bilgisi) yetkisi olmayan kullanıcının yanıtından sunucuda temizlenir. Gizleme arayüzde değil, veri katmanında yapılır.
+- **Okuma serbest, yazma yetkili.** Stok gibi birçok ekranın aradığı uçlarda GET istekleri açıktır, POST/PUT/PATCH/DELETE ise modül yetkisine bağlıdır (`yazmaYetkisi`).
+- **Veritabanına dayanıklı başlangıç.** Backend veritabanı henüz hazır değilken de ayağa kalkar (`/api/health` yanıt verir) ve bağlantıyı artan gecikmelerle yeniden dener. Bu, Railway'deki soğuk başlatma senaryolarına karşı dayanıklılık sağlar.
+- **Para ve stok işlemleri transaction içindedir.** Çok adımlı yazma işlemleri (iş emri + parçalar + stok düşümü) tek transaction'da yürür. Fiş numarası üretimi advisory lock ile serileştirilir.
+- **Denetim izi.** Giriş/çıkış ve başarısız giriş denemeleri (IP ile), kayıt/onay işlemleri, iş emri ve motor satışının oluşturma/güncelleme/silme adımları, aksesuar ve e-ticaret satışları, işlemi yapan kullanıcıyla birlikte `aktivite_log` tablosuna yazılır.
 
 ## Kurulum
 
@@ -183,7 +362,7 @@ cp frontend/.env.example frontend/.env
 | `DATABASE_URL` | Tek parça bağlantı adresi (verilirse `DB_*` yerine kullanılır) |
 | `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | Ayrı ayrı bağlantı bilgileri |
 | `JWT_SECRET` | JWT imzalama anahtarı |
-| `FRONTEND_URL` | CORS için izin verilen origin (production'da gereklidir) |
+| `FRONTEND_URL` | Ek CORS origin'i. Frontend backend tarafından servis edildiğinde gerekmez; yalnızca farklı bir alan adından istek atılacaksa tanımlanır. `development` modunda tüm origin'lere izin verilir |
 | `ADMIN_INITIAL_PASSWORD` | Yalnızca ilk kurulumda: boş veritabanında `admin` hesabının şifresi |
 
 `JWT_SECRET` üretmek için:
@@ -235,7 +414,9 @@ KaynarMotorCRM/
 │       ├── pages/               # 23 sayfa
 │       ├── services/api.js      # Axios katmanı ve oturum yönetimi
 │       └── App.jsx              # Route tanımları ve guard'lar
-└── docs/screenshots/            # Ekran görüntüleri
+└── docs/
+    ├── demo/                    # Uçtan uca demo kayıtları (GIF)
+    └── screenshots/             # Ekran görüntüleri
 ```
 
 ## Roller ve Yetkilendirme
