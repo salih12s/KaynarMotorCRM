@@ -482,6 +482,16 @@ const initializeDatabase = async () => {
     // Migration: hasar kaydı (ilan özelliği) — motor stok taslağı ve vitrin ilanı
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS vitrin_hasar TEXT;`);
     await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS hasar_kaydi TEXT;`);
+    // Migration: "Site Fiyatı" (vitrin_fiyat) ile "Liste Fiyatı" tek "İlan Fiyatı"na (liste_fiyati) indirildi.
+    //  - Liste fiyatı boş olup site fiyatı girilmiş motorlarda site fiyatı ilan fiyatına taşınır, sonra alan boşaltılır.
+    await client.query(`
+      UPDATE ikinci_el_motorlar SET liste_fiyati = vitrin_fiyat
+      WHERE vitrin_fiyat > 0 AND COALESCE(liste_fiyati, 0) = 0;
+    `);
+    await client.query(`UPDATE ikinci_el_motorlar SET vitrin_fiyat = NULL WHERE vitrin_fiyat IS NOT NULL;`);
+    // Migration: motor ilanı sıfır mı ikinci el mi (sitede ayrı listelenir)
+    await client.query(`ALTER TABLE vitrin_urunleri ADD COLUMN IF NOT EXISTS motor_durumu VARCHAR(20) DEFAULT 'ikinci_el';`);
+    await client.query(`UPDATE vitrin_urunleri SET motor_durumu = 'ikinci_el' WHERE motor_durumu IS NULL;`);
 
     // 17. Yedek Parça Stok (aksesuar stok ile aynı mantık; barkodlar 9 ile başlar)
     await client.query(`

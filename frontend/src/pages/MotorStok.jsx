@@ -46,7 +46,7 @@ const MotorStok = () => {
     durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0],
     fatura_kesildi: false,
     yatirimci: false, yatirimci_id: '', yatirimci_kar_orani: '',
-    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_fiyat: '', vitrin_hasar: ''
+    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_hasar: ''
   });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
@@ -94,7 +94,7 @@ const MotorStok = () => {
       aciklama: motor.aciklama || '', tarih: motor.tarih ? new Date(motor.tarih).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       fatura_kesildi: motor.fatura_kesildi || false,
       yatirimci: !!motor.yatirimci_id, yatirimci_id: motor.yatirimci_id || '', yatirimci_kar_orani: motor.yatirimci_kar_orani || '',
-      vitrin_baslik: motor.vitrin_baslik || '', vitrin_aciklama: motor.vitrin_aciklama || '', vitrin_segment: motor.vitrin_segment || '', vitrin_cc: motor.vitrin_cc || '', vitrin_fiyat: motor.vitrin_fiyat || '', vitrin_hasar: motor.vitrin_hasar || ''
+      vitrin_baslik: motor.vitrin_baslik || '', vitrin_aciklama: motor.vitrin_aciklama || '', vitrin_segment: motor.vitrin_segment || '', vitrin_cc: motor.vitrin_cc || '', vitrin_hasar: motor.vitrin_hasar || ''
     } : {
       plaka: '', marka: '', model: '', yil: '', km: '',
       alis_fiyati: '', noter_alis: '', masraflar: '', liste_fiyati: '',
@@ -102,7 +102,7 @@ const MotorStok = () => {
       durum: 'stokta', stok_tipi: 'sahip', aciklama: '', tarih: new Date().toISOString().split('T')[0],
       fatura_kesildi: false,
       yatirimci: false, yatirimci_id: '', yatirimci_kar_orani: '',
-    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_fiyat: '', vitrin_hasar: ''
+    vitrin_baslik: '', vitrin_aciklama: '', vitrin_segment: '', vitrin_cc: '', vitrin_hasar: ''
     });
     setDialog({ open: true, data: motor });
   };
@@ -282,7 +282,7 @@ const MotorStok = () => {
                 <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
                   {canAlis && <Typography variant="body2">Alım: <strong>₺{parseFloat(m.alis_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>}
                   {canAlis && <Typography variant="body2">Noter: <strong>₺{parseFloat(m.noter_alis || 0).toLocaleString('tr-TR')}</strong></Typography>}
-                  {canListe && <Typography variant="body2" sx={{ color: '#1565C0' }}>Liste: <strong>₺{parseFloat(m.liste_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>}
+                  {canListe && <Typography variant="body2" sx={{ color: '#1565C0' }}>İlan: <strong>₺{parseFloat(m.liste_fiyati || 0).toLocaleString('tr-TR')}</strong></Typography>}
                   {isYatirimciSahip && m.durum === 'tamamlandi' && <Typography variant="body2" sx={{ color: '#2e7d32' }}>Kârım: <strong>₺{parseFloat(m.yatirimci_kar || 0).toLocaleString('tr-TR')}</strong></Typography>}
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }} onClick={e => e.stopPropagation()}>
@@ -303,7 +303,7 @@ const MotorStok = () => {
             <TableRow sx={{ bgcolor: '#C62828' }}>
               {[
                 'Plaka', 'Marka', 'Model', 'Yıl', 'KM',
-                ...(canListe ? ['Liste Fiyatı'] : []),
+                ...(canListe ? ['İlan Fiyatı'] : []),
                 ...(canAlis ? ['Alım'] : []),
                 ...(canAlis ? ['Alış Bedeli'] : []),
                 ...(canMusteri ? ['İsim Soyisim'] : []),
@@ -403,7 +403,7 @@ const MotorStok = () => {
             {canAlis && <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Alım (₺)" type="number" value={f.alis_fiyati} onChange={e => setFormData({ ...f, alis_fiyati: e.target.value })} /></Grid>}
             {canAlis && <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Alış Bedeli / Noter (₺)" type="number" value={f.noter_alis} onChange={e => setFormData({ ...f, noter_alis: e.target.value })} /></Grid>}
             <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Masraflar (₺)" type="number" value={f.masraflar} onChange={e => setFormData({ ...f, masraflar: e.target.value })} helperText="Stokta girilen masraf satışta otomatik gelir" /></Grid>
-            {canListe && <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="Liste Fiyatı (₺)" type="number" value={f.liste_fiyati} onChange={e => setFormData({ ...f, liste_fiyati: e.target.value })} sx={{ '& .MuiInputBase-root': { bgcolor: '#e3f2fd' } }} /></Grid>}
+            {canListe && <Grid size={{ xs: 12, md: 3 }}><TextField fullWidth label="İlan Fiyatı (₺)" helperText="Sitede de bu fiyat gösterilir" type="number" value={f.liste_fiyati} onChange={e => setFormData({ ...f, liste_fiyati: e.target.value })} sx={{ '& .MuiInputBase-root': { bgcolor: '#e3f2fd' } }} /></Grid>}
           </Grid>
 
           {isAdmin && (
@@ -450,8 +450,7 @@ const MotorStok = () => {
                 Vitrin / Site Bilgileri <Typography component="span" variant="caption" color="text.secondary">(opsiyonel — bu motoru vitrine alırken otomatik dolar)</Typography>
               </Typography>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, md: 8 }}><TextField fullWidth label="Vitrin Başlığı" value={f.vitrin_baslik} onChange={e => setFormData({ ...f, vitrin_baslik: e.target.value })} placeholder="Örn: 2.El Satılık Temiz, Bakımlı" /></Grid>
-                <Grid size={{ xs: 12, md: 4 }}><TextField fullWidth label="Site Fiyatı (₺)" type="number" value={f.vitrin_fiyat} onChange={e => setFormData({ ...f, vitrin_fiyat: e.target.value })} /></Grid>
+                <Grid size={{ xs: 12 }}><TextField fullWidth label="Vitrin Başlığı" value={f.vitrin_baslik} onChange={e => setFormData({ ...f, vitrin_baslik: e.target.value })} placeholder="Örn: 2.El Satılık Temiz, Bakımlı" /></Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Autocomplete freeSolo options={SEGMENTLER} value={f.vitrin_segment || null}
                     onChange={(e, val) => setFormData({ ...f, vitrin_segment: val || '' })}
@@ -631,7 +630,7 @@ const StokDetayModal = ({ open, data, onClose, printRef, isMobile, perms = {} })
               <InfoRow label="Stok Tipi" value={data.stok_tipi === 'konsinye' ? 'Konsinye' : 'Sahip'} />
               <InfoRow label="Alım Tarihi" value={formatDate(data.tarih)} />
               {data.yevmiye_no && <InfoRow label="Yevmiye No" value={data.yevmiye_no} />}
-              {canListe && <InfoRow label="Liste Fiyatı" value={`₺${formatTL(data.liste_fiyati)}`} />}
+              {canListe && <InfoRow label="İlan Fiyatı" value={`₺${formatTL(data.liste_fiyati)}`} />}
             </Grid>
             {canMusteri && (
             <Grid size={{ xs: 12, md: 6 }}>

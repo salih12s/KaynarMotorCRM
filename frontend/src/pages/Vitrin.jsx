@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Tabs, Tab, Button, Typography, Grid, Card, CardMedia, CardContent, CardActions,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton,
-  Switch, FormControlLabel, Chip, Paper, Stack, Snackbar, Alert, CircularProgress, Autocomplete
+  Switch, FormControlLabel, Chip, Paper, Stack, Snackbar, Alert, CircularProgress, Autocomplete,
+  ToggleButton, ToggleButtonGroup
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon,
@@ -22,6 +23,12 @@ export const KATEGORILER = [
   { key: 'bakim_servis', label: 'Bakım / Servis' },
   { key: 'nakliye', label: 'Nakliye / Yol Kurtarma' },
   { key: 'sigorta', label: 'Araç Sigortası' },
+];
+
+// Motor ilanı durumu — sitede müşteri önce Sıfır / İkinci El seçer, sadece o tür listelenir
+export const MOTOR_DURUMLARI = [
+  { key: 'sifir', label: 'Sıfır' },
+  { key: 'ikinci_el', label: 'İkinci El' },
 ];
 
 export const SEGMENTLER = ['Chopper', 'Scooter', 'Racing', 'Naked', 'Touring', 'Cross/Enduro', 'Cub', 'Maxi Scooter'];
@@ -53,7 +60,7 @@ const resizeImage = (file, maxSize = 1280, quality = 0.7) =>
 
 const bosUrun = {
   baslik: '', aciklama: '', fiyat: '', video_url: '',
-  marka: '', model: '', yil: '', segment: '', motor_cc: '', km: '', hasar_kaydi: '',
+  marka: '', model: '', yil: '', segment: '', motor_cc: '', km: '', hasar_kaydi: '', motor_durumu: 'ikinci_el',
   yayinda: true, siralama: 0, one_cikan: false, stok_motor_id: null, rubik_link: '',
 };
 
@@ -185,8 +192,8 @@ const Vitrin = () => {
       model: motor.model || f.model,
       yil: motor.yil || f.yil,
       km: motor.km || f.km,
-      // Stokta girilen vitrin taslağı varsa onu kullan; yoksa liste/satış fiyatı
-      fiyat: motor.vitrin_fiyat || motor.liste_fiyati || motor.satis_fiyati || f.fiyat,
+      // Stoktaki ilan fiyatı sitede de aynen kullanılır
+      fiyat: motor.liste_fiyati || motor.satis_fiyati || f.fiyat,
       baslik: motor.vitrin_baslik || f.baslik || [motor.marka, motor.model, motor.yil].filter(Boolean).join(' '),
       aciklama: motor.vitrin_aciklama || f.aciklama,
       segment: motor.vitrin_segment || f.segment,
@@ -211,7 +218,7 @@ const Vitrin = () => {
         baslik: d.baslik || '', aciklama: d.aciklama || '', fiyat: d.fiyat || '',
         video_url: d.video_url || '', marka: d.marka || '', model: d.model || '',
         yil: d.yil || '', segment: d.segment || '', motor_cc: d.motor_cc || '',
-        km: d.km || '', hasar_kaydi: d.hasar_kaydi || '', yayinda: d.yayinda, siralama: d.siralama || 0,
+        km: d.km || '', hasar_kaydi: d.hasar_kaydi || '', motor_durumu: d.motor_durumu || 'ikinci_el', yayinda: d.yayinda, siralama: d.siralama || 0,
         one_cikan: !!d.one_cikan, stok_motor_id: d.stok_motor_id || null, rubik_link: d.rubik_link || '',
       });
       // mevcut görselleri data URL olarak getir (endpoint'ten)
@@ -560,6 +567,9 @@ const Vitrin = () => {
                   )}
                   <Box sx={{ display: 'flex', alignContent: 'flex-start', gap: 0.5, mb: 0.5, mt: 0.3, minHeight: 52, flexWrap: 'wrap' }}>
                     {!u.yayinda && <Chip size="small" label="Yayında değil" color="default" />}
+                    {isMotor && (u.motor_durumu === 'sifir'
+                      ? <Chip size="small" label="Sıfır" color="primary" />
+                      : <Chip size="small" label="İkinci El" variant="outlined" />)}
                     {u.one_cikan ? <Chip size="small" label="★ Öne Çıkan" color="warning" /> : null}
                     {u.stok_motor_id ? <Chip size="small" label="Stok bağlı" color="success" variant="outlined" /> : null}
                     {u.segment && <Chip size="small" label={u.segment} color="error" variant="outlined" />}
@@ -640,7 +650,19 @@ const Vitrin = () => {
 
             {isMotor && (
               <>
-                {/* Stoktan motor seç — temel bilgiler otomatik gelsin */}
+                {/* Sıfır / İkinci El — sitede ilan seçilen sayfada listelenir */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 0.75 }}>Motor Durumu</Typography>
+                  <ToggleButtonGroup exclusive fullWidth color="error" value={form.motor_durumu}
+                    onChange={(e, val) => {
+                      if (!val) return;
+                      setForm(f => ({ ...f, motor_durumu: val }));
+                    }}>
+                    {MOTOR_DURUMLARI.map(d => <ToggleButton key={d.key} value={d.key} sx={{ fontWeight: 700 }}>{d.label}</ToggleButton>)}
+                  </ToggleButtonGroup>
+                  <Typography variant="caption" color="text.secondary">Sitede müşteri "{form.motor_durumu === 'sifir' ? 'Sıfır' : 'İkinci El'}" seçtiğinde bu ilan listelenir.</Typography>
+                </Box>
+                {/* Stoktan motor seç — temel bilgiler otomatik gelsin (sıfır ve ikinci el) */}
                 <Autocomplete
                   options={stokMotorlar}
                   getOptionLabel={(m) => `${m.plaka || '—'} • ${[m.marka, m.model, m.yil].filter(Boolean).join(' ')}`.trim()}
@@ -649,7 +671,7 @@ const Vitrin = () => {
                   onChange={(e, val) => secStokMotor(val)}
                   renderInput={(params) => (
                     <TextField {...params} label="Stoktan Motor Seç (opsiyonel)"
-                      helperText="Seçersen marka, model, yıl, km ve liste fiyatı stoktan otomatik gelir; sen sadece site bilgilerini düzenlersin." />
+                      helperText="Seçersen marka, model, yıl, km ve ilan fiyatı stoktan otomatik gelir; sen sadece site bilgilerini düzenlersin." />
                   )}
                 />
                 {form.stok_motor_id && (
@@ -657,7 +679,8 @@ const Vitrin = () => {
                     onDelete={() => setForm(f => ({ ...f, stok_motor_id: null }))} sx={{ alignSelf: 'flex-start' }} />
                 )}
                 <Stack direction="row" spacing={2}>
-                  <TextField label="Marka" value={form.marka} onChange={e => setForm({ ...form, marka: e.target.value })} fullWidth />
+                  <TextField label="Marka" value={form.marka} onChange={e => setForm({ ...form, marka: e.target.value })} fullWidth
+                    helperText="Sitede marka filtresinde görünür" />
                   <TextField label="Model" value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} fullWidth />
                 </Stack>
                 <Stack direction="row" spacing={2}>

@@ -157,7 +157,7 @@ const YatirimciRapor = ({ isMobile }) => {
               <Typography variant="body2" color="text.secondary">{m.yil || '-'} • {formatDate(m.tarih)}</Typography>
               <Box sx={{ display: 'flex', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
                 <Typography variant="body2">Alış: <strong>{formatTL(m.alis_fiyati)} ₺</strong></Typography>
-                <Typography variant="body2">Liste: <strong>{formatTL(m.liste_fiyati)} ₺</strong></Typography>
+                <Typography variant="body2">İlan: <strong>{formatTL(m.liste_fiyati)} ₺</strong></Typography>
               </Box>
             </Paper>
           ))}
@@ -166,7 +166,7 @@ const YatirimciRapor = ({ isMobile }) => {
         <TableContainer component={Paper} sx={{ mb: 3, overflowX: 'auto' }}>
           <Table size="small">
             <TableHead><TableRow sx={{ bgcolor: '#C62828' }}>
-              {['Tarih', 'Plaka', 'Marka/Model', 'Yıl', 'Alış', 'Liste Fiyatı'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
+              {['Tarih', 'Plaka', 'Marka/Model', 'Yıl', 'Alış', 'İlan Fiyatı'].map(h => <TableCell key={h} sx={headerSx}>{h}</TableCell>)}
             </TableRow></TableHead>
             <TableBody>
               {stoktakiler.map((m, i) => (

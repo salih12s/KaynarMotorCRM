@@ -147,7 +147,7 @@ router.post('/', async (req, res) => {
       yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi,
       komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
       yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati, odeme_detaylari,
-      vitrin_baslik, vitrin_aciklama, vitrin_segment, vitrin_cc, vitrin_fiyat, vitrin_hasar
+      vitrin_baslik, vitrin_aciklama, vitrin_segment, vitrin_cc, vitrin_hasar
     } = req.body;
 
     const alis = emptyToZero(alis_fiyati);
@@ -171,14 +171,14 @@ router.post('/', async (req, res) => {
         yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, satis_tarihi,
         komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
         yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati, odeme_detaylari,
-        vitrin_baslik, vitrin_aciklama, vitrin_segment, vitrin_cc, vitrin_fiyat, vitrin_hasar)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41) RETURNING *`,
+        vitrin_baslik, vitrin_aciklama, vitrin_segment, vitrin_cc, vitrin_hasar)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40) RETURNING *`,
       [tarih || new Date(), plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        alici_adi, alici_tc, alici_telefon, alici_adres, odeme_sekli || 'nakit', aciklama, durum || 'stokta', tamamlamaTarihi, stok_tipi || 'sahip',
        emptyToZero(yil) || null, satici_adi || null, satici_tc || null, emptyToZero(kalan_odeme), fatura_kesildi || false, yevmiye_no || null, satis_tarihi || null,
        komisyoncu_adi || null, komisyoncu_telefon || null, komisyonTutar,
        yatirimciId, yatirimciOran, yatirimciKar, listeFiyati, odemeDetay,
-       vitrin_baslik || null, vitrin_aciklama || null, vitrin_segment || null, emptyToZero(vitrin_cc) || null, emptyToZero(vitrin_fiyat) || null, vitrin_hasar || null]
+       vitrin_baslik || null, vitrin_aciklama || null, vitrin_segment || null, emptyToZero(vitrin_cc) || null, vitrin_hasar || null]
     );
 
     // Müşteri auto-collect
@@ -229,7 +229,7 @@ router.put('/:id', async (req, res) => {
       yil, satici_adi, satici_tc, kalan_odeme, fatura_kesildi, yevmiye_no, eski_kayit, satis_tarihi,
       komisyoncu_adi, komisyoncu_telefon, komisyoncu_tutari,
       yatirimci_id, yatirimci_kar_orani, yatirimci_kar, liste_fiyati, odeme_detaylari,
-      vitrin_baslik, vitrin_aciklama, vitrin_segment, vitrin_cc, vitrin_fiyat, vitrin_hasar
+      vitrin_baslik, vitrin_aciklama, vitrin_segment, vitrin_cc, vitrin_hasar
     } = req.body;
     // Ödeme dağılımı body'de yoksa mevcut değeri koru (kısmi güncellemeyi bozma)
     const odemeDetay = odeme_detaylari !== undefined ? normalizeOdeme(odeme_detaylari) : (mevcut.odeme_detaylari || null);
@@ -275,7 +275,7 @@ router.put('/:id', async (req, res) => {
         komisyoncu_adi=$30, komisyoncu_telefon=$31, komisyoncu_tutari=$32,
         yatirimci_id=$33, yatirimci_kar_orani=$34, yatirimci_kar=$35, liste_fiyati=$36,
         odeme_detaylari=$37,
-        vitrin_baslik=$38, vitrin_aciklama=$39, vitrin_segment=$40, vitrin_cc=$41, vitrin_fiyat=$42, vitrin_hasar=$43,
+        vitrin_baslik=$38, vitrin_aciklama=$39, vitrin_segment=$40, vitrin_cc=$41, vitrin_hasar=$42,
         updated_at=CURRENT_TIMESTAMP WHERE id=$27 RETURNING *`,
       [tarih, plaka, marka, model, emptyToZero(km), alis, satis, nAlis, nSatis, masraf, kar,
        aliciAdi, aliciTc, aliciTel, aliciAdres, odeme_sekli, aciklama, durum,
@@ -288,7 +288,6 @@ router.put('/:id', async (req, res) => {
        vitrin_aciklama !== undefined ? (vitrin_aciklama || null) : mevcut.vitrin_aciklama,
        vitrin_segment !== undefined ? (vitrin_segment || null) : mevcut.vitrin_segment,
        vitrin_cc !== undefined ? (emptyToZero(vitrin_cc) || null) : mevcut.vitrin_cc,
-       vitrin_fiyat !== undefined ? (emptyToZero(vitrin_fiyat) || null) : mevcut.vitrin_fiyat,
        vitrin_hasar !== undefined ? (vitrin_hasar || null) : mevcut.vitrin_hasar]
     );
 
@@ -297,6 +296,13 @@ router.put('/:id', async (req, res) => {
       try {
         await pool.query('UPDATE vitrin_urunleri SET yayinda = FALSE, updated_at = CURRENT_TIMESTAMP WHERE stok_motor_id = $1', [req.params.id]);
       } catch (e) { console.error('Vitrin ilanı yayından kaldırma hatası:', e.message); }
+    }
+
+    // İlan fiyatı değiştiyse bağlı site ilanının fiyatını da güncelle (ilan fiyatı = site fiyatı)
+    if (canListe && listeFiyati > 0 && listeFiyati !== parseFloat(mevcut.liste_fiyati || 0)) {
+      try {
+        await pool.query('UPDATE vitrin_urunleri SET fiyat = $1, updated_at = CURRENT_TIMESTAMP WHERE stok_motor_id = $2', [listeFiyati, req.params.id]);
+      } catch (e) { console.error('Vitrin ilan fiyatı güncelleme hatası:', e.message); }
     }
 
     // Müşteri auto-collect

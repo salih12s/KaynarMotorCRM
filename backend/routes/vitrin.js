@@ -3,6 +3,9 @@ const { pool } = require('../config/db');
 
 // Geçerli kategoriler
 const KATEGORILER = ['motor', 'aksesuar', 'yedek_parca', 'bakim_servis', 'nakliye', 'sigorta'];
+// Motor ilanı durumu: sitede "Sıfır" ve "İkinci El" ayrı listelenir
+const MOTOR_DURUMLARI = ['sifir', 'ikinci_el'];
+const motorDurumu = (kategori, v) => (kategori === 'motor' ? (MOTOR_DURUMLARI.includes(v) ? v : 'ikinci_el') : null);
 
 const emptyToNull = (v) => (v === '' || v === undefined ? null : v);
 const numOrNull = (v) => {
@@ -176,10 +179,10 @@ module.exports = (authenticateToken, isAdmin) => {
   // GET / - yayında olan ürünler (metadata + kapak_gorsel_id; base64 YOK)
   router.get('/', async (req, res) => {
     try {
-      const { kategori, segment, cc_min, cc_max, km_max, marka, q, hepsi } = req.query;
+      const { kategori, segment, cc_min, cc_max, km_max, marka, q, hepsi, durum } = req.query;
       let query = `
         SELECT id, ilan_no, kategori, baslik, aciklama, fiyat, video_url, video_dosya_id, kapak_gorsel_id,
-               marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, created_at
+               marka, model, yil, segment, motor_cc, km, motor_durumu, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, created_at
         FROM vitrin_urunleri WHERE 1=1`;
       const params = [];
 
@@ -188,7 +191,9 @@ module.exports = (authenticateToken, isAdmin) => {
 
       if (kategori && KATEGORILER.includes(kategori)) { params.push(kategori); query += ` AND kategori = $${params.length}`; }
       if (segment) { params.push(segment); query += ` AND segment = $${params.length}`; }
-      if (marka) { params.push(`%${marka}%`); query += ` AND marka ILIKE $${params.length}`; }
+      if (durum && MOTOR_DURUMLARI.includes(durum)) { params.push(durum); query += ` AND motor_durumu = $${params.length}`; }
+      // Marka: sitede markalar listeden seçilir → birebir (büyük/küçük harf ve boşluk duyarsız) eşleşme
+      if (marka) { params.push(String(marka).trim()); query += ` AND UPPER(TRIM(marka)) = UPPER($${params.length})`; }
       if (cc_min) { params.push(Number(cc_min)); query += ` AND motor_cc >= $${params.length}`; }
       if (cc_max) { params.push(Number(cc_max)); query += ` AND motor_cc <= $${params.length}`; }
       if (km_max) { params.push(Number(km_max)); query += ` AND km <= $${params.length}`; }
@@ -205,12 +210,30 @@ module.exports = (authenticateToken, isAdmin) => {
     }
   });
 
+  // GET /markalar?durum=sifir|ikinci_el - yayındaki motor ilanlarının markaları (site marka filtresi)
+  router.get('/markalar', async (req, res) => {
+    try {
+      const { durum } = req.query;
+      const params = [];
+      let query = `SELECT MIN(TRIM(marka)) AS marka, COUNT(*)::int AS adet
+                   FROM vitrin_urunleri
+                   WHERE kategori = 'motor' AND yayinda = TRUE AND COALESCE(TRIM(marka), '') <> ''`;
+      if (durum && MOTOR_DURUMLARI.includes(durum)) { params.push(durum); query += ` AND motor_durumu = $1`; }
+      query += ' GROUP BY UPPER(TRIM(marka)) ORDER BY 1 ASC';
+      const result = await pool.query(query, params);
+      res.json(result.rows);
+    } catch (e) {
+      console.error('Vitrin marka listesi hatası:', e.message);
+      res.status(500).json({ message: 'Sunucu hatası' });
+    }
+  });
+
   // GET /:id - tek ürün + görsel id listesi
   router.get('/:id', async (req, res) => {
     try {
       const result = await pool.query(
         `SELECT id, ilan_no, kategori, baslik, aciklama, fiyat, video_url, video_dosya_id, kapak_gorsel_id,
-                marka, model, yil, segment, motor_cc, km, hasar_kaydi, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, created_at
+                marka, model, yil, segment, motor_cc, km, motor_durumu, hasar_kaydi, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, created_at
          FROM vitrin_urunleri WHERE id = $1`, [req.params.id]);
       if (result.rows.length === 0) return res.status(404).json({ message: 'Kayıt bulunamadı' });
       const gorseller = await pool.query(
@@ -351,7 +374,7 @@ module.exports = (authenticateToken, isAdmin) => {
       const {
         kategori, baslik, aciklama, fiyat, video_url,
         marka, model, yil, segment, motor_cc, km, yayinda, siralama, gorseller, video,
-        one_cikan, stok_motor_id, rubik_link, hasar_kaydi
+        one_cikan, stok_motor_id, rubik_link, hasar_kaydi, motor_durumu
       } = req.body;
 
       if (!KATEGORILER.includes(kategori)) return res.status(400).json({ message: 'Geçersiz kategori' });
@@ -363,12 +386,12 @@ module.exports = (authenticateToken, isAdmin) => {
       await client.query('BEGIN');
       const ins = await client.query(
         `INSERT INTO vitrin_urunleri
-          (kategori, baslik, aciklama, fiyat, video_url, marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, hasar_kaydi)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id, ilan_no`,
+          (kategori, baslik, aciklama, fiyat, video_url, marka, model, yil, segment, motor_cc, km, yayinda, siralama, one_cikan, stok_motor_id, rubik_link, hasar_kaydi, motor_durumu)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id, ilan_no`,
         [kategori, baslik, emptyToNull(aciklama), numOrNull(fiyat) || 0, emptyToNull(video_url),
          emptyToNull(marka), emptyToNull(model), numOrNull(yil), emptyToNull(segment),
          numOrNull(motor_cc), numOrNull(km), yayinda !== false, numOrNull(siralama) || 0,
-         one_cikan === true, numOrNull(stok_motor_id), emptyToNull(rubik_link), emptyToNull(hasar_kaydi)]
+         one_cikan === true, numOrNull(stok_motor_id), emptyToNull(rubik_link), emptyToNull(hasar_kaydi), motorDurumu(kategori, motor_durumu)]
       );
       const urunId = ins.rows[0].id;
       const ilanNo = ins.rows[0].ilan_no;
@@ -406,7 +429,7 @@ module.exports = (authenticateToken, isAdmin) => {
       const {
         kategori, baslik, aciklama, fiyat, video_url,
         marka, model, yil, segment, motor_cc, km, yayinda, siralama, gorseller, video, video_sil,
-        one_cikan, stok_motor_id, rubik_link, hasar_kaydi
+        one_cikan, stok_motor_id, rubik_link, hasar_kaydi, motor_durumu
       } = req.body;
 
       const mevcut = await client.query('SELECT id, kategori FROM vitrin_urunleri WHERE id = $1', [req.params.id]);
@@ -423,12 +446,12 @@ module.exports = (authenticateToken, isAdmin) => {
         `UPDATE vitrin_urunleri SET
           kategori=$1, baslik=$2, aciklama=$3, fiyat=$4, video_url=$5,
           marka=$6, model=$7, yil=$8, segment=$9, motor_cc=$10, km=$11,
-          yayinda=$12, siralama=$13, one_cikan=$14, stok_motor_id=$15, rubik_link=$16, hasar_kaydi=$18, updated_at=CURRENT_TIMESTAMP
+          yayinda=$12, siralama=$13, one_cikan=$14, stok_motor_id=$15, rubik_link=$16, hasar_kaydi=$18, motor_durumu=$19, updated_at=CURRENT_TIMESTAMP
          WHERE id=$17`,
         [kategori, baslik, emptyToNull(aciklama), numOrNull(fiyat) || 0, emptyToNull(video_url),
          emptyToNull(marka), emptyToNull(model), numOrNull(yil), emptyToNull(segment),
          numOrNull(motor_cc), numOrNull(km), yayinda !== false, numOrNull(siralama) || 0,
-         one_cikan === true, numOrNull(stok_motor_id), emptyToNull(rubik_link), req.params.id, emptyToNull(hasar_kaydi)]
+         one_cikan === true, numOrNull(stok_motor_id), emptyToNull(rubik_link), req.params.id, emptyToNull(hasar_kaydi), motorDurumu(kategori, motor_durumu)]
       );
 
       // gorseller alanı gönderildiyse görselleri tamamen yenile

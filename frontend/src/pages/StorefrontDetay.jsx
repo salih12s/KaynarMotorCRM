@@ -73,12 +73,13 @@ const StorefrontDetay = () => {
   // İlan özellikleri (sahibinden tarzı liste) — görselin yanında gösterilir
   const ozellikler = useMemo(() => (detay ? [
     detay.ilan_no != null && { label: 'İlan No', value: `ILN-${String(detay.ilan_no).padStart(4, '0')}` },
+    detay.kategori === 'motor' && { label: 'Durum', value: detay.motor_durumu === 'sifir' ? 'Sıfır' : 'İkinci El' },
     detay.segment && { label: 'Tip', value: detay.segment },
     detay.marka && { label: 'Marka', value: detay.marka },
     detay.model && { label: 'Model', value: detay.model },
     detay.yil && { label: 'Yıl', value: String(detay.yil) },
     detay.motor_cc && { label: 'Motor Hacmi', value: `${detay.motor_cc} cc` },
-    (detay.km !== null && detay.km !== undefined && detay.km !== '') && { label: 'KM', value: `${Number(detay.km).toLocaleString('tr-TR')} km` },
+    detay.motor_durumu !== 'sifir' && (detay.km !== null && detay.km !== undefined && detay.km !== '') && { label: 'KM', value: `${Number(detay.km).toLocaleString('tr-TR')} km` },
     detay.hasar_kaydi && { label: 'Hasar Kaydı', value: detay.hasar_kaydi },
   ].filter(Boolean) : []), [detay]);
   const aktifGorselYuklendi = yuklenenGorsel === aktifGorsel;

@@ -189,6 +189,7 @@ export const vitrinService = {
   getById: (id) => api.get(`/vitrin/${id}`),
   getIletisim: () => api.get('/vitrin/iletisim'),
   getSegmentler: () => api.get('/vitrin/segmentler'),
+  getMarkalar: (durum) => api.get('/vitrin/markalar', { params: durum ? { durum } : {} }),
   addSegment: (ad) => api.post('/vitrin/segmentler', { ad }),
   create: (data) => api.post('/vitrin', data),
   update: (id, data) => api.put(`/vitrin/${id}`, data),
