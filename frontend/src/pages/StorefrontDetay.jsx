@@ -180,13 +180,11 @@ const StorefrontDetay = () => {
             <Box sx={{
               display: 'grid', alignItems: 'start', gap: { xs: 2, md: 4 },
               gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) 400px' },
-              gridTemplateAreas: {
-                xs: '"galeri" "panel" "aciklama" "ozellikler"',
-                md: '"galeri panel" "aciklama ozellikler"',
-              },
             }}>
+              {/* Her sütun kendi yüksekliğine göre akar; kısa iletişim kartı özellikleri aşağı itmez. */}
+              <Box sx={{ display: { xs: 'contents', md: 'flex' }, flexDirection: 'column', gap: { md: 4 }, minWidth: 0 }}>
               {/* ---- Görseller ---- */}
-              <Box sx={{ gridArea: 'galeri', minWidth: 0 }}>
+              <Box sx={{ gridRow: { xs: 1, md: 'auto' }, minWidth: 0 }}>
                 <Box onTouchStart={dokunmaBasla} onTouchEnd={dokunmaBitir}
                   sx={{
                     position: 'relative', bgcolor: RENK.asfalt, borderRadius: 3, overflow: 'hidden',
@@ -241,9 +239,18 @@ const StorefrontDetay = () => {
                 )}
               </Box>
 
+              {detay.aciklama && (
+                <Box component="section" sx={{ gridRow: { xs: 3, md: 'auto' }, minWidth: 0 }}>
+                  <Typography component="h2" sx={bolumBasligi}>Açıklama</Typography>
+                  <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, maxWidth: '68ch', fontSize: 16 }}>{detay.aciklama}</Typography>
+                </Box>
+              )}
+              </Box>
+
+              <Box sx={{ display: { xs: 'contents', md: 'flex' }, flexDirection: 'column', gap: { md: 4 }, minWidth: 0 }}>
               {/* ---- Fiyat ve iletişim paneli ---- */}
               <Box sx={{
-                gridArea: 'panel',
+                gridRow: { xs: 2, md: 'auto' },
                 bgcolor: RENK.yuzey, border: `1px solid ${RENK.cizgi}`, borderRadius: 3, p: { xs: 2, md: 3 },
               }}>
                 {motor && (
@@ -302,16 +309,9 @@ const StorefrontDetay = () => {
                 </Box>
               </Box>
 
-              {/* ---- Alt sıra: açıklama fotoğrafın, özellikler iletişim kartının altında ---- */}
-              {detay.aciklama && (
-                <Box component="section" sx={{ gridArea: 'aciklama', minWidth: 0, pt: { md: 1 } }}>
-                  <Typography component="h2" sx={bolumBasligi}>Açıklama</Typography>
-                  <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, maxWidth: '68ch', fontSize: 16 }}>{detay.aciklama}</Typography>
-                </Box>
-              )}
-
+              {/* ---- Özellikler iletişim kartının hemen altında ---- */}
               {ozellikler.length > 0 && (
-                <Box component="section" sx={{ gridArea: 'ozellikler', minWidth: 0, pt: { md: 1 } }}>
+                <Box component="section" sx={{ gridRow: { xs: 4, md: 'auto' }, minWidth: 0 }}>
                   <Typography component="h2" sx={bolumBasligi}>Özellikler</Typography>
                   <Box component="dl" sx={{ m: 0, display: 'grid', gridTemplateColumns: '1fr', borderTop: `1px solid ${RENK.cizgi}` }}>
                     {ozellikler.map((o) => (
@@ -323,6 +323,7 @@ const StorefrontDetay = () => {
                   </Box>
                 </Box>
               )}
+              </Box>
             </Box>
 
             {(detay.video_dosya_id || video) && (
