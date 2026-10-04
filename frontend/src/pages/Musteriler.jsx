@@ -4,7 +4,12 @@ import {
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert,
   InputAdornment, Grid, Chip, Divider, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon } from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import ViewIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
 import { musteriService } from '../services/api';
 
 const Musteriler = () => {

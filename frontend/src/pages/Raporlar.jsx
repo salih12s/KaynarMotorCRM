@@ -4,7 +4,7 @@ import {
   TableContainer, TableHead, TableRow, Tabs, Tab, CircularProgress, Alert, Chip,
   MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, useTheme, useMediaQuery
 } from '@mui/material';
-import { Visibility as ViewIcon } from '@mui/icons-material';
+import ViewIcon from '@mui/icons-material/Visibility';
 import { raporService, aksesuarStokService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 

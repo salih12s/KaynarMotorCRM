@@ -341,3 +341,8 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+
+// Kâr hesabı, örnek veri script'i (scripts/seedLocal.js) tarafından da kullanılır;
+// böylece örnek satışlardaki kâr, uygulamanın hesapladığıyla birebir aynı olur.
+module.exports.hesaplaKomisyon = hesaplaKomisyon;
+module.exports.detectPlatform = detectPlatform;

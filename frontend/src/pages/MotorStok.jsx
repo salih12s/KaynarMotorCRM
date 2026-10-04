@@ -3,10 +3,18 @@ import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Divider, MenuItem, Tooltip, Autocomplete, Checkbox, FormControlLabel, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon, ShoppingCart as SellIcon } from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import ViewIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
+import PrintIcon from '@mui/icons-material/Print';
+import SellIcon from '@mui/icons-material/ShoppingCart';
 import { useReactToPrint } from 'react-to-print';
 import { ikinciElMotorService, musteriService, authService } from '../services/api';
 import { SEGMENTLER } from './Vitrin';
+import { BekleyenBelgeler, bekleyenBelgeleriYukle } from '../components/SatisBelgeleri';
 import { useAuth } from '../context/AuthContext';
 
 // Ödeme dağılımı JSON'unu güvenle diziye çevirir
@@ -53,6 +61,9 @@ const MotorStok = () => {
   const [activeFilter, setActiveFilter] = useState(null);
   const [secondaryFilter, setSecondaryFilter] = useState(null);
   const [hizliSatis, setHizliSatis] = useState({ open: false, motor: null });
+  // Satış diyaloğunda seçilen, satış tamamlanınca yüklenecek belgeler (sözleşme vb.)
+  const [bekleyenBelgeler, setBekleyenBelgeler] = useState([]);
+  const [satisKaydediliyor, setSatisKaydediliyor] = useState(false);
   const [hizliForm, setHizliForm] = useState({
     satis_fiyati: '', noter_satis: '', masraflar: '',
     alici_adi: '', alici_tc: '', alici_telefon: '', alici_adres: '',
@@ -135,6 +146,7 @@ const MotorStok = () => {
       yatirimci_kar: motor.yatirimci_kar || ''
     });
     setOdemeKalemleri(parseOdeme(motor.odeme_detaylari));
+    setBekleyenBelgeler([]);
     setHizliSatis({ open: true, motor });
   };
 
@@ -147,17 +159,26 @@ const MotorStok = () => {
     const satis = parseFloat(hizliForm.satis_fiyati || 0);
     // Ödeme kalemi girildiyse kalanı otomatik hesapla; girilmediyse eski davranış (0)
     const kalan = dolular.length > 0 ? Math.max(0, satis - dolular.reduce((s, o) => s + parseFloat(o.tutar || 0), 0)) : 0;
+    setSatisKaydediliyor(true);
     try {
-      await ikinciElMotorService.update(hizliSatis.motor.id, {
+      const motorId = hizliSatis.motor.id;
+      await ikinciElMotorService.update(motorId, {
         ...hizliSatis.motor,
         ...hizliForm,
         durum: 'tamamlandi',
         kalan_odeme: kalan,
         odeme_detaylari: JSON.stringify(dolular)
       });
+      // Satış tamamlandı; seçilen belgeler şimdi bu satışa yüklenir
+      const belgeHatalari = bekleyenBelgeler.length ? await bekleyenBelgeleriYukle(motorId, bekleyenBelgeler) : [];
       setHizliSatis({ open: false, motor: null });
+      setBekleyenBelgeler([]);
       loadData();
+      if (belgeHatalari.length) {
+        alert(`Satış kaydedildi ancak şu belgeler yüklenemedi:\n${belgeHatalari.join('\n')}\n\nMotor Satış sayfasında satışın detayından tekrar ekleyebilirsiniz.`);
+      }
     } catch (err) { alert(err.response?.data?.message || 'Hata'); }
+    setSatisKaydediliyor(false);
   };
 
   const f = formData;
@@ -579,10 +600,15 @@ const MotorStok = () => {
               </Box>
             );
           })()}
+
+          {/* Satış sözleşmesi vb. belgeler: burada seçilir, satış tamamlanınca yüklenir */}
+          <BekleyenBelgeler dosyalar={bekleyenBelgeler} setDosyalar={setBekleyenBelgeler} disabled={satisKaydediliyor} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setHizliSatis({ open: false, motor: null })}>İptal</Button>
-          <Button variant="contained" onClick={handleHizliSatis} sx={{ bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}>Satışı Tamamla</Button>
+          <Button onClick={() => setHizliSatis({ open: false, motor: null })} disabled={satisKaydediliyor}>İptal</Button>
+          <Button variant="contained" onClick={handleHizliSatis} disabled={satisKaydediliyor} sx={{ bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}>
+            {satisKaydediliyor ? 'Kaydediliyor…' : 'Satışı Tamamla'}
+          </Button>
         </DialogActions>
       </Dialog>
 

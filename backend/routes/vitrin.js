@@ -86,7 +86,7 @@ module.exports = (authenticateToken, isAdmin) => {
   router.get('/iletisim', async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT kategori, personel_adi, telefon, aciklama, baslik,
+        `SELECT kategori, personel_adi, telefon, personel_adi_2, telefon_2, aciklama, baslik,
                 (gorsel IS NOT NULL) AS gorsel_var, updated_at
          FROM vitrin_kategori_iletisim`
       );
@@ -294,11 +294,19 @@ module.exports = (authenticateToken, isAdmin) => {
     if (typeof yayinda !== 'boolean') return res.status(400).json({ message: 'Yayın durumu geçersiz' });
 
     try {
+      // Arşivden yayına alınan ilan eski sırasını değil, yayındaki listenin sonunu alır
+      // (eski sıra numarası artık başka ilanlarla çakışıyor olabilir).
       const result = await pool.query(
-        `UPDATE vitrin_urunleri
-         SET yayinda = $1, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2
-         RETURNING id, yayinda`,
+        `UPDATE vitrin_urunleri AS v
+         SET yayinda = $1::boolean,
+             siralama = CASE
+               WHEN $1::boolean AND NOT COALESCE(v.yayinda, FALSE) THEN (
+                 SELECT COALESCE(MAX(s.siralama), -1) + 1 FROM vitrin_urunleri s
+                 WHERE s.kategori = v.kategori AND s.yayinda = TRUE AND s.id <> v.id)
+               ELSE v.siralama END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE v.id = $2
+         RETURNING v.id, v.yayinda`,
         [yayinda, id]
       );
       if (result.rows.length === 0) return res.status(404).json({ message: 'Kayıt bulunamadı' });
@@ -322,7 +330,7 @@ module.exports = (authenticateToken, isAdmin) => {
     try {
       await client.query('BEGIN');
       const urun = await client.query(
-        'SELECT id, kategori FROM vitrin_urunleri WHERE id = $1',
+        'SELECT id, kategori, COALESCE(yayinda, FALSE) AS yayinda FROM vitrin_urunleri WHERE id = $1',
         [id]
       );
       if (urun.rows.length === 0) {
@@ -330,13 +338,15 @@ module.exports = (authenticateToken, isAdmin) => {
         return res.status(404).json({ message: 'Kayıt bulunamadı' });
       }
 
+      // Sıra, ilanın bulunduğu grup içinde hesaplanır: yayındakiler kendi arasında,
+      // arşivdekiler kendi arasında (yönetim ekranı yayındaki listeyi 1..N numaralar).
       const kategori = urun.rows[0].kategori;
       const liste = await client.query(
         `SELECT id FROM vitrin_urunleri
-         WHERE kategori = $1
+         WHERE kategori = $1 AND COALESCE(yayinda, FALSE) = $2
          ORDER BY siralama ASC, one_cikan DESC, created_at DESC, id DESC
          FOR UPDATE`,
-        [kategori]
+        [kategori, urun.rows[0].yayinda]
       );
       const ids = liste.rows.map(row => Number(row.id));
       const mevcutIndex = ids.indexOf(id);
@@ -519,14 +529,16 @@ module.exports = (authenticateToken, isAdmin) => {
       const { kategori } = req.params;
       if (!KATEGORILER.includes(kategori)) return res.status(400).json({ message: 'Geçersiz kategori' });
       if (!kategoriYetkiliMi(req.user, kategori)) return res.status(403).json({ message: 'Bu kategori için vitrin yetkiniz yok' });
-      const { personel_adi, telefon, aciklama, baslik, gorsel, gorsel_sil } = req.body;
+      const { personel_adi, telefon, personel_adi_2, telefon_2, aciklama, baslik, gorsel, gorsel_sil } = req.body;
       await pool.query(
-        `INSERT INTO vitrin_kategori_iletisim (kategori, personel_adi, telefon, aciklama, baslik, updated_at)
-         VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)
+        `INSERT INTO vitrin_kategori_iletisim (kategori, personel_adi, telefon, aciklama, baslik, personel_adi_2, telefon_2, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,CURRENT_TIMESTAMP)
          ON CONFLICT (kategori) DO UPDATE SET
            personel_adi=EXCLUDED.personel_adi, telefon=EXCLUDED.telefon,
+           personel_adi_2=EXCLUDED.personel_adi_2, telefon_2=EXCLUDED.telefon_2,
            aciklama=EXCLUDED.aciklama, baslik=EXCLUDED.baslik, updated_at=CURRENT_TIMESTAMP`,
-        [kategori, emptyToNull(personel_adi), emptyToNull(telefon), emptyToNull(aciklama), emptyToNull(baslik)]
+        [kategori, emptyToNull(personel_adi), emptyToNull(telefon), emptyToNull(aciklama), emptyToNull(baslik),
+         emptyToNull(personel_adi_2), emptyToNull(telefon_2)]
       );
       // Görsel: yeni geldiyse değiştir, gorsel_sil işaretliyse kaldır, yoksa dokunma
       if (typeof gorsel === 'string' && gorsel) {

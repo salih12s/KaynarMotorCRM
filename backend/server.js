@@ -8,7 +8,7 @@ const path = require('path');
 const { initializeDatabase } = require('./config/initDb');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5100;
 
 // Railway tek bir ters vekil sunucunun arkasında çalışır. Bu ayar olmadan req.ip
 // vekilin adresini gösterir; hız sınırlama ve aktivite logu yanlış IP kaydeder.
@@ -18,7 +18,9 @@ app.set('trust proxy', 1);
 // CORS
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3100',
   'http://localhost:5000',
+  'http://localhost:5100',
   'https://web-production-ac0ed.up.railway.app',
   'https://kaynarmotor.com.tr',
   'https://www.kaynarmotor.com.tr',
@@ -80,6 +82,7 @@ const isEmriRoutes = require('./routes/isEmirleri');
 const aksesuarRoutes = require('./routes/aksesuarlar');
 const aksesuarStokRoutes = require('./routes/aksesuarStok');
 const ikinciElMotorRoutes = require('./routes/ikinciElMotor');
+const satisBelgeRoutes = require('./routes/satisBelgeleri');
 const eticaretRoutes = require('./routes/eticaret');
 const yedekParcaRoutes = require('./routes/yedekParcalar');
 const yedekParcaStokRoutes = require('./routes/yedekParcaStok');
@@ -100,6 +103,8 @@ app.use('/api/is-emirleri', authenticateToken, modulYetkisi('servis_yetkisi'), i
 app.use('/api/aksesuarlar', authenticateToken, modulYetkisi('aksesuar_yetkisi'), aksesuarRoutes);
 app.use('/api/aksesuar-stok', authenticateToken, yazmaYetkisi('aksesuar_stok_yetkisi'), aksesuarStokRoutes);
 app.use('/api/ikinci-el-motor', authenticateToken, motorYazmaYetkisi, ikinciElMotorRoutes);
+// Satış belgeleri (sözleşme vb.): yetki kontrolü route dosyasında; yükleme gövdesi ham ikili (express.raw)
+app.use('/api/satis-belgeleri', authenticateToken, satisBelgeRoutes);
 app.use('/api/eticaret', authenticateToken, modulYetkisi('eticaret_yetkisi'), eticaretRoutes);
 app.use('/api/yedek-parcalar', authenticateToken, modulYetkisi('yedek_parca_yetkisi'), yedekParcaRoutes);
 app.use('/api/yedek-parca-stok', authenticateToken, yazmaYetkisi('yedek_parca_yetkisi'), yedekParcaStokRoutes);

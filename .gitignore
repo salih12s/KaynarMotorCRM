@@ -20,3 +20,7 @@ set-production-env.bat
 
 # Ic inceleme notlari (yayinlanmaz)
 GUVENLIK-BULGULARI.md
+ekran-goruntuleri/
+
+# Ornek veri (npm run seed) fotograflari - npm run seed:gorseller ile indirilir
+backend/scripts/seed-gorseller/

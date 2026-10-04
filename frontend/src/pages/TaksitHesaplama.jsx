@@ -4,7 +4,10 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
   useTheme, useMediaQuery
 } from '@mui/material';
-import { Calculate as CalculateIcon, Clear as ClearIcon, Share as ShareIcon, WhatsApp as WhatsAppIcon } from '@mui/icons-material';
+import CalculateIcon from '@mui/icons-material/Calculate';
+import ClearIcon from '@mui/icons-material/Clear';
+import ShareIcon from '@mui/icons-material/Share';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
 // Taksit oranları (nakit fiyat / oran = taksitli toplam)
 export const ORANLAR = [

@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Grid, Chip, IconButton, Button, Divider, useMediaQuery, useTheme
 } from '@mui/material';
-import { ArrowBack as BackIcon, Print as PrintIcon } from '@mui/icons-material';
+import BackIcon from '@mui/icons-material/ArrowBack';
+import PrintIcon from '@mui/icons-material/Print';
 import { useReactToPrint } from 'react-to-print';
 import { ikinciElMotorService } from '../services/api';
 

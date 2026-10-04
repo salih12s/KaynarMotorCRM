@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, AppBar, Toolbar, Typography, Paper, Chip, Divider, CircularProgress } from '@mui/material';
-import { TwoWheeler as MotoIcon, Build as BuildIcon } from '@mui/icons-material';
+import MotoIcon from '@mui/icons-material/TwoWheeler';
+import BuildIcon from '@mui/icons-material/Build';
 import { servisGecmisiService } from '../services/api';
 
 const RED = '#C62828';

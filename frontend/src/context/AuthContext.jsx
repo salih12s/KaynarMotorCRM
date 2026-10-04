@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
       if (savedToken) {
         try {
           const response = await fetch(
-            `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/verify`,
+            `${process.env.REACT_APP_API_URL || 'http://localhost:5100/api'}/auth/verify`,
             { headers: { Authorization: `Bearer ${savedToken}` } }
           );
           if (response.ok) {

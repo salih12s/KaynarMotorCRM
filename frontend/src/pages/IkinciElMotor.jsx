@@ -3,10 +3,18 @@ import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert, Grid, Chip, InputAdornment, Divider, MenuItem, Checkbox, FormControlLabel, Autocomplete, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon, Visibility as ViewIcon, Close as CloseIcon, Print as PrintIcon, FileDownload as FileDownloadIcon } from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import ViewIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
+import PrintIcon from '@mui/icons-material/Print';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { useReactToPrint } from 'react-to-print';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ikinciElMotorService, musteriService, authService } from '../services/api';
+import { BelgeBolumu, BekleyenBelgeler, bekleyenBelgeleriYukle } from '../components/SatisBelgeleri';
 import { useAuth } from '../context/AuthContext';
 
 const IkinciElMotor = () => {
@@ -34,6 +42,9 @@ const IkinciElMotor = () => {
     yatirimci_id: '', yatirimci_kar: '', yatirimci_adi: ''
   });
   const [error, setError] = useState('');
+  // Yeni satışta seçilen, kayıt sonrası yüklenecek belgeler
+  const [bekleyenBelgeler, setBekleyenBelgeler] = useState([]);
+  const [kaydediliyor, setKaydediliyor] = useState(false);
   const [stats, setStats] = useState({});
   const [stokMotorlar, setStokMotorlar] = useState([]);
   const [selectedStokId, setSelectedStokId] = useState(null);
@@ -77,6 +88,7 @@ const IkinciElMotor = () => {
   const openDialog = (motor = null) => {
     setError('');
     setSelectedStokId(null);
+    setBekleyenBelgeler([]);
     setFormData(motor ? {
       plaka: motor.plaka || '', marka: motor.marka || '', model: motor.model || '',
       km: motor.km || '', yil: motor.yil || '',
@@ -111,21 +123,33 @@ const IkinciElMotor = () => {
 
   const handleSave = async () => {
     setError('');
+    setKaydediliyor(true);
     try {
       const payload = { ...formData, kalan_odeme: formData.odeme_tamamlandi ? 0 : (formData.kalan_odeme || 0) };
       delete payload.odeme_tamamlandi;
+      let motorId;
       if (dialog.data) {
         await ikinciElMotorService.update(dialog.data.id, payload);
+        motorId = dialog.data.id;
       } else if (selectedStokId) {
         // Stoktan seçilen motor - güncelle ve eski_kayit kaldır
         await ikinciElMotorService.update(selectedStokId, { ...payload, eski_kayit: false });
+        motorId = selectedStokId;
       } else {
-        await ikinciElMotorService.create(payload);
+        const res = await ikinciElMotorService.create(payload);
+        motorId = res.data.id;
       }
+      // Satış kaydedildi; diyalogda seçilen belgeler şimdi bu satışa yüklenir
+      const belgeHatalari = bekleyenBelgeler.length ? await bekleyenBelgeleriYukle(motorId, bekleyenBelgeler) : [];
       setDialog({ open: false, data: null });
       setSelectedStokId(null);
+      setBekleyenBelgeler([]);
       loadData();
+      if (belgeHatalari.length) {
+        alert(`Satış kaydedildi ancak şu belgeler yüklenemedi:\n${belgeHatalari.join('\n')}\n\nSatışın detayından tekrar ekleyebilirsiniz.`);
+      }
     } catch (err) { setError(err.response?.data?.message || 'Hata oluştu'); }
+    setKaydediliyor(false);
   };
 
   const handleDelete = async (id) => {
@@ -504,10 +528,17 @@ const IkinciElMotor = () => {
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12 }}><TextField fullWidth label="Açıklama" value={f.aciklama} onChange={e => setFormData({ ...f, aciklama: e.target.value })} multiline rows={2} /></Grid>
           </Grid>
+
+          {/* Belgeler: kayıtlı satışta anında yüklenir; yeni satışta seçilir, kaydedince yüklenir */}
+          {dialog.data
+            ? <BelgeBolumu key={dialog.data.id} motorId={dialog.data.id} />
+            : <BekleyenBelgeler dosyalar={bekleyenBelgeler} setDosyalar={setBekleyenBelgeler} disabled={kaydediliyor} />}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialog({ open: false, data: null })}>İptal</Button>
-          <Button variant="contained" onClick={handleSave}>{dialog.data ? 'Güncelle' : 'Kaydet'}</Button>
+          <Button onClick={() => setDialog({ open: false, data: null })} disabled={kaydediliyor}>İptal</Button>
+          <Button variant="contained" onClick={handleSave} disabled={kaydediliyor}>
+            {kaydediliyor ? 'Kaydediliyor…' : dialog.data ? 'Güncelle' : 'Kaydet'}
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -658,6 +689,8 @@ const MotorDetayModal = ({ open, data, onClose, printRef, isMobile, canAlis, can
             </>
           )}
         </Box>
+        {/* Belgeler yazdırma alanının (printRef) dışında: çıktıya girmez */}
+        <BelgeBolumu key={data.id} motorId={data.id} />
       </DialogContent>
     </Dialog>
   );

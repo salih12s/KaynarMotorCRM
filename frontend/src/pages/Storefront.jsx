@@ -1,34 +1,41 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Box, AppBar, Toolbar, Button, Typography, Grid, Card, CardMedia,
-  CardActionArea, Chip, TextField, Stack, Dialog, DialogContent,
-  IconButton, Divider, CircularProgress, useMediaQuery, useTheme, InputAdornment,
+  Box, AppBar, Toolbar, Button, ButtonBase, Typography, TextField, Stack, Dialog, DialogContent,
+  IconButton, Divider, useMediaQuery, useTheme, InputAdornment,
   List, ListItem, ListItemButton, ListItemText, ListItemIcon, Paper, Fade, Drawer, Collapse
 } from '@mui/material';
-import {
-  Login as LoginIcon, Close as CloseIcon, Phone as PhoneIcon, Search as SearchIcon,
-  ArrowBackIosNew as PrevIcon, ArrowForwardIos as NextIcon, Menu as MenuIcon,
-  TwoWheeler as TwoWheelerIcon, Checkroom as CheckroomIcon, Build as BuildIcon,
-  Handyman as HandymanIcon, LocalShipping as LocalShippingIcon, VerifiedUser as VerifiedUserIcon,
-  ArrowForward as ArrowForwardIcon, Home as HomeIcon,
-  Calculate as CalculateIcon, CreditCard as CreditCardIcon,
-  WhatsApp as WhatsAppIcon, PlayCircleOutline as PlayCircleOutlineIcon,
-  NewReleases as NewReleasesIcon, Autorenew as AutorenewIcon, FilterList as FilterListIcon
-} from '@mui/icons-material';
+import LoginIcon from '@mui/icons-material/Login';
+import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
+import MenuIcon from '@mui/icons-material/Menu';
+import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
+import CheckroomIcon from '@mui/icons-material/Checkroom';
+import BuildIcon from '@mui/icons-material/Build';
+import HandymanIcon from '@mui/icons-material/Handyman';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import HomeIcon from '@mui/icons-material/Home';
+import CalculateIcon from '@mui/icons-material/Calculate';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import { vitrinService } from '../services/api';
-import { KATEGORILER, SEGMENTLER, HIZMET_KATEGORILER, MOTOR_DURUMLARI } from './Vitrin';
+import { KATEGORILER, SEGMENTLER, HIZMET_KATEGORILER, MOTOR_DURUMLARI, ilanAramaUygunMu } from './Vitrin';
 import { hesaplaTaksit, TaksitTablo, ParaInput, paraToNumber, fmtTL } from './TaksitHesaplama';
+import {
+  VitrinTema, VitrinAcikTema, RENK, YAZI, ODAK, IlanKarti, IlanIskelet, ilanIzgarasi, iletisimKisileri, KisiDugmeleri, KisiSessiz
+} from '../components/VitrinOrtak';
 
 const RED = '#C62828';
 
-// Her kategori için giriş ekranında gösterilecek ikon
-// Motor Satışı'na girince gösterilen Sıfır / İkinci El seçim kartları
-const MOTOR_DURUM_KART = {
-  sifir: { icon: <NewReleasesIcon sx={{ fontSize: 44 }} />, aciklama: 'Kutusundan yeni, garantili motorlar' },
-  ikinci_el: { icon: <AutorenewIcon sx={{ fontSize: 44 }} />, aciklama: 'Kontrolden geçmiş, bakımlı ikinci el motorlar' },
+// Motor Satışı'na girince gösterilen Sıfır / İkinci El seçim kartlarının açıklamaları
+const MOTOR_DURUM_BASLIK = { sifir: 'Sıfır motorlar', ikinci_el: 'İkinci el motorlar' };
+const MOTOR_DURUM_ACIKLAMA = {
+  sifir: 'Kutusundan yeni, garantili motorlar.',
+  ikinci_el: 'Kontrolden geçmiş, bakımlı ikinci el motorlar.',
 };
 
+// Her kategori için giriş ekranında ve mobil menüde gösterilecek ikon
 const KATEGORI_ICON = {
   motor: <TwoWheelerIcon sx={{ fontSize: 30 }} />,
   aksesuar: <CheckroomIcon sx={{ fontSize: 30 }} />,
@@ -38,34 +45,32 @@ const KATEGORI_ICON = {
   sigorta: <VerifiedUserIcon sx={{ fontSize: 30 }} />,
 };
 
-// Video linkini nasıl göstereceğimizi belirler: { tip: 'embed'|'file'|'link', src }
-const videoKaynak = (url) => {
-  if (!url) return null;
-  const u = url.trim();
-  // YouTube (normal + shorts)
-  const yt = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
-  if (yt) return { tip: 'embed', src: `https://www.youtube.com/embed/${yt[1]}` };
-  // Vimeo
-  const vm = u.match(/vimeo\.com\/(\d+)/);
-  if (vm) return { tip: 'embed', src: `https://player.vimeo.com/video/${vm[1]}` };
-  // Doğrudan video dosyası linki
-  if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)) return { tip: 'file', src: u };
-  // Instagram / TikTok / diğer — sayfada gömülemez, buton ile yeni sekmede aç
-  return { tip: 'link', src: u };
-};
+// Filtre grubunu kısa bir başlık ve yan yana seçeneklerle göster
+const FiltreSatiri = ({ baslik, children, sx = {} }) => (
+  <Box role="group" aria-label={baslik} sx={{
+    display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 1.25, rowGap: 0.75, minWidth: 0, ...sx,
+  }}>
+    <Typography sx={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: 'text.secondary', flexShrink: 0 }}>{baslik}</Typography>
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5, minWidth: 0 }}>{children}</Box>
+  </Box>
+);
 
-// WhatsApp linki üret (TR numarası, baştaki 0 -> 90)
-const waLink = (tel) => {
-  let d = String(tel || '').replace(/\D/g, '');
-  if (!d) return null;
-  if (d.startsWith('0')) d = '90' + d.slice(1);
-  else if (!d.startsWith('90') && d.length === 10) d = '90' + d;
-  return `https://wa.me/${d}`;
-};
+// Filtre seçeneği: seçiliyken kırmızı çerçeve ve hafif kırmızı zemin, değilken koyu yüzey
+const Secim = ({ secili, children, ...props }) => (
+  <ButtonBase aria-pressed={secili} {...props}
+    sx={{
+      px: 1.25, py: 0.6, minHeight: 34, borderRadius: 1.25, fontFamily: 'inherit', fontSize: 13.5, fontWeight: 600, lineHeight: 1.2,
+      border: '1px solid', borderColor: secili ? RENK.kirmiziAcik : RENK.cizgi,
+      bgcolor: secili ? 'rgba(255,90,79,0.14)' : RENK.yuzey2, color: RENK.murekkep,
+      '&:hover': { borderColor: secili ? RENK.kirmiziAcik : RENK.ikincil }, ...ODAK,
+    }}>
+    {children}
+  </ButtonBase>
+);
 
 // Ana sayfa header'ından açılan, giriş gerektirmeyen taksit hesaplama penceresi.
 // Müşteri nakit fiyat (ve isteğe bağlı peşinat) girip 3/6/9/12 ay taksit tablosunu görür.
-const TaksitHesaplaDialog = ({ open, onClose, isMobile }) => {
+const TaksitHesaplaDialogIc = ({ open, onClose, isMobile }) => {
   const [nakit, setNakit] = useState('');
   const [pesinat, setPesinat] = useState('');
   const nakitNum = paraToNumber(nakit);
@@ -124,11 +129,16 @@ const TaksitHesaplaDialog = ({ open, onClose, isMobile }) => {
   );
 };
 
+// Pencere açık zeminli hazır bir ekran olduğu için sayfanın koyu temasından ayrı, açık temayla gösterilir
+const TaksitHesaplaDialog = (props) => <VitrinAcikTema><TaksitHesaplaDialogIc {...props} /></VitrinAcikTema>;
+
 const Storefront = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  // Filtre sütunu md altında üste taşınır ve aç/kapa olur
+  const darEkran = useMediaQuery(theme.breakpoints.down('md'));
   const geriDonus = location.state?.storefront;
 
   // Giriş (video) ekranı mı yoksa kategori listesi mi gösteriliyor
@@ -152,10 +162,6 @@ const Storefront = () => {
   const [ccMax, setCcMax] = useState(geriDonus?.ccMax || '');
   const [kmMax, setKmMax] = useState(geriDonus?.kmMax || '');
   const [q, setQ] = useState(geriDonus?.q || '');
-
-  // detay modalı
-  const [detay, setDetay] = useState(null);
-  const [gorselIdx, setGorselIdx] = useState(0);
 
   // mobil menü (hamburger) aç/kapa
   const [mobilMenu, setMobilMenu] = useState(false);
@@ -183,12 +189,15 @@ const Storefront = () => {
         if (ccMax) params.cc_max = ccMax;
         if (kmMax) params.km_max = kmMax;
       }
-      if (q) params.q = q;
+      // İsimle arama (q) sunucuya gitmez: yüklenen liste üzerinde anında, Türkçe karakter farkı gözetmeden süzülür
       const res = await vitrinService.getAll(params);
       setUrunler(res.data);
     } catch { setUrunler([]); }
     setLoading(false);
-  }, [kategori, isMotor, motorDurumu, marka, segment, ccMax, kmMax, q]);
+  }, [kategori, isMotor, motorDurumu, marka, segment, ccMax, kmMax]);
+
+  const gorunenUrunler = useMemo(() => urunler.filter(u => ilanAramaUygunMu(u, q)), [urunler, q]);
+  const aramaVar = q.trim() !== '';
 
   useEffect(() => { loadIletisim(); }, [loadIletisim]);
 
@@ -209,13 +218,31 @@ const Storefront = () => {
     return () => { active = false; };
   }, [isMotor, motorDurumu]);
 
-  // Mobilde filtre paneli aç/kapa; masaüstünde hep açık
+  // Dar ekranda filtre paneli aç/kapa; masaüstünde hep açık
   const [filtreAcik, setFiltreAcik] = useState(false);
-  const aktifFiltreSayisi = [q, marka, segment, ccMax, kmMax].filter(Boolean).length;
-  const filtreleriTemizle = () => { setQ(''); setMarka(''); setSegment(''); setCcMax(''); setKmMax(''); };
+  const aktifFiltreSayisi = [marka, segment, ccMax, kmMax].filter(Boolean).length;
+  const filtreleriTemizle = () => { setMarka(''); setSegment(''); setCcMax(''); setKmMax(''); };
 
   // Sıfır / İkinci El seçilmeden motor listesi gösterilmez
   const durumSecimi = isMotor && !motorDurumu;
+
+  // Seçim ekranındaki iki karo için: o türde kaç ilan var ve arka plana hangi fotoğraf konacak
+  const [durumOzet, setDurumOzet] = useState({});
+  useEffect(() => {
+    if (intro || !durumSecimi) return undefined;
+    let active = true;
+    Promise.all(MOTOR_DURUMLARI.map(d =>
+      vitrinService.getAll({ kategori: 'motor', durum: d.key }).then(res => [d.key, res.data]).catch(() => [d.key, []])
+    )).then(sonuclar => {
+      if (!active) return;
+      const ozet = {};
+      sonuclar.forEach(([key, liste]) => {
+        ozet[key] = { adet: liste.length, kapak: liste.find(u => u.kapak_gorsel_id)?.kapak_gorsel_id || null };
+      });
+      setDurumOzet(ozet);
+    });
+    return () => { active = false; };
+  }, [intro, durumSecimi]);
 
   // filtre değişince (kısa debounce ile) yükle — giriş ekranındayken yükleme yapma
   useEffect(() => {
@@ -249,110 +276,115 @@ const Storefront = () => {
   };
 
   const curIletisim = iletisim[kategori];
-  const detayIletisim = detay ? iletisim[detay.kategori] : null;
-  const videoBilgi = detay ? videoKaynak(detay.video_url) : null;
+  const kisiler = iletisimKisileri(curIletisim);
+  const sayfaBasligi = isMotor ? MOTOR_DURUM_BASLIK[motorDurumu] : KATEGORILER[tab].label;
 
   // ---- GİRİŞ (VIDEO) EKRANI ----
+  // Masaüstünde video tüm ekranı kaplar; videonun kendi logosu ortada olduğu için yazılar üst ve alt kenara dizilir.
+  // Telefonda dikey ekran videoyu kırpacağı (kanatlar kesilir) için video 16:9 olarak kendi bandında gösterilir.
   if (intro) {
     return (
-      <Box sx={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', bgcolor: '#000', display: 'flex', flexDirection: 'column' }}>
-        {/* Arka plan videosu — poster KALDIRILDI: poster (KaynarMotor.jpeg) logonun büyük hâliydi ve
-            video oynayana kadar tüm ekranı kaplıyordu. Artık video yüklenene kadar arkaplan siyah kalır. */}
-        <video
-          autoPlay muted loop playsInline preload="auto"
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0, background: '#000' }}
-        >
-          <source src="/KaynarMotor.mp4" type="video/mp4" />
-        </video>
-        {/* Karartma katmanı */}
-        <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, background: 'linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.1) 22%, rgba(0,0,0,0) 45%)' }} />
-
-        {/* Üst bar: logo + Servise Git */}
-        <Box sx={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: { xs: 2, md: 5 }, py: { xs: 2, md: 3 } }}>
+      <Box sx={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', bgcolor: '#000', color: '#fff', display: 'flex', flexDirection: 'column', fontFamily: YAZI.govde }}>
+        {/* Üst bar: logo + Taksit Hesapla + Servise Git */}
+        <Box sx={{
+          position: { xs: 'relative', md: 'absolute' }, top: 0, left: 0, right: 0, zIndex: 3,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, px: { xs: 2, md: 5 }, py: { xs: 1.5, md: 3 },
+        }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <span className="kmt-logo-wrap" style={{ width: 36, height: 40, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
               <img className="kmt-logo" src="/KaynarMotor.png" alt="Kaynar Motor" width="36" height="40"
                 style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }} />
             </span>
-            <Typography variant="h6" fontWeight="bold" sx={{ color: '#fff', letterSpacing: 1, fontSize: { xs: 16, md: 22 } }}>
+            <Typography sx={{ fontWeight: 700, letterSpacing: 1, fontSize: { xs: 14, md: 22 }, whiteSpace: 'nowrap' }}>
               KAYNAR <span style={{ color: RED }}>MOTOR</span>
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, md: 1.5 } }}>
             <Button variant="outlined" startIcon={!isMobile && <CalculateIcon />} onClick={() => setTaksitOpen(true)}
-              sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.6)', fontSize: { xs: 12, md: 14 }, px: { xs: 1.25, md: 2 },
+              sx={{ whiteSpace: 'nowrap', color: '#fff', borderColor: 'rgba(255,255,255,0.6)', fontSize: { xs: 12, md: 14 }, px: { xs: 1.25, md: 2 },
                 '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' } }}>
               Taksit Hesapla
             </Button>
             <Button variant="contained" color="error" startIcon={!isMobile && <LoginIcon />} onClick={() => navigate('/login')}
-              sx={{ fontSize: { xs: 12, md: 14 }, px: { xs: 1.5, md: 2.5 }, boxShadow: '0 4px 20px rgba(198,40,40,0.5)' }}>
+              sx={{ whiteSpace: 'nowrap', fontSize: { xs: 12, md: 14 }, px: { xs: 1.5, md: 2.5 }, boxShadow: '0 4px 20px rgba(198,40,40,0.5)' }}>
               Servise Git
             </Button>
           </Box>
         </Box>
 
-        <TaksitHesaplaDialog open={taksitOpen} onClose={() => setTaksitOpen(false)} isMobile={isMobile} />
+        {/* Arka plan videosu */}
+        <Box sx={{
+          position: { xs: 'relative', md: 'absolute' }, inset: { md: 0 }, width: '100%', height: { md: '100%' },
+          aspectRatio: { xs: '16 / 9', md: 'auto' }, zIndex: 0, bgcolor: '#000',
+        }}>
+          <video
+            autoPlay muted loop playsInline preload="auto"
+            // Hareketi azaltma tercihi açıksa video oynatılmaz, ilk karede durur
+            ref={(v) => { if (v && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { v.removeAttribute('autoplay'); v.pause(); } }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center bottom', background: '#000' }}
+          >
+            <source src="/KaynarMotorYeniVideo.mp4" type="video/mp4" />
+          </video>
+          {/* Yazıların okunması için üst ve alt kenarda hafif karartma; videonun ortası açık kalır */}
+          <Box sx={{ position: 'absolute', inset: 0, display: { xs: 'none', md: 'block' },
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.18) 24%, rgba(0,0,0,0) 40%, rgba(0,0,0,0) 62%, rgba(0,0,0,0.78) 100%)' }} />
+        </Box>
 
-        {/* Orta içerik — üst kısma yaslı ki videonun altındaki KAYNAR MOTOR yazısı görünebilsin */}
-        <Box sx={{ position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', textAlign: 'center', px: 2, pt: { xs: 3, md: 5 } }}>
+        {/* İçerik: masaüstünde başlık üstte, kategori şeridi altta; telefonda videonun altında alt alta */}
+        <Box sx={{
+          position: 'relative', zIndex: 2, flex: 1, display: 'flex', flexDirection: 'column',
+          justifyContent: { md: 'space-between' }, alignItems: 'center', textAlign: 'center',
+          px: { xs: 2, md: 5 }, pt: { xs: 2.5, md: 12 }, pb: { xs: 2, md: 2.5 },
+        }}>
           <Fade in timeout={800}>
-            <Box sx={{ maxWidth: 1180, width: '100%' }}>
-              <Typography sx={{ color: 'rgba(255,255,255,0.85)', letterSpacing: 3, fontWeight: 600, fontSize: { xs: 12, md: 15 }, mb: 1 }}>
-                KAYNAR MOTOR'A HOŞ GELDİNİZ
+            <Box sx={{ maxWidth: 900, width: '100%' }}>
+              <Typography component="h1" sx={{
+                fontFamily: YAZI.baslik, fontWeight: 700, fontSize: { xs: 34, sm: 44, md: 58 }, lineHeight: 1.02,
+                textShadow: '0 2px 24px rgba(0,0,0,0.7)',
+              }}>
+                İhtiyacınız olan her şey <span style={{ color: RENK.kirmiziAcik }}>tek çatı altında</span>
               </Typography>
-              <Typography variant="h2" sx={{ color: '#fff', fontWeight: 800, fontSize: { xs: 30, sm: 42, md: 56 }, lineHeight: 1.1, mb: 1.5, textShadow: '0 2px 20px rgba(0,0,0,0.6)' }}>
-                İhtiyacınız olan her şey <span style={{ color: RED }}>tek çatı altında</span>
-              </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: { xs: 14, md: 18 }, mb: { xs: 3, md: 5 }, maxWidth: 620, mx: 'auto' }}>
+              <Typography sx={{ color: 'rgba(255,255,255,0.82)', fontSize: { xs: 15, md: 18 }, mt: 1.25, textShadow: '0 1px 12px rgba(0,0,0,0.7)' }}>
                 Aşağıdan bir hizmet seçin, sizi ilgili sayfaya götürelim.
               </Typography>
-
-              {/* Kategori kartları */}
-              <Grid container spacing={1.5} justifyContent="center">
-                {KATEGORILER.map((k, i) => (
-                  <Grid size={{ xs: 6, sm: 4, md: 2 }} key={k.key}>
-                    <Box
-                      onClick={() => enterKategori(i)}
-                      sx={{
-                        cursor: 'pointer', height: '100%',
-                        p: { xs: 1.5, md: 1.75 }, borderRadius: 2.5,
-                        bgcolor: 'rgba(255,255,255,0.08)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.18)',
-                        color: '#fff',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5,
-                        transition: 'all 0.25s ease',
-                        '&:hover': {
-                          bgcolor: 'rgba(198,40,40,0.85)',
-                          transform: 'translateY(-5px)',
-                          borderColor: RED,
-                          boxShadow: '0 10px 24px rgba(198,40,40,0.45)',
-                        },
-                      }}
-                    >
-                      <Box sx={{ color: '#fff' }}>{KATEGORI_ICON[k.key]}</Box>
-                      <Typography sx={{ fontWeight: 700, fontSize: { xs: 13, md: 14 }, textAlign: 'center', lineHeight: 1.2 }}>{k.label}</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, opacity: 0.85, fontSize: 11 }}>
-                        <span>İncele</span><ArrowForwardIcon sx={{ fontSize: 13 }} />
-                      </Box>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
             </Box>
           </Fade>
+
+          <Box sx={{ width: '100%', maxWidth: 1400, mt: { xs: 3, md: 0 } }}>
+            {/* Kategori kartları */}
+            <Box sx={{ display: 'grid', gap: { xs: 1, md: 1.25 }, gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', md: 'repeat(6, minmax(0, 1fr))' } }}>
+              {KATEGORILER.map((k, i) => (
+                <ButtonBase key={k.key} onClick={() => enterKategori(i)}
+                  sx={{
+                    display: 'flex', alignItems: 'center', textAlign: 'left', gap: { xs: 1, md: 1.25 },
+                    minWidth: 0, minHeight: { xs: 72, md: 78 }, p: { xs: 1.25, md: 1.5 }, borderRadius: 2, color: '#fff', fontFamily: 'inherit',
+                    bgcolor: 'rgba(14,14,16,0.66)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.26)', ...ODAK,
+                    transition: 'background-color .2s ease, border-color .2s ease, transform .2s ease',
+                    '&:hover': { bgcolor: 'rgba(34,21,23,0.88)', borderColor: RENK.kirmiziAcik, transform: 'translateY(-2px)' },
+                  }}>
+                  <Box sx={{ width: { xs: 32, md: 36 }, height: { xs: 32, md: 36 }, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: 1.25,
+                    bgcolor: 'rgba(198,40,40,0.22)', color: RENK.kirmiziAcik,
+                    '& .MuiSvgIcon-root': { fontSize: { xs: 20, md: 22 } } }}>
+                    {KATEGORI_ICON[k.key]}
+                  </Box>
+                  <Typography sx={{ flex: 1, minWidth: 0, fontFamily: YAZI.baslik, fontWeight: 700, fontSize: { xs: 17, md: 19 }, lineHeight: 1.05 }}>{k.label}</Typography>
+                  <ArrowForwardIcon sx={{ flexShrink: 0, fontSize: 16, color: 'rgba(255,255,255,0.72)' }} />
+                </ButtonBase>
+              ))}
+            </Box>
+            <Typography variant="caption" sx={{ display: 'block', mt: { xs: 2.5, md: 2 }, color: 'rgba(255,255,255,0.6)' }}>
+              © {new Date().getFullYear()} Kaynar Motor
+            </Typography>
+          </Box>
         </Box>
 
-        {/* Alt iletişim şeridi */}
-        <Box sx={{ position: 'relative', zIndex: 2, textAlign: 'center', pb: 2, color: 'rgba(255,255,255,0.6)' }}>
-          <Typography variant="caption">© {new Date().getFullYear()} Kaynar Motor</Typography>
-        </Box>
+        <TaksitHesaplaDialog open={taksitOpen} onClose={() => setTaksitOpen(false)} isMobile={isMobile} />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: RENK.zemin, color: RENK.murekkep, display: 'flex', flexDirection: 'column', fontFamily: YAZI.govde }}>
       {/* Tek parça siyah header — logo + menüler + Servise Git */}
       <AppBar position="sticky" sx={{ bgcolor: '#1a1a1a', borderRadius: 0 }} elevation={3}>
         <Toolbar sx={{ gap: { xs: 1, md: 2 }, minHeight: { xs: 56, md: 64 }, px: { xs: 1.5, md: 3 } }}>
@@ -447,380 +479,238 @@ const Storefront = () => {
         </List>
       </Drawer>
 
-      {/* Gövde: tek sütun — üstte yatay filtre, altında 4'lü kart ızgarası */}
-      <Box sx={{ flex: 1, width: '100%', maxWidth: 1400, mx: 'auto', p: { xs: 1.5, md: 3 } }}>
-        {isHizmet ? (
-          /* ---- HİZMET SAYFASI: resim + telefon + WhatsApp (ilan yok) ---- */
-          <Box sx={{ maxWidth: 900, mx: 'auto' }}>
-            <Paper sx={{ overflow: 'hidden', borderRadius: 3 }}>
-              {curIletisim?.gorsel_var ? (
-                <Box component="img" src={`${vitrinService.iletisimGorselUrl(kategori)}?t=${curIletisim.updated_at || ''}`}
-                  alt={KATEGORILER[tab].label} loading="lazy"
-                  sx={{ width: '100%', maxHeight: 440, objectFit: 'cover', display: 'block' }} />
-              ) : (
-                <Box sx={{ height: 220, bgcolor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)' }}>
-                  <Typography variant="h6">{KATEGORILER[tab].label}</Typography>
-                </Box>
-              )}
-              <Box sx={{ p: { xs: 2.5, md: 4 }, textAlign: 'center' }}>
-                <Typography variant="h4" fontWeight="bold" gutterBottom>{curIletisim?.baslik || KATEGORILER[tab].label}</Typography>
-                {curIletisim?.aciklama && (
-                  <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap', maxWidth: 620, mx: 'auto', mb: 2 }}>{curIletisim.aciklama}</Typography>
-                )}
-                {curIletisim?.personel_adi && (
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{curIletisim.personel_adi}</Typography>
-                )}
-                {curIletisim?.telefon ? (
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" sx={{ maxWidth: 460, mx: 'auto' }}>
-                    <Button fullWidth size="large" variant="contained" color="error" startIcon={<PhoneIcon />} href={`tel:${curIletisim.telefon}`}>
-                      {curIletisim.telefon}
-                    </Button>
-                    {waLink(curIletisim.telefon) && (
-                      <Button fullWidth size="large" variant="contained" startIcon={<WhatsAppIcon />}
-                        href={waLink(curIletisim.telefon)} target="_blank" rel="noopener noreferrer"
-                        sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#1da851' } }}>
-                        WhatsApp
-                      </Button>
-                    )}
-                  </Stack>
-                ) : (
-                  <Typography color="text.secondary">İletişim bilgisi yakında eklenecek.</Typography>
-                )}
-              </Box>
-            </Paper>
-          </Box>
-        ) : durumSecimi ? (
-          /* ---- MOTOR: önce Sıfır / İkinci El seçimi ---- */
-          <Box sx={{ maxWidth: 900, mx: 'auto', py: { xs: 2, md: 5 } }}>
-            <Typography variant="h4" fontWeight={800} textAlign="center" sx={{ fontSize: { xs: 24, md: 34 } }}>
-              Nasıl bir motor arıyorsunuz?
-            </Typography>
-            <Typography color="text.secondary" textAlign="center" sx={{ mt: 1, mb: { xs: 3, md: 4 } }}>
-              Seçiminize göre sadece o motorları listeleyelim.
-            </Typography>
-            <Grid container spacing={2}>
-              {MOTOR_DURUMLARI.map(d => (
-                <Grid size={{ xs: 12, sm: 6 }} key={d.key}>
-                  <Paper onClick={() => secMotorDurumu(d.key)} role="button" tabIndex={0}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); secMotorDurumu(d.key); } }}
-                    sx={{
-                      cursor: 'pointer', height: '100%', p: { xs: 3, md: 4 }, borderRadius: 3, textAlign: 'center',
-                      bgcolor: '#1a1a1a', color: '#fff', border: '2px solid transparent',
-                      transition: 'all 0.25s ease',
-                      '&:hover, &:focus-visible': { borderColor: RED, transform: 'translateY(-4px)', boxShadow: '0 12px 28px rgba(198,40,40,0.35)', outline: 'none' },
-                    }}>
-                    <Box sx={{ color: RED, mb: 1 }}>{MOTOR_DURUM_KART[d.key].icon}</Box>
-                    <Typography variant="h5" fontWeight={800}>{d.label} Motorlar</Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.5, mb: 2 }}>{MOTOR_DURUM_KART[d.key].aciklama}</Typography>
-                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: '#fff', fontWeight: 700, fontSize: 14 }}>
-                      <span>İlanları Gör</span><ArrowForwardIcon sx={{ fontSize: 16 }} />
-                    </Box>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
-        ) : (
-        <>
-        {/* Kategori iletişim şeridi */}
-        {curIletisim && (curIletisim.personel_adi || curIletisim.telefon) && (
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: 'white', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <PhoneIcon color="error" />
-            <Typography variant="body2">
-              <strong>{KATEGORILER[tab].label}</strong> için iletişim: {curIletisim.personel_adi}
-            </Typography>
-            {curIletisim.telefon && (
-              <Button size="small" variant="contained" color="error" href={`tel:${curIletisim.telefon}`} sx={{ ml: 'auto' }}>
-                {curIletisim.telefon}
-              </Button>
-            )}
-          </Box>
-        )}
-
-        {/* Sol filtre paneli + sağda 3'lü ilan ızgarası (mobilde filtre üstte, aç/kapa) */}
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 1.5, md: 3 }, alignItems: 'flex-start' }}>
-          <Box sx={{ width: { xs: '100%', md: 270 }, flexShrink: 0, position: { md: 'sticky' }, top: { md: 84 } }}>
-            {isMobile && (
-              <Button fullWidth variant="outlined" color="inherit" startIcon={<FilterListIcon />} onClick={() => setFiltreAcik(v => !v)}
-                sx={{ mb: filtreAcik ? 1 : 0, bgcolor: '#fff', borderColor: '#ddd', fontWeight: 700, justifyContent: 'space-between' }}
-                endIcon={aktifFiltreSayisi > 0 ? <Chip size="small" label={aktifFiltreSayisi} sx={{ bgcolor: RED, color: '#fff', height: 20 }} /> : null}>
-                Filtre
-              </Button>
-            )}
-            <Collapse in={!isMobile || filtreAcik} timeout="auto">
-              <Paper sx={{ p: 2, borderRadius: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                  <Typography fontWeight={800} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <FilterListIcon fontSize="small" /> Filtre
-                  </Typography>
-                  {aktifFiltreSayisi > 0 && (
-                    <Button size="small" onClick={filtreleriTemizle} sx={{ color: RED, fontWeight: 700, minWidth: 0, p: 0.25 }}>Temizle</Button>
-                  )}
-                </Box>
-
-                <TextField size="small" fullWidth label="Ara" value={q} onChange={e => setQ(e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }} />
-
-                {isMotor && (
-                  <>
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6, mb: 0.75 }}>Durum</Typography>
-                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                      {MOTOR_DURUMLARI.map(d => (
-                        <Chip key={d.key} label={d.label} clickable onClick={() => secMotorDurumu(d.key)}
-                          sx={{ flex: 1, fontWeight: 700, bgcolor: motorDurumu === d.key ? '#1a1a1a' : '#f0f0f0', color: motorDurumu === d.key ? '#fff' : 'inherit', '&:hover': { bgcolor: motorDurumu === d.key ? '#000' : '#e0e0e0' } }} />
-                      ))}
-                    </Box>
-
-                    {markalar.length > 0 && (
-                      <>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6, mb: 0.75 }}>Marka</Typography>
-                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                          <Chip label="Tümü" clickable onClick={() => setMarka('')}
-                            sx={{ fontWeight: 700, bgcolor: marka === '' ? RED : '#f0f0f0', color: marka === '' ? '#fff' : 'inherit', '&:hover': { bgcolor: marka === '' ? '#b71c1c' : '#e0e0e0' } }} />
-                          {markalar.map(m => (
-                            <Chip key={m} label={m} clickable onClick={() => setMarka(marka === m ? '' : m)}
-                              sx={{ fontWeight: 600, bgcolor: marka === m ? RED : '#f0f0f0', color: marka === m ? '#fff' : 'inherit', '&:hover': { bgcolor: marka === m ? '#b71c1c' : '#e0e0e0' } }} />
-                          ))}
-                        </Box>
-                      </>
-                    )}
-
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="overline" color="text.secondary" sx={{ display: 'block', lineHeight: 1.6, mb: 0.75 }}>Segment</Typography>
-                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                      <Chip label="Tümü" clickable onClick={() => setSegment('')}
-                        sx={{ fontWeight: 700, bgcolor: segment === '' ? RED : '#f0f0f0', color: segment === '' ? '#fff' : 'inherit', '&:hover': { bgcolor: segment === '' ? '#b71c1c' : '#e0e0e0' } }} />
-                      {segmentler.map(s => (
-                        <Chip key={s} label={s} clickable onClick={() => setSegment(segment === s ? '' : s)}
-                          sx={{ fontWeight: 600, bgcolor: segment === s ? RED : '#f0f0f0', color: segment === s ? '#fff' : 'inherit', '&:hover': { bgcolor: segment === s ? '#b71c1c' : '#e0e0e0' } }} />
-                      ))}
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-                    <Stack spacing={1.5}>
-                      <TextField size="small" fullWidth label="Maks. cc" type="number" value={ccMax} onChange={e => setCcMax(e.target.value)} />
-                      {motorDurumu !== 'sifir' && <TextField size="small" fullWidth label="Maks. km" type="number" value={kmMax} onChange={e => setKmMax(e.target.value)} />}
-                    </Stack>
-                  </>
-                )}
-              </Paper>
-            </Collapse>
-          </Box>
-
-          <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-          {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}><CircularProgress color="error" /></Box>
-            ) : urunler.length === 0 ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320, color: 'text.secondary' }}>
-                <Typography variant="h6">{isMotor ? `Şu an ${motorDurumu === 'sifir' ? 'sıfır' : 'ikinci el'} motor ilanı bulunmuyor.` : 'Bu kategoride şu an ilan bulunmuyor.'}</Typography>
-              </Box>
+      {isHizmet ? (
+        /* ---- HİZMET SAYFASI: resim + telefon + WhatsApp (ilan yok) ---- */
+        <Box sx={{ flex: 1, width: '100%', maxWidth: 900, mx: 'auto', p: { xs: 1.5, md: 3 } }}>
+          <Paper elevation={0} sx={{ overflow: 'hidden', borderRadius: 3, border: `1px solid ${RENK.cizgi}` }}>
+            {curIletisim?.gorsel_var ? (
+              <Box component="img" src={`${vitrinService.iletisimGorselUrl(kategori)}?t=${curIletisim.updated_at || ''}`}
+                alt={KATEGORILER[tab].label} loading="lazy"
+                sx={{ width: '100%', maxHeight: 440, objectFit: 'cover', display: 'block' }} />
             ) : (
-              <Fade in timeout={350} key={`${kategori}-${motorDurumu}`}>
-                <Grid container spacing={2}>
-                  {urunler.map(u => (
-                    <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={u.id} sx={{ display: 'flex' }}>
-                      <Card sx={{
-                        width: '100%', borderRadius: 3, overflow: 'hidden', display: 'flex', flexDirection: 'column',
-                        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-                        transition: 'transform 0.25s ease, box-shadow 0.25s ease',
-                        '&:hover': { transform: 'translateY(-6px)', boxShadow: '0 14px 30px rgba(0,0,0,0.18)' },
-                        '&:hover .urun-gorsel': { transform: 'scale(1.07)' },
-                      }}>
-                        {/* Görsel — sabit 4/3 oran (tüm kartlarda aynı yükseklik) */}
-                        <CardActionArea onClick={() => openDetay(u)} sx={{ display: 'block' }}>
-                          <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', bgcolor: '#e8e8e8' }}>
-                            <CardMedia component="img" className="urun-gorsel"
-                              image={u.kapak_gorsel_id ? vitrinService.gorselUrl(u.kapak_gorsel_id) : '/KaynarMotor.png'}
-                              alt={u.baslik} loading="lazy" decoding="async"
-                              sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }} />
-                            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 45%)' }} />
-                            <Box sx={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                              {u.segment && <Chip size="small" label={u.segment} sx={{ bgcolor: RED, color: '#fff', fontWeight: 700, height: 22 }} />}
-                              {u.motor_cc ? <Chip size="small" label={`${u.motor_cc}cc`} sx={{ bgcolor: 'rgba(0,0,0,0.65)', color: '#fff', height: 22 }} /> : null}
-                            </Box>
-                            {u.motor_durumu === 'sifir' ? (
-                              <Chip size="small" label="SIFIR" sx={{ position: 'absolute', bottom: 8, left: 8, bgcolor: '#fff', color: '#1a1a1a', fontWeight: 800, height: 22, fontSize: 11 }} />
-                            ) : null}
-                            {u.one_cikan ? (
-                              <Chip size="small" label="★ ÖNE ÇIKAN" sx={{ position: 'absolute', top: 8, right: 8, bgcolor: '#F9A825', color: '#1a1a1a', fontWeight: 800, height: 22, fontSize: 11 }} />
-                            ) : null}
-                          </Box>
-                        </CardActionArea>
-
-                        {/* İçerik — dikey akış; fiyat + buton kartın dibinde sabit */}
-                        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', flex: 1 }}>
-                          <Box onClick={() => openDetay(u)} sx={{ cursor: 'pointer' }}>
-                            <Typography fontWeight="bold" sx={{ fontSize: 15, lineHeight: 1.3, minHeight: '2.6em', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                              {u.baslik}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', minHeight: '1.3em' }}>
-                              {[u.marka, u.model, u.yil].filter(Boolean).join(' ')}{u.km ? ` • ${Number(u.km).toLocaleString('tr-TR')} km` : ''}
-                            </Typography>
-                          </Box>
-
-                          <Box sx={{ mt: 'auto', pt: 1 }}>
-                            <Box onClick={() => openDetay(u)} sx={{ cursor: 'pointer', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="h6" color="error" fontWeight={800} sx={{ fontSize: 19 }}>
-                                {Number(u.fiyat).toLocaleString('tr-TR')} ₺
-                              </Typography>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, color: RED, fontSize: 12, fontWeight: 600 }}>
-                                <span>Detay</span><ArrowForwardIcon sx={{ fontSize: 14 }} />
-                              </Box>
-                            </Box>
-                            {Number(u.fiyat) > 0 && (
-                              <Button fullWidth size="small" variant="outlined" color="inherit" startIcon={<CalculateIcon />}
-                                onClick={() => window.open(`/taksit/${Math.round(Number(u.fiyat))}`, '_blank')}
-                                sx={{ borderColor: '#bbb', fontWeight: 700 }}>
-                                Nakit / Taksit Hesapla
-                              </Button>
-                            )}
-                          </Box>
-                        </Box>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Fade>
+              <Box sx={{ height: 220, bgcolor: RENK.asfalt, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)' }}>
+                <Typography variant="h6">{KATEGORILER[tab].label}</Typography>
+              </Box>
             )}
+            <Box sx={{ p: { xs: 2.5, md: 4 } }}>
+              <Typography component="h1" sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: { xs: 30, md: 42 }, lineHeight: 1.05 }}>
+                {curIletisim?.baslik || KATEGORILER[tab].label}
+              </Typography>
+              {curIletisim?.aciklama && (
+                <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap', maxWidth: '62ch', mt: 1.5, lineHeight: 1.6 }}>{curIletisim.aciklama}</Typography>
+              )}
+              {kisiler.length > 0 ? (
+                <Stack spacing={2} sx={{ mt: 3 }}>
+                  {kisiler.map(k => (
+                    <Box key={`${k.ad}-${k.tel}`} sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 2, rowGap: 1 }}>
+                      {k.ad && <Typography fontWeight={600} sx={{ minWidth: 140 }}>{k.ad}</Typography>}
+                      <KisiDugmeleri kisi={k} boyut="large" />
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography color="text.secondary" sx={{ mt: 3 }}>İletişim bilgisi yakında eklenecek.</Typography>
+              )}
+            </Box>
+          </Paper>
+        </Box>
+      ) : durumSecimi ? (
+        /* ---- MOTOR: önce Sıfır / İkinci El seçimi ---- */
+        <Box sx={{ flex: 1, width: '100%', maxWidth: 1000, mx: 'auto', px: { xs: 2, md: 3 }, py: { xs: 3, md: 8 } }}>
+          <Typography component="h1" sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: { xs: 34, md: 52 }, lineHeight: 1 }}>
+            Nasıl bir motor arıyorsunuz?
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1, mb: { xs: 3, md: 4 } }}>
+            Seçiminize göre yalnızca o motorları listeleyelim.
+          </Typography>
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
+            {MOTOR_DURUMLARI.map(d => {
+              const ozet = durumOzet[d.key];
+              return (
+                <ButtonBase key={d.key} onClick={() => secMotorDurumu(d.key)}
+                  sx={{
+                    position: 'relative', overflow: 'hidden', display: 'block', textAlign: 'left',
+                    minHeight: { xs: 190, md: 300 }, borderRadius: 3,
+                    bgcolor: RENK.asfalt, color: '#fff', fontFamily: 'inherit', fontSize: 16, ...ODAK,
+                    '@media (prefers-reduced-motion: no-preference)': {
+                      '& .secim-gorsel': { transition: 'transform .6s cubic-bezier(.2,.7,.2,1)' },
+                      '&:hover .secim-gorsel': { transform: 'scale(1.05)' },
+                      '& .secim-ok': { transition: 'transform .2s ease' },
+                      '&:hover .secim-ok': { transform: 'translateX(6px)' },
+                    },
+                  }}>
+                  {/* Arka planda o türden bir ilanın fotoğrafı; yazı okunabilsin diye soldan koyulaştırılır */}
+                  {ozet?.kapak && (
+                    <Box component="img" className="secim-gorsel" src={vitrinService.gorselUrl(ozet.kapak)} alt=""
+                      sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                  )}
+                  <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(20,20,20,.95) 0%, rgba(20,20,20,.78) 50%, rgba(20,20,20,.3) 100%)' }} />
+                  <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', height: '100%', minHeight: 'inherit', p: { xs: 3, md: 4 } }}>
+                    <Typography sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: { xs: 32, md: 44 }, lineHeight: 1 }}>{MOTOR_DURUM_BASLIK[d.key]}</Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.78)', mt: 1, maxWidth: '26ch' }}>{MOTOR_DURUM_ACIKLAMA[d.key]}</Typography>
+                    <Box sx={{ mt: 'auto', pt: 3, display: 'inline-flex', alignItems: 'center', gap: 1, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                      <span>{ozet?.adet ? `${ozet.adet} ilanı gör` : 'İlanları gör'}</span>
+                      <ArrowForwardIcon className="secim-ok" sx={{ fontSize: 20, color: RENK.kirmizi }} />
+                    </Box>
+                  </Box>
+                </ButtonBase>
+              );
+            })}
           </Box>
         </Box>
-        </>
-        )}
-      </Box>
-
-      {/* Detay Modalı */}
-      <Dialog open={!!detay} onClose={() => setDetay(null)} maxWidth="md" fullWidth fullScreen={isMobile}
-        PaperProps={{ sx: { maxHeight: isMobile ? '100%' : '92vh', overflow: 'hidden', borderRadius: isMobile ? 0 : 2 } }}>
-        {detay && (
-          <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
-            <Box sx={{ position: 'relative', bgcolor: '#000' }}>
-              <IconButton onClick={() => setDetay(null)} sx={{ position: 'absolute', top: 8, right: 8, zIndex: 3, color: 'white', bgcolor: 'rgba(0,0,0,0.4)' }}>
-                <CloseIcon />
-              </IconButton>
-              {detay.gorsel_idler && detay.gorsel_idler.length > 0 ? (
-                <Box sx={{ position: 'relative' }}>
-                  <img src={vitrinService.gorselUrl(detay.gorsel_idler[gorselIdx])} alt={detay.baslik}
-                    decoding="async"
-                    style={{ width: '100%', maxHeight: 420, objectFit: 'contain', display: 'block' }} />
-                  {detay.gorsel_idler.length > 1 && (
-                    <>
-                      <IconButton onClick={() => setGorselIdx((gorselIdx - 1 + detay.gorsel_idler.length) % detay.gorsel_idler.length)}
-                        sx={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', color: 'white', bgcolor: 'rgba(0,0,0,0.4)' }}><PrevIcon /></IconButton>
-                      <IconButton onClick={() => setGorselIdx((gorselIdx + 1) % detay.gorsel_idler.length)}
-                        sx={{ position: 'absolute', top: '50%', right: 8, transform: 'translateY(-50%)', color: 'white', bgcolor: 'rgba(0,0,0,0.4)' }}><NextIcon /></IconButton>
-                      <Box sx={{ position: 'absolute', bottom: 8, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        {detay.gorsel_idler.map((_, i) => (
-                          <Box key={i} onClick={() => setGorselIdx(i)} sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: i === gorselIdx ? RED : 'rgba(255,255,255,0.6)', cursor: 'pointer' }} />
-                        ))}
-                      </Box>
-                    </>
-                  )}
-                </Box>
-              ) : (
-                <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src="/KaynarMotor.png" alt="Kaynar Motor" width="72" height="80"
-                    style={{ width: 72, height: 80, objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)', opacity: 0.5 }} />
-                </Box>
-              )}
-            </Box>
-
-            <Box sx={{ p: { xs: 2, sm: 3 } }}>
-              <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
-                {detay.segment && <Chip size="small" label={detay.segment} color="error" />}
-                {detay.motor_cc ? <Chip size="small" label={`${detay.motor_cc} cc`} variant="outlined" /> : null}
-                {detay.km ? <Chip size="small" label={`${Number(detay.km).toLocaleString('tr-TR')} km`} variant="outlined" /> : null}
-                {detay.yil ? <Chip size="small" label={detay.yil} variant="outlined" /> : null}
+      ) : (
+        <>
+          {/* Sayfa başı: başlık, ilan sayısı, arama; masaüstünde altında iletişim kişileri */}
+          <Box sx={{ maxWidth: 1400, width: '100%', mx: 'auto', px: { xs: 2, md: 3 }, pt: { xs: 2.5, md: 3 } }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'flex-end' }, gap: { xs: 2, md: 4 } }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography component="h1" sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: { xs: 38, md: 48 }, lineHeight: 1 }}>
+                  {sayfaBasligi}
+                </Typography>
+                <Typography color="text.secondary" aria-live="polite" sx={{ mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>
+                  {loading ? 'İlanlar yükleniyor…' : aramaVar ? `"${q.trim()}" için ${gorunenUrunler.length} ilan` : `${gorunenUrunler.length} ilan`}
+                </Typography>
               </Box>
-              {detay.ilan_no != null && (
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>İlan No: ILN-{String(detay.ilan_no).padStart(4, '0')}</Typography>
-              )}
-              <Typography variant="h5" fontWeight="bold">{detay.baslik}</Typography>
-              {(detay.marka || detay.model) && (
-                <Typography variant="subtitle1" color="text.secondary">{[detay.marka, detay.model].filter(Boolean).join(' ')}</Typography>
-              )}
-              <Typography variant="h4" color="error" fontWeight="bold" sx={{ my: 1 }}>
-                {Number(detay.fiyat).toLocaleString('tr-TR')} ₺
-              </Typography>
-              {detay.aciklama && (
-                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', mb: 2 }}>{detay.aciklama}</Typography>
-              )}
-
-              {detay.video_dosya_id ? (
-                <Box sx={{ mb: 2, borderRadius: 2, overflow: 'hidden', bgcolor: '#000' }}>
-                  <video controls preload="none" playsInline
-                    poster={detay.kapak_gorsel_id ? vitrinService.gorselUrl(detay.kapak_gorsel_id) : undefined}
-                    style={{ width: '100%', maxHeight: 420, display: 'block' }}>
-                    <source src={vitrinService.videoUrl(detay.video_dosya_id)} />
-                  </video>
-                </Box>
-              ) : videoBilgi?.tip === 'embed' ? (
-                <Box sx={{ position: 'relative', pt: '56.25%', mb: 2, borderRadius: 2, overflow: 'hidden' }}>
-                  <iframe src={videoBilgi.src} title="video" loading="lazy" allowFullScreen
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }} />
-                </Box>
-              ) : videoBilgi?.tip === 'file' ? (
-                <Box sx={{ mb: 2, borderRadius: 2, overflow: 'hidden', bgcolor: '#000' }}>
-                  <video controls preload="none" playsInline style={{ width: '100%', maxHeight: 420, display: 'block' }}>
-                    <source src={videoBilgi.src} />
-                  </video>
-                </Box>
-              ) : videoBilgi?.tip === 'link' ? (
-                <Button variant="outlined" fullWidth startIcon={<PlayCircleOutlineIcon />}
-                  href={videoBilgi.src} target="_blank" rel="noopener noreferrer" sx={{ mb: 2, borderColor: '#bbb', color: '#333' }}>
-                  Videoyu / Gönderiyi Görüntüle
-                </Button>
-              ) : null}
-
-              {/* Taksit hesaplama + (varsa) Rubik taksitli ödeme aksiyonları */}
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 1 }}>
-                {Number(detay.fiyat) > 0 && (
-                  <Button fullWidth variant="outlined" color="inherit" startIcon={<CalculateIcon />}
-                    onClick={() => window.open(`/taksit/${Math.round(Number(detay.fiyat))}`, '_blank')}
-                    sx={{ borderColor: '#bbb' }}>
-                    Nakit / Taksit Hesapla
-                  </Button>
-                )}
-                {detay.rubik_link && (
-                  <Button fullWidth variant="contained" startIcon={<CreditCardIcon />}
-                    onClick={() => window.open(detay.rubik_link, '_blank', 'noopener,noreferrer')}
-                    sx={{ bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }}>
-                    Taksitli Ödeme Yap
-                  </Button>
-                )}
-              </Stack>
-
-              <Divider sx={{ my: 2 }} />
-              {detayIletisim && (detayIletisim.personel_adi || detayIletisim.telefon) ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="body2" color="text.secondary">İletişim</Typography>
-                    <Typography variant="subtitle1" fontWeight="500">{detayIletisim.personel_adi}</Typography>
-                  </Box>
-                  {detayIletisim.telefon && (
-                    <Button variant="contained" color="error" size="large" startIcon={<PhoneIcon />} href={`tel:${detayIletisim.telefon}`}>
-                      {detayIletisim.telefon}
-                    </Button>
-                  )}
-                </Box>
-              ) : (
-                <Typography variant="body2" color="text.secondary">İletişim için "Servise Git" üzerinden bize ulaşın.</Typography>
-              )}
+              <TextField size="small" value={q} onChange={e => setQ(e.target.value)}
+                placeholder={isMotor ? 'Marka, model veya ilan no ara' : 'Ürün adı veya ilan no ara'}
+                inputProps={{ 'aria-label': 'İlan ara', enterKeyHint: 'search' }}
+                sx={{ width: { xs: '100%', md: 380 }, '& .MuiOutlinedInput-root': { bgcolor: RENK.yuzey, borderRadius: 2 } }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                  endAdornment: q ? (
+                    <InputAdornment position="end">
+                      <IconButton size="small" edge="end" onClick={() => setQ('')} aria-label="Aramayı temizle"><CloseIcon fontSize="small" /></IconButton>
+                    </InputAdornment>
+                  ) : null,
+                }} />
             </Box>
-          </DialogContent>
-        )}
-      </Dialog>
+
+            {/* Telefonda iletişim kişileri listenin altında gösterilir; ilk ilan ekranın üstünde kalsın */}
+            {kisiler.length > 0 && (
+              <Box sx={{ mt: 1.5, display: { xs: 'none', md: 'flex' }, flexWrap: 'wrap', alignItems: 'center', columnGap: 2.5, rowGap: 0.75 }}>
+                <Typography color="text.secondary" sx={{ fontSize: 14.5 }}>Sorularınız için arayın</Typography>
+                {kisiler.map(k => <KisiSessiz key={`${k.ad}-${k.tel}`} kisi={k} />)}
+              </Box>
+            )}
+          </Box>
+
+          {/* Motor filtreleri: masaüstünde iki kısa satır, dar ekranda açılır panel */}
+          {isMotor && (
+            <Box component="section" aria-label="Filtreler" sx={{ maxWidth: 1400, width: '100%', mx: 'auto', px: { xs: 2, md: 3 }, mt: { xs: 2, md: 2 } }}>
+              {darEkran && (
+                <Button fullWidth variant="outlined" color="inherit" startIcon={<FilterListIcon />} onClick={() => setFiltreAcik(v => !v)}
+                  aria-expanded={filtreAcik}
+                  sx={{ bgcolor: RENK.yuzey, borderColor: RENK.cizgi, justifyContent: 'flex-start', py: 1 }}>
+                  {aktifFiltreSayisi > 0 ? `Filtrele (${aktifFiltreSayisi} seçili)` : 'Filtrele'}
+                </Button>
+              )}
+              <Collapse in={!darEkran || filtreAcik} timeout="auto">
+                <Box sx={{ mt: darEkran ? 1 : 0, p: { xs: 1.5, md: 1.75 }, bgcolor: RENK.yuzey,
+                  border: `1px solid ${RENK.cizgi}`, borderRadius: 2.5,
+                  display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) auto' }, columnGap: 2, rowGap: 1.25 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 2.5, rowGap: 1.25, minWidth: 0 }}>
+                    <FiltreSatiri baslik="Durum">
+                      {MOTOR_DURUMLARI.map(d => (
+                        <Secim key={d.key} secili={motorDurumu === d.key} onClick={() => secMotorDurumu(d.key)}>{d.label}</Secim>
+                      ))}
+                    </FiltreSatiri>
+                    {markalar.length > 0 && (
+                      <FiltreSatiri baslik="Marka">
+                        <Secim secili={marka === ''} onClick={() => setMarka('')}>Tümü</Secim>
+                        {markalar.map(m => <Secim key={m} secili={marka === m} onClick={() => setMarka(marka === m ? '' : m)}>{m}</Secim>)}
+                      </FiltreSatiri>
+                    )}
+                  </Box>
+                  <FiltreSatiri baslik="Sınır" sx={{ gridRow: { xs: 3, lg: '1 / 3' }, gridColumn: { lg: 2 }, alignSelf: 'start' }}>
+                    <TextField size="small" label="En fazla cc" type="number" value={ccMax} onChange={e => setCcMax(e.target.value)}
+                      sx={{ width: 132, '& .MuiOutlinedInput-root': { bgcolor: RENK.zemin } }} />
+                    {motorDurumu !== 'sifir' && (
+                      <TextField size="small" label="En fazla km" type="number" value={kmMax} onChange={e => setKmMax(e.target.value)}
+                        sx={{ width: 132, '& .MuiOutlinedInput-root': { bgcolor: RENK.zemin } }} />
+                    )}
+                    {aktifFiltreSayisi > 0 && (
+                      <Button onClick={filtreleriTemizle} size="small" sx={{ p: 0.5, minWidth: 0, fontWeight: 600, color: RENK.kirmiziAcik }}>
+                        Temizle
+                      </Button>
+                    )}
+                  </FiltreSatiri>
+                  <Box sx={{ gridRow: 2, gridColumn: { lg: 1 }, pt: 1.25, borderTop: `1px solid ${RENK.cizgi}` }}>
+                    <FiltreSatiri baslik="Segment">
+                      <Secim secili={segment === ''} onClick={() => setSegment('')}>Tümü</Secim>
+                      {segmentler.map(s => <Secim key={s} secili={segment === s} onClick={() => setSegment(segment === s ? '' : s)}>{s}</Secim>)}
+                    </FiltreSatiri>
+                  </Box>
+                </Box>
+              </Collapse>
+            </Box>
+          )}
+
+          {/* İlan ızgarası */}
+          <Box sx={{ flex: 1, width: '100%', maxWidth: 1400, mx: 'auto', px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 2.5 } }}>
+            {loading ? (
+              <Box sx={ilanIzgarasi(isMotor)} role="status" aria-label="İlanlar yükleniyor">
+                {Array.from({ length: isMotor ? 6 : 8 }, (_, i) => <IlanIskelet key={i} buyuk={isMotor} />)}
+              </Box>
+            ) : gorunenUrunler.length === 0 ? (
+              <Box sx={{ py: { xs: 5, md: 9 }, maxWidth: '46ch' }}>
+                {aramaVar && urunler.length > 0 ? (
+                  <>
+                    <Typography sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: 28, lineHeight: 1.1 }}>"{q.trim()}" ile eşleşen ilan yok</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>Marka ya da model adını daha kısa yazmayı deneyin.</Typography>
+                    <Button variant="outlined" color="inherit" onClick={() => setQ('')} sx={{ mt: 2 }}>Aramayı temizle</Button>
+                  </>
+                ) : isMotor && aktifFiltreSayisi > 0 ? (
+                  <>
+                    <Typography sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: 28, lineHeight: 1.1 }}>Bu filtrelere uyan motor yok</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>Bir filtreyi kaldırırsanız daha fazla ilan görürsünüz.</Typography>
+                    <Button variant="outlined" color="inherit" onClick={filtreleriTemizle} sx={{ mt: 2 }}>Filtreleri temizle</Button>
+                  </>
+                ) : (
+                  <>
+                    <Typography sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: 28, lineHeight: 1.1 }}>
+                      {isMotor ? `Şu an ${motorDurumu === 'sifir' ? 'sıfır' : 'ikinci el'} motor ilanı yok` : 'Bu kategoride şu an ilan yok'}
+                    </Typography>
+                    <Typography color="text.secondary" sx={{ mt: 1 }}>Yeni gelenleri öğrenmek için bizi arayabilirsiniz.</Typography>
+                  </>
+                )}
+              </Box>
+            ) : (
+              <Fade in timeout={300} key={`${kategori}-${motorDurumu}`}>
+                <Box sx={ilanIzgarasi(isMotor)}>
+                  {gorunenUrunler.map(u => <IlanKarti key={u.id} u={u} kucuk={!isMotor} onClick={() => openDetay(u)} />)}
+                </Box>
+              </Fade>
+            )}
+
+            {kisiler.length > 0 && (
+              <Box sx={{ display: { xs: 'block', md: 'none' }, mt: 4, pt: 2.5, borderTop: `1px solid ${RENK.cizgi}` }}>
+                <Typography sx={{ fontFamily: YAZI.baslik, fontWeight: 700, fontSize: 24, lineHeight: 1.1, mb: 1.5 }}>Sorularınız için arayın</Typography>
+                <Stack spacing={1.5}>
+                  {kisiler.map(k => (
+                    <Box key={`${k.ad}-${k.tel}`}>
+                      {k.ad && <Typography fontWeight={600} sx={{ mb: 0.5 }}>{k.ad}</Typography>}
+                      <KisiDugmeleri kisi={k} tamGenislik />
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+          </Box>
+        </>
+      )}
 
       {/* Taksit hesaplama penceresi (header'dan açılır, giriş gerektirmez) */}
       <TaksitHesaplaDialog open={taksitOpen} onClose={() => setTaksitOpen(false)} isMobile={isMobile} />
 
       {/* Footer */}
-      <Box sx={{ bgcolor: '#1a1a1a', color: 'rgba(255,255,255,0.7)', py: 3, mt: 4, textAlign: 'center' }}>
+      <Box sx={{ bgcolor: RENK.asfalt, color: 'rgba(255,255,255,0.7)', py: 3, mt: 6, textAlign: 'center' }}>
         <Typography variant="body2">© {new Date().getFullYear()} Kaynar Motor</Typography>
       </Box>
     </Box>
   );
 };
 
-export default Storefront;
+// Vitrin teması (yazı tipi, renkler) yalnızca müşteri sayfalarını sarar; yönetim paneli etkilenmez
+const StorefrontSayfa = () => <VitrinTema><Storefront /></VitrinTema>;
+
+export default StorefrontSayfa;

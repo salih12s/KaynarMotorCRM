@@ -5,11 +5,15 @@ import {
   Button, Chip, IconButton, TextField, MenuItem, InputAdornment, Dialog, DialogTitle, DialogContent,
   DialogActions, Grid, Alert, Divider, Autocomplete, useTheme, useMediaQuery
 } from '@mui/material';
-import {
-  Add as AddIcon, Visibility as ViewIcon, Edit as EditIcon, Delete as DeleteIcon,
-  Search as SearchIcon, Close as CloseIcon, Save as SaveIcon, Print as PrintIcon,
-  QrCode2 as QrIcon
-} from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import ViewIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import SaveIcon from '@mui/icons-material/Save';
+import PrintIcon from '@mui/icons-material/Print';
+import QrIcon from '@mui/icons-material/QrCode2';
 import { Checkbox, FormControlLabel } from '@mui/material';
 import { isEmriService, musteriService, authService, aksesuarStokService, yedekParcaStokService, servisGecmisiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';

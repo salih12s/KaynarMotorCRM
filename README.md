@@ -358,7 +358,7 @@ cp frontend/.env.example frontend/.env
 | Değişken | Açıklama |
 |---|---|
 | `NODE_ENV` | `development` veya `production` |
-| `PORT` | Sunucu portu (varsayılan `5000`) |
+| `PORT` | Sunucu portu (varsayılan `5100`) |
 | `DATABASE_URL` | Tek parça bağlantı adresi (verilirse `DB_*` yerine kullanılır) |
 | `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | Ayrı ayrı bağlantı bilgileri |
 | `JWT_SECRET` | JWT imzalama anahtarı |
@@ -375,7 +375,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 | Değişken | Açıklama |
 |---|---|
-| `REACT_APP_API_URL` | Backend API adresi (örn. `http://localhost:5000/api`) |
+| `REACT_APP_API_URL` | Backend API adresi (örn. `http://localhost:5100/api`) |
 
 ## Çalıştırma
 
@@ -389,6 +389,19 @@ Sağlık kontrolü: `GET /api/health`
 
 İlk açılışta veritabanı şeması otomatik oluşturulur. `ADMIN_INITIAL_PASSWORD` tanımlıysa
 `admin` kullanıcısı bu şifreyle kurulur.
+
+### Örnek veri (yalnızca yerel geliştirme)
+
+```bash
+npm run seed:gorseller   # isteğe bağlı: vitrin fotoğraflarını indirir (Wikimedia Commons, CC lisanslı)
+npm run seed             # yerel veritabanını boşaltıp gerçekçi örnek veriyle doldurur
+```
+
+`npm run seed` yalnızca `localhost` üzerindeki veritabanına yazar; `DB_HOST` yerel değilse,
+`DATABASE_URL` tanımlıysa ya da `NODE_ENV=production` ise veritabanına bağlanmadan durur.
+Mevcut kullanıcı hesaplarına dokunmaz, demo hesaplarını ekler (şifre: `demo1234`):
+`servis`, `usta`, `satis`, `satis2`, `aksesuar`, `yatirimci1`, `yatirimci2`. Tüm kişi, telefon, plaka
+ve TC bilgileri uydurmadır.
 
 ## Proje Yapısı
 

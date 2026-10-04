@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5100/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -116,6 +116,18 @@ export const ikinciElMotorService = {
   update: (id, data) => api.put(`/ikinci-el-motor/${id}`, data),
   delete: (id) => api.delete(`/ikinci-el-motor/${id}`),
   getStats: () => api.get('/ikinci-el-motor/stats/ozet'),
+};
+
+// Satış belgeleri (sözleşme vb.). Yükleme JSON değil, ham dosya gövdesidir (base64 şişmesi olmasın).
+export const satisBelgeService = {
+  list: (motorId) => api.get(`/satis-belgeleri/motor/${motorId}`),
+  upload: (motorId, file) => api.post(`/satis-belgeleri/motor/${motorId}`, file, {
+    params: { ad: file.name },
+    headers: { 'Content-Type': 'application/octet-stream' },
+    timeout: 120000,
+  }),
+  download: (id) => api.get(`/satis-belgeleri/${id}/indir`, { responseType: 'blob' }),
+  delete: (id) => api.delete(`/satis-belgeleri/${id}`),
 };
 
 // E-Ticaret

@@ -469,6 +469,9 @@ const initializeDatabase = async () => {
     // Migration: hizmet kategorileri (bakım/servis, nakliye, sigorta) için hizmet sayfası — resim + başlık
     await client.query(`ALTER TABLE vitrin_kategori_iletisim ADD COLUMN IF NOT EXISTS gorsel TEXT;`);
     await client.query(`ALTER TABLE vitrin_kategori_iletisim ADD COLUMN IF NOT EXISTS baslik VARCHAR(255);`);
+    // Migration: kategori iletişimine ikinci personel (sitede iki kişi ve iki telefon gösterilebilsin)
+    await client.query(`ALTER TABLE vitrin_kategori_iletisim ADD COLUMN IF NOT EXISTS personel_adi_2 VARCHAR(100);`);
+    await client.query(`ALTER TABLE vitrin_kategori_iletisim ADD COLUMN IF NOT EXISTS telefon_2 VARCHAR(50);`);
 
     // Migration: ikinci_el_motorlar tablosuna parçalı ödeme dağılımı (JSON) ekle
     await client.query(`ALTER TABLE ikinci_el_motorlar ADD COLUMN IF NOT EXISTS odeme_detaylari TEXT;`);
@@ -515,6 +518,25 @@ const initializeDatabase = async () => {
     // Migration: yedek parça satışını stok kaydına bağla (satışta stoktan düşme)
     await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS stok_id INTEGER REFERENCES yedek_parca_stok(id) ON DELETE SET NULL;`);
     await client.query(`ALTER TABLE yedek_parcalar ADD COLUMN IF NOT EXISTS adet INTEGER DEFAULT 1;`);
+
+    // Satış belgeleri (sözleşme vb. PDF/Word/Excel/görsel) — her satışa istenen sayıda dosya.
+    //  - Dosya ham ikili (BYTEA) tutulur; base64'e göre %33 daha az yer kaplar.
+    //  - Satış listesi sorguları icerik'i HİÇ çekmez; dosya yalnızca indirilirken okunur.
+    //  - Satış silinirse belgeleri de silinir (ON DELETE CASCADE).
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS satis_belgeleri (
+        id SERIAL PRIMARY KEY,
+        motor_id INTEGER NOT NULL REFERENCES ikinci_el_motorlar(id) ON DELETE CASCADE,
+        dosya_adi VARCHAR(255) NOT NULL,
+        mime VARCHAR(100) NOT NULL,
+        boyut INTEGER NOT NULL,
+        icerik BYTEA NOT NULL,
+        yukleyen_id INTEGER,
+        yukleyen_adi VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_satis_belge_motor ON satis_belgeleri(motor_id);`);
 
     // 18. Servis QR tokenları — plaka bazlı, müşteriye açık servis geçmişi linki
     //  - Plaka normalize edilerek (büyük harf, boşluksuz) saklanır; token tahmin edilemez.

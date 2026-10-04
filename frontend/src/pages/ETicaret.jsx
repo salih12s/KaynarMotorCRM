@@ -4,7 +4,11 @@ import {
   Button, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Alert,
   Grid, MenuItem, Tabs, Tab, Chip, Divider, useTheme, useMediaQuery
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Close as CloseIcon } from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ViewIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
 import { eticaretService, aksesuarStokService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 

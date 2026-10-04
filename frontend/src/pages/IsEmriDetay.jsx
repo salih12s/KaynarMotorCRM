@@ -4,7 +4,9 @@ import {
   Box, Paper, Typography, Grid, Chip, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, IconButton, Button, Divider, useMediaQuery, useTheme
 } from '@mui/material';
-import { ArrowBack as BackIcon, Print as PrintIcon, Edit as EditIcon } from '@mui/icons-material';
+import BackIcon from '@mui/icons-material/ArrowBack';
+import PrintIcon from '@mui/icons-material/Print';
+import EditIcon from '@mui/icons-material/Edit';
 import { useReactToPrint } from 'react-to-print';
 import { isEmriService } from '../services/api';
 

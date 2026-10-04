@@ -3,7 +3,10 @@ import {
   Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, Chip, IconButton, Alert, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Grid, useTheme, useMediaQuery
 } from '@mui/material';
-import { Delete as DeleteIcon, Check as CheckIcon, Close as CloseIcon, PersonAdd as PersonAddIcon } from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { authService } from '../services/api';
 
 const Kullanicilar = () => {

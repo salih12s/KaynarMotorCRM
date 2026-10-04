@@ -5,16 +5,14 @@ import {
   Chip, TextField, InputAdornment, Grid, Alert, MenuItem, useTheme, useMediaQuery, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Divider
 } from '@mui/material';
-import {
-  Search as SearchIcon,
-  Build as BuildIcon,
-  TwoWheeler as MotorIcon,
-  ShoppingCart as ShopIcon,
-  Settings as SettingsIcon,
-  OpenInNew as OpenIcon,
-  Visibility as ViewIcon,
-  Close as CloseIcon
-} from '@mui/icons-material';
+import SearchIcon from '@mui/icons-material/Search';
+import BuildIcon from '@mui/icons-material/Build';
+import MotorIcon from '@mui/icons-material/TwoWheeler';
+import ShopIcon from '@mui/icons-material/ShoppingCart';
+import SettingsIcon from '@mui/icons-material/Settings';
+import OpenIcon from '@mui/icons-material/OpenInNew';
+import ViewIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
 import { veresiyeService } from '../services/api';
 
 const KAYNAK_INFO = {

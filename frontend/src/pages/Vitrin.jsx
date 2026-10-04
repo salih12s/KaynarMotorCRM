@@ -1,18 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box, Tabs, Tab, Button, Typography, Grid, Card, CardMedia, CardContent, CardActions,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, IconButton,
   Switch, FormControlLabel, Chip, Paper, Stack, Snackbar, Alert, CircularProgress, Autocomplete,
-  ToggleButton, ToggleButtonGroup
+  ToggleButton, ToggleButtonGroup, InputAdornment
 } from '@mui/material';
-import {
-  Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon,
-  Save as SaveIcon, PhotoCamera as PhotoIcon, Phone as PhoneIcon,
-  Movie as MovieIcon, PlayCircle as PlayCircleIcon, DragIndicator as DragIcon,
-  KeyboardArrowUp as UpIcon, KeyboardArrowDown as DownIcon,
-  ArrowBack as BackIcon, ArrowForward as ForwardIcon,
-  Visibility as VisibilityIcon, VisibilityOff as VisibilityOffIcon
-} from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
+import SaveIcon from '@mui/icons-material/Save';
+import PhotoIcon from '@mui/icons-material/PhotoCamera';
+import PhoneIcon from '@mui/icons-material/Phone';
+import MovieIcon from '@mui/icons-material/Movie';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import DragIcon from '@mui/icons-material/DragIndicator';
+import UpIcon from '@mui/icons-material/KeyboardArrowUp';
+import DownIcon from '@mui/icons-material/KeyboardArrowDown';
+import BackIcon from '@mui/icons-material/ArrowBack';
+import ForwardIcon from '@mui/icons-material/ArrowForward';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import SearchIcon from '@mui/icons-material/Search';
+import ArchiveIcon from '@mui/icons-material/Archive';
 import { vitrinService, ikinciElMotorService, aksesuarStokService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,6 +45,22 @@ export const SEGMENTLER = ['Chopper', 'Scooter', 'Racing', 'Naked', 'Touring', '
 
 // İlan girilmeyen, sadece hizmet sayfası (resim + telefon + WhatsApp) gösterilen kategoriler
 export const HIZMET_KATEGORILER = ['bakim_servis', 'nakliye', 'sigorta'];
+
+// Arama için metni sadeleştirir: küçük harf + Türkçe karakter/aksan farkı yok ("Küçük" = "kucuk" = "KÜÇÜK")
+const aramaMetni = (s) => String(s ?? '')
+  .toLocaleLowerCase('tr')
+  .normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/ı/g, 'i');
+
+// İlan, aramadaki HER kelimeyi başlık/marka/model/segment/açıklama/yıl/ilan no alanlarından birinde içeriyorsa eşleşir.
+// ("yamaha 2021" → marka Yamaha + yıl 2021 olan ilan da bulunur)
+export const ilanAramaUygunMu = (u, arama) => {
+  const kelimeler = aramaMetni(arama).split(/\s+/).filter(Boolean);
+  if (kelimeler.length === 0) return true;
+  const ilanNo = u.ilan_no != null ? `iln-${String(u.ilan_no).padStart(4, '0')}` : '';
+  const metin = aramaMetni([u.baslik, u.marka, u.model, u.segment, u.aciklama, u.yil, ilanNo].filter(Boolean).join(' '));
+  return kelimeler.every(k => metin.includes(k));
+};
 
 // Görseli istemcide küçültüp JPEG base64 döndürür (DB yükünü azaltmak için)
 const resizeImage = (file, maxSize = 1280, quality = 0.7) =>
@@ -81,6 +107,8 @@ const Vitrin = () => {
   const isHizmet = HIZMET_KATEGORILER.includes(kategori);
 
   const [urunler, setUrunler] = useState([]);
+  const [gorunum, setGorunum] = useState('aktif'); // 'aktif' = yayındakiler, 'arsiv' = yayından kaldırılanlar
+  const [arama, setArama] = useState('');
   const [loading, setLoading] = useState(false);
   const [segmentler, setSegmentler] = useState(SEGMENTLER); // dinamik segment listesi (adlar)
   const [iletisim, setIletisim] = useState({}); // { kategori: {personel_adi, telefon} }
@@ -110,15 +138,32 @@ const Vitrin = () => {
 
   // iletişim dialog
   const [iletDlg, setIletDlg] = useState(false);
-  const [iletForm, setIletForm] = useState({ personel_adi: '', telefon: '', aciklama: '', baslik: '' });
+  const [iletForm, setIletForm] = useState({ personel_adi: '', telefon: '', personel_adi_2: '', telefon_2: '', aciklama: '', baslik: '' });
   const [iletGorsel, setIletGorsel] = useState(null); // yeni seçilen hizmet görseli (base64)
   const [iletGorselVar, setIletGorselVar] = useState(false);
   const [iletGorselSil, setIletGorselSil] = useState(false);
 
   const showSnack = (msg, sev = 'success') => setSnack({ open: true, msg, sev });
 
-  const loadUrunler = useCallback(async () => {
-    setLoading(true);
+  // Yayındaki ilanlar sıralanabilir; yayından kaldırılanlar arşivde toplanır (sunucu sırasını korur)
+  const aktifler = useMemo(() => urunler.filter(u => u.yayinda), [urunler]);
+  const arsivdekiler = useMemo(() => urunler.filter(u => !u.yayinda), [urunler]);
+  const arsivGorunumu = gorunum === 'arsiv';
+  const gorunenListe = arsivGorunumu ? arsivdekiler : aktifler;
+  const digerListe = arsivGorunumu ? aktifler : arsivdekiler;
+  const aramaVar = arama.trim() !== '';
+  const filtrelenmis = useMemo(
+    () => (aramaVar ? gorunenListe.filter(u => ilanAramaUygunMu(u, arama)) : gorunenListe),
+    [gorunenListe, arama, aramaVar]
+  );
+  const digerSonuc = aramaVar ? digerListe.filter(u => ilanAramaUygunMu(u, arama)).length : 0;
+  // Arama açıkken liste kısaldığı için "bir yukarı/aşağı" ve sürükle-bırak güvenle yapılamaz
+  const siraDegistirilebilir = !arsivGorunumu && !aramaVar;
+  // Kartın üstündeki sıra numarası: aramadan bağımsız, yayındaki listedeki gerçek konum
+  const siraMap = useMemo(() => new Map(aktifler.map((u, i) => [u.id, i])), [aktifler]);
+
+  const loadUrunler = useCallback(async (sessiz = false) => {
+    if (!sessiz) setLoading(true);
     try {
       const res = await vitrinService.getAllAdmin({ kategori });
       setUrunler(res.data);
@@ -146,8 +191,8 @@ const Vitrin = () => {
   useEffect(() => { loadIletisim(); }, [loadIletisim]);
   useEffect(() => { loadSegmentler(); }, [loadSegmentler]);
   useEffect(() => {
-    setSiraTaslaklari(Object.fromEntries(urunler.map((urun, index) => [urun.id, String(index + 1)])));
-  }, [urunler]);
+    setSiraTaslaklari(Object.fromEntries(aktifler.map((urun, index) => [urun.id, String(index + 1)])));
+  }, [aktifler]);
 
   // Stoktaki (satılmamış) motorları yükle — vitrine aktarma için
   useEffect(() => {
@@ -288,10 +333,11 @@ const Vitrin = () => {
     setDraggedGorselIndex(null);
   };
 
+  // siraliUrunler: yayındaki ilanların yeni sırası (arşivdekiler listenin sonunda aynen kalır)
   const saveUrunSirasi = async (siraliUrunler) => {
     const onceki = urunler;
     const yeni = siraliUrunler.map((u, index) => ({ ...u, siralama: index }));
-    setUrunler(yeni);
+    setUrunler([...yeni, ...arsivdekiler]);
     setOrderSaving(true);
     try {
       await vitrinService.reorder(kategori, yeni.map(u => u.id));
@@ -306,25 +352,25 @@ const Vitrin = () => {
   };
 
   const moveUrun = (id, direction) => {
-    if (orderSaving) return;
-    const from = urunler.findIndex(u => u.id === id);
+    if (orderSaving || !siraDegistirilebilir) return;
+    const from = aktifler.findIndex(u => u.id === id);
     const to = from + direction;
-    if (from < 0 || to < 0 || to >= urunler.length) return;
-    const yeni = [...urunler];
+    if (from < 0 || to < 0 || to >= aktifler.length) return;
+    const yeni = [...aktifler];
     const [moved] = yeni.splice(from, 1);
     yeni.splice(to, 0, moved);
     saveUrunSirasi(yeni);
   };
 
   const handleUrunDrop = (targetId) => {
-    if (orderSaving || draggedUrunId === null || draggedUrunId === targetId) {
+    if (orderSaving || !siraDegistirilebilir || draggedUrunId === null || draggedUrunId === targetId) {
       setDraggedUrunId(null);
       return;
     }
-    const from = urunler.findIndex(u => u.id === draggedUrunId);
-    const to = urunler.findIndex(u => u.id === targetId);
-    if (from < 0 || to < 0) return;
-    const yeni = [...urunler];
+    const from = aktifler.findIndex(u => u.id === draggedUrunId);
+    const to = aktifler.findIndex(u => u.id === targetId);
+    if (from < 0 || to < 0) { setDraggedUrunId(null); return; }
+    const yeni = [...aktifler];
     const [moved] = yeni.splice(from, 1);
     yeni.splice(to, 0, moved);
     setDraggedUrunId(null);
@@ -338,7 +384,8 @@ const Vitrin = () => {
     try {
       const res = await vitrinService.setPublished(urun.id, yeniDurum);
       setUrunler(prev => prev.map(item => item.id === urun.id ? { ...item, yayinda: res.data.yayinda } : item));
-      showSnack(res.data.yayinda ? 'İlan yayına alındı' : 'İlan yayından kaldırıldı');
+      showSnack(res.data.yayinda ? 'İlan arşivden çıkarıldı, yayına alındı (listenin sonuna eklendi)' : 'İlan yayından kaldırıldı, arşive taşındı');
+      loadUrunler(true); // sunucudaki yeni sıra değerlerini al (ekran titremesin diye sessiz)
     } catch {
       showSnack('İlanın yayın durumu değiştirilemedi', 'error');
     } finally {
@@ -349,12 +396,12 @@ const Vitrin = () => {
   const handleDogrudanSira = async (urun) => {
     if (!isAdmin || orderSaving || siraSavingId !== null) return;
     const yeniSira = Number(siraTaslaklari[urun.id]);
-    if (!Number.isInteger(yeniSira) || yeniSira < 1 || yeniSira > urunler.length) {
-      showSnack(`Sıra numarası 1 ile ${urunler.length} arasında olmalı`, 'warning');
+    if (!Number.isInteger(yeniSira) || yeniSira < 1 || yeniSira > aktifler.length) {
+      showSnack(`Sıra numarası 1 ile ${aktifler.length} arasında olmalı`, 'warning');
       return;
     }
 
-    const mevcutSira = urunler.findIndex(item => item.id === urun.id) + 1;
+    const mevcutSira = aktifler.findIndex(item => item.id === urun.id) + 1;
     if (mevcutSira === yeniSira) return;
 
     setSiraSavingId(urun.id);
@@ -363,7 +410,8 @@ const Vitrin = () => {
       const res = await vitrinService.moveToPosition(urun.id, yeniSira);
       setUrunler(prev => {
         const urunMap = new Map(prev.map(item => [Number(item.id), item]));
-        return (res.data.urun_ids || []).map((id, index) => ({ ...urunMap.get(Number(id)), siralama: index }));
+        const siraliAktifler = (res.data.urun_ids || []).map((id, index) => ({ ...urunMap.get(Number(id)), siralama: index }));
+        return [...siraliAktifler, ...prev.filter(item => !item.yayinda)];
       });
       showSnack(`İlan ${res.data.sira}. sıraya taşındı`);
     } catch {
@@ -408,7 +456,11 @@ const Vitrin = () => {
 
   const openIletisim = () => {
     const cur = iletisim[kategori] || {};
-    setIletForm({ personel_adi: cur.personel_adi || '', telefon: cur.telefon || '', aciklama: cur.aciklama || '', baslik: cur.baslik || '' });
+    setIletForm({
+      personel_adi: cur.personel_adi || '', telefon: cur.telefon || '',
+      personel_adi_2: cur.personel_adi_2 || '', telefon_2: cur.telefon_2 || '',
+      aciklama: cur.aciklama || '', baslik: cur.baslik || ''
+    });
     setIletGorsel(null); setIletGorselSil(false); setIletGorselVar(!!cur.gorsel_var);
     setIletDlg(true);
   };
@@ -440,7 +492,7 @@ const Vitrin = () => {
   return (
     <Box>
       <Paper sx={{ mb: 2 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
+        <Tabs value={tab} onChange={(_, v) => { setTab(v); setArama(''); setGorunum('aktif'); }} variant="scrollable" scrollButtons="auto">
           {gorunenKategoriler.map(k => <Tab key={k.key} label={k.label} />)}
         </Tabs>
       </Paper>
@@ -482,6 +534,9 @@ const Vitrin = () => {
           {curIletisim && (curIletisim.personel_adi || curIletisim.telefon) ? (
             <Typography variant="body1" fontWeight="500">
               {curIletisim.personel_adi || '—'} {curIletisim.telefon ? `• ${curIletisim.telefon}` : ''}
+              {(curIletisim.personel_adi_2 || curIletisim.telefon_2) && (
+                <><br />{curIletisim.personel_adi_2 || '—'} {curIletisim.telefon_2 ? `• ${curIletisim.telefon_2}` : ''}</>
+              )}
             </Typography>
           ) : (
             <Typography variant="body2" color="text.secondary">Henüz tanımlanmadı</Typography>
@@ -493,31 +548,86 @@ const Vitrin = () => {
         </Stack>
       </Paper>
 
+      {/* Arama + Yayında / Arşiv görünümü */}
+      <Paper variant="outlined" sx={{ p: 1.5, mb: 2, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+        <TextField
+          size="small"
+          value={arama}
+          onChange={e => setArama(e.target.value)}
+          placeholder="İlan ara: başlık, marka, model, ilan no…"
+          sx={{ flex: '1 1 260px', minWidth: 0 }}
+          inputProps={{ 'aria-label': 'İlan ara' }}
+          InputProps={{
+            startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+            endAdornment: arama ? (
+              <InputAdornment position="end">
+                <IconButton size="small" edge="end" onClick={() => setArama('')} aria-label="Aramayı temizle"><CloseIcon fontSize="small" /></IconButton>
+              </InputAdornment>
+            ) : null,
+          }}
+        />
+        <ToggleButtonGroup exclusive size="small" color="error" value={gorunum}
+          onChange={(e, val) => { if (val) setGorunum(val); }}>
+          <ToggleButton value="aktif" sx={{ fontWeight: 700, px: 2 }}>Yayında ({aktifler.length})</ToggleButton>
+          <ToggleButton value="arsiv" sx={{ fontWeight: 700, px: 2 }}>
+            <ArchiveIcon fontSize="small" sx={{ mr: 0.5 }} />Arşiv ({arsivdekiler.length})
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Paper>
+
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
       ) : urunler.length === 0 ? (
         <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
           Bu kategoride henüz ilan yok. "İlan Ekle" ile başlayın.
         </Paper>
+      ) : filtrelenmis.length === 0 ? (
+        <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+          {aramaVar ? (
+            <>
+              <Typography>"{arama.trim()}" ile eşleşen ilan {arsivGorunumu ? 'arşivde' : 'yayında'} yok.</Typography>
+              {digerSonuc > 0 && (
+                <Button sx={{ mt: 1 }} onClick={() => setGorunum(arsivGorunumu ? 'aktif' : 'arsiv')}>
+                  {arsivGorunumu ? 'Yayındakilerde' : 'Arşivde'} {digerSonuc} sonuç var — göster
+                </Button>
+              )}
+            </>
+          ) : arsivGorunumu ? (
+            'Arşiv boş. Yayından kaldırdığınız ilanlar burada toplanır.'
+          ) : (
+            'Yayında ilan yok. Arşivden "Yayına Al" ile geri getirebilir veya yeni ilan ekleyebilirsiniz.'
+          )}
+        </Paper>
       ) : (
         <>
         <Paper variant="outlined" sx={{ p: 1.5, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-          {!isAdmin && <DragIcon color="action" />}
+          {!isAdmin && siraDegistirilebilir && <DragIcon color="action" />}
           <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-            {isAdmin
-              ? 'Kartın üstündeki sıra numarasını yazıp Değiştir düğmesine basın.'
-              : 'Kartları sürükleyerek anasayfadaki sırayı belirleyin. Telefonda ok tuşlarını kullanabilirsiniz.'}
+            {arsivGorunumu
+              ? 'Arşivdeki ilanlar sitede görünmez. Geri getirmek için "Yayına Al"a basın; ilan yayındaki listenin sonuna eklenir.'
+              : aramaVar
+                ? `${filtrelenmis.length} ilan bulundu. Yukarı/aşağı okları ve sürükleme, aramayı temizleyince açılır.`
+                : isAdmin
+                  ? 'Kartın üstündeki sıra numarasını yazıp Değiştir düğmesine basın.'
+                  : 'Kartları sürükleyerek anasayfadaki sırayı belirleyin. Telefonda ok tuşlarını kullanabilirsiniz.'}
           </Typography>
           {orderSaving && <CircularProgress size={18} />}
         </Paper>
         <Grid container spacing={2}>
-          {urunler.map((u, index) => (
+          {filtrelenmis.map((u) => {
+            const index = siraMap.get(u.id); // yayındaki listedeki gerçek konum (arşivde yok)
+            return (
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={u.id}
               sx={{ display: 'flex', minWidth: 0 }}
               onDragOver={e => e.preventDefault()}
               onDrop={() => handleUrunDrop(u.id)}>
               <Card sx={{ width: '100%', height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', bgcolor: u.yayinda ? 'background.paper' : 'action.hover' }}>
-                {isAdmin ? (
+                {arsivGorunumu ? (
+                  <Box sx={{ px: 1.2, py: 0.7, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'action.hover' }}>
+                    <ArchiveIcon fontSize="small" color="action" />
+                    <Typography variant="caption" fontWeight="bold">Arşivde</Typography>
+                  </Box>
+                ) : isAdmin ? (
                   <Box sx={{ px: 1, py: 0.75, display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: 'action.hover' }}>
                     <Typography variant="caption" fontWeight="bold" sx={{ whiteSpace: 'nowrap' }}>Sıra</Typography>
                     <TextField
@@ -526,7 +636,7 @@ const Vitrin = () => {
                       value={siraTaslaklari[u.id] ?? String(index + 1)}
                       onChange={e => setSiraTaslaklari(prev => ({ ...prev, [u.id]: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleDogrudanSira(u); } }}
-                      inputProps={{ min: 1, max: urunler.length, step: 1, 'aria-label': `${u.baslik} sıra numarası` }}
+                      inputProps={{ min: 1, max: aktifler.length, step: 1, 'aria-label': `${u.baslik} sıra numarası` }}
                       disabled={orderSaving}
                       sx={{ width: 72, '& .MuiInputBase-input': { py: 0.75, textAlign: 'center', fontWeight: 700 } }}
                     />
@@ -541,10 +651,10 @@ const Vitrin = () => {
                     </Button>
                   </Box>
                 ) : (
-                  <Box draggable={!orderSaving}
+                  <Box draggable={!orderSaving && siraDegistirilebilir}
                     onDragStart={e => { setDraggedUrunId(u.id); e.dataTransfer.effectAllowed = 'move'; }}
                     onDragEnd={() => setDraggedUrunId(null)}
-                    sx={{ px: 1.2, py: 0.7, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: draggedUrunId === u.id ? 'action.selected' : 'action.hover', cursor: orderSaving ? 'wait' : 'grab', userSelect: 'none' }}>
+                    sx={{ px: 1.2, py: 0.7, display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: draggedUrunId === u.id ? 'action.selected' : 'action.hover', cursor: orderSaving ? 'wait' : (siraDegistirilebilir ? 'grab' : 'default'), userSelect: 'none' }}>
                     <DragIcon fontSize="small" color="action" />
                     <Typography variant="caption" fontWeight="bold">{index + 1}. sıra</Typography>
                   </Box>
@@ -566,7 +676,7 @@ const Vitrin = () => {
                     </Typography>
                   )}
                   <Box sx={{ display: 'flex', alignContent: 'flex-start', gap: 0.5, mb: 0.5, mt: 0.3, minHeight: 52, flexWrap: 'wrap' }}>
-                    {!u.yayinda && <Chip size="small" label="Yayında değil" color="default" />}
+                    {!u.yayinda && !arsivGorunumu && <Chip size="small" label="Yayında değil" color="default" />}
                     {isMotor && (u.motor_durumu === 'sifir'
                       ? <Chip size="small" label="Sıfır" color="primary" />
                       : <Chip size="small" label="İkinci El" variant="outlined" />)}
@@ -607,12 +717,17 @@ const Vitrin = () => {
                   <IconButton size="small" color="primary" onClick={() => openEdit(u)}><EditIcon /></IconButton>
                   <IconButton size="small" color="error" onClick={() => handleDelete(u.id)}><DeleteIcon /></IconButton>
                   <Box sx={{ flexGrow: 1 }} />
-                  <IconButton size="small" disabled={orderSaving || index === 0} onClick={() => moveUrun(u.id, -1)} title="Bir sıra yukarı"><UpIcon /></IconButton>
-                  <IconButton size="small" disabled={orderSaving || index === urunler.length - 1} onClick={() => moveUrun(u.id, 1)} title="Bir sıra aşağı"><DownIcon /></IconButton>
+                  {!arsivGorunumu && (
+                    <>
+                      <IconButton size="small" disabled={orderSaving || !siraDegistirilebilir || index === 0} onClick={() => moveUrun(u.id, -1)} title="Bir sıra yukarı"><UpIcon /></IconButton>
+                      <IconButton size="small" disabled={orderSaving || !siraDegistirilebilir || index === aktifler.length - 1} onClick={() => moveUrun(u.id, 1)} title="Bir sıra aşağı"><DownIcon /></IconButton>
+                    </>
+                  )}
                 </CardActions>
               </Card>
             </Grid>
-          ))}
+            );
+          })}
         </Grid>
         </>
       )}
@@ -818,6 +933,9 @@ const Vitrin = () => {
             )}
             <TextField label="Personel Adı" value={iletForm.personel_adi} onChange={e => setIletForm({ ...iletForm, personel_adi: e.target.value })} fullWidth />
             <TextField label="Telefon" value={iletForm.telefon} onChange={e => setIletForm({ ...iletForm, telefon: e.target.value })} fullWidth placeholder="05XX XXX XX XX" helperText={isHizmet ? 'WhatsApp butonu bu numarayı kullanır' : ''} />
+            {/* İkinci personel isteğe bağlıdır; doldurulursa sitede birinci kişinin yanında gösterilir */}
+            <TextField label="2. Personel Adı (opsiyonel)" value={iletForm.personel_adi_2} onChange={e => setIletForm({ ...iletForm, personel_adi_2: e.target.value })} fullWidth />
+            <TextField label="2. Personel Telefon (opsiyonel)" value={iletForm.telefon_2} onChange={e => setIletForm({ ...iletForm, telefon_2: e.target.value })} fullWidth placeholder="05XX XXX XX XX" />
             <TextField label={isHizmet ? 'Açıklama (opsiyonel)' : 'Not (opsiyonel)'} value={iletForm.aciklama} onChange={e => setIletForm({ ...iletForm, aciklama: e.target.value })} fullWidth multiline minRows={2} />
           </Stack>
         </DialogContent>
